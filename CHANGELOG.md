@@ -5,6 +5,29 @@ All notable changes to the DotnetEventBus project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-03-16
+
+### Added
+- Multi-stage Dockerfile with builder, runtime, development, package, and production targets
+- HTTP-based HEALTHCHECK using `/health` endpoint on port 8080
+- Migration guide for v1.x to v2.0 (`docs/MIGRATION_v2.md`)
+- Non-root user execution in all Docker stages for improved security
+- Explicit `ASPNETCORE_URLS` and `DOTNET_ENVIRONMENT` configuration in all stages
+
+### Changed
+- Default port changed from 5000 to 8080 across all Docker and compose configurations
+- Docker runtime base image switched from `dotnet/runtime:10.0` to `dotnet/aspnet:10.0`
+- Production stage now uses aspnet base instead of full SDK, reducing image size
+- Health check strategy changed from file-based marker to HTTP endpoint probe
+- Health check `start-period` increased from 5s to 10s for cold start reliability
+- docker-compose services updated to use port 8080 consistently
+- Example API service remapped to host port 8081 to avoid production port conflict
+
+### Breaking
+- Port 5000 is no longer the default - all services now listen on 8080
+- Health check requires `/health` endpoint to be mapped in the application
+- Production Docker stage no longer includes .NET SDK tools
+
 ## [1.0.0] - 2025-06-16
 
 ### Added
@@ -116,9 +139,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | .NET | Status     |
 |---------|------|------------|
-| 1.0.0   | 10.0 | Active     |
-| 0.8.0   | 10.0 | Supported  |
-| 0.5.0   | 10.0 | Maintained |
+| 2.0.0   | 10.0 | Active     |
+| 1.0.0   | 10.0 | Supported  |
+| 0.8.0   | 10.0 | Maintained |
+| 0.5.0   | 10.0 | Outdated   |
 | 0.2.0   | 10.0 | Outdated   |
 | 0.1.0   | 10.0 | Outdated   |
 
@@ -127,6 +151,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **0.5.0:**
 - `EventBus.PublishAsync` now returns `PublishResult` (was `void`)
 - Handler base class renamed from `HandlerBase<T>` to `EventHandlerBase<T>`
+
+**2.0.0:**
+- Default port changed from 5000 to 8080
+- Health check requires HTTP `/health` endpoint
+- Production Docker stage no longer includes .NET SDK
 
 **1.0.0:**
 - No breaking changes (fully backward compatible with 0.8.x)
