@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -17,7 +19,7 @@ namespace DotnetEventBus.Services;
 /// <summary>
 /// In-process event bus implementation supporting pub/sub and request/reply patterns.
 /// </summary>
-public class EventBus : IEventBus
+public sealed class EventBus : IEventBus
 {
     private readonly EventBusOptions _options;
     private readonly ILogger<EventBus>? _logger;
@@ -64,7 +66,7 @@ public class EventBus : IEventBus
         CancellationToken cancellationToken = default)
         where TEvent : class
     {
-        if (@event == null)
+        if (@event is null)
             throw new ArgumentNullException(nameof(@event));
 
         var eventType = typeof(TEvent).FullName ?? typeof(TEvent).Name;
@@ -77,9 +79,9 @@ public class EventBus : IEventBus
         string? correlationId = null,
         CancellationToken cancellationToken = default)
     {
-        if (@event == null)
+        if (@event is null)
             throw new ArgumentNullException(nameof(@event));
-        if (eventType == null)
+        if (eventType is null)
             throw new ArgumentNullException(nameof(eventType));
 
         var startTime = DateTime.UtcNow;
@@ -151,7 +153,7 @@ public class EventBus : IEventBus
         where TRequest : class
         where TResponse : class
     {
-        if (request == null)
+        if (request is null)
             throw new ArgumentNullException(nameof(request));
 
         throw new NotImplementedException("Request/reply pattern requires distributed transport configuration");
@@ -160,7 +162,7 @@ public class EventBus : IEventBus
     public IDisposable Subscribe<TEvent>(IEventHandler<TEvent> handler)
         where TEvent : class
     {
-        if (handler == null)
+        if (handler is null)
             throw new ArgumentNullException(nameof(handler));
 
         var eventType = typeof(TEvent).FullName ?? typeof(TEvent).Name;
@@ -191,7 +193,7 @@ public class EventBus : IEventBus
         int priority = 0)
         where TEvent : class
     {
-        if (handler == null)
+        if (handler is null)
             throw new ArgumentNullException(nameof(handler));
 
         var eventType = typeof(TEvent).FullName ?? typeof(TEvent).Name;

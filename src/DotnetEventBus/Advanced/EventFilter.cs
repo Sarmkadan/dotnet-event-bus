@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -15,7 +17,7 @@ namespace DotnetEventBus.Advanced;
 /// Allows handlers to filter events based on predicates before processing.
 /// Why: Reduces unnecessary handler invocations by filtering at the bus level.
 /// </summary>
-public class EventFilter<T> where T : class
+public sealed class EventFilter<T> where T : class
 {
     private readonly List<Func<T, bool>> _predicates = [];
 

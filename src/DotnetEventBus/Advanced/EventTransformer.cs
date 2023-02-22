@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -13,7 +15,7 @@ namespace DotnetEventBus.Advanced;
 /// Supports fluent transformation chains and composition.
 /// Why: Allows handlers to receive events in a format optimized for their needs.
 /// </summary>
-public class EventTransformer<TSource, TTarget> where TSource : class where TTarget : class
+public sealed class EventTransformer<TSource, TTarget> where TSource : class where TTarget : class
 {
     private readonly Func<TSource, TTarget> _transformFunc;
     private readonly List<Func<TTarget, TTarget>> _postTransforms = [];
@@ -76,7 +78,7 @@ public class EventTransformer<TSource, TTarget> where TSource : class where TTar
 /// <summary>
 /// Builder for creating event transformers fluently.
 /// </summary>
-public class EventTransformerBuilder
+public sealed class EventTransformerBuilder
 {
     /// <summary>
     /// Creates a transformer from source to target type.
@@ -102,7 +104,7 @@ public class EventTransformerBuilder
             foreach (var sourceProp in sourceProps)
             {
                 var targetProp = targetProps.FirstOrDefault(p => p.Name == sourceProp.Name && p.CanWrite);
-                if (targetProp != null)
+                if (targetProp is not null)
                 {
                     try
                     {

@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -16,7 +18,7 @@ namespace DotnetEventBus.Cli;
 /// Provides commands for publishing, subscribing, querying, and managing events.
 /// Why: Enables system operators to interact with the event bus without code.
 /// </summary>
-public class CommandLineInterface
+public sealed class CommandLineInterface
 {
     private readonly Dictionary<string, ICommand> _commands = [];
     private readonly StringBuilder _helpText = new();
@@ -130,7 +132,7 @@ public interface ICommand
 /// <summary>
 /// Result of command execution.
 /// </summary>
-public class CommandResult
+public sealed class CommandResult
 {
     public bool Success { get; }
     public string Message { get; }

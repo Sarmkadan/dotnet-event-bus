@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -14,7 +16,7 @@ namespace DotnetEventBus.Integration;
 /// Stops hammering failing endpoints and allows them time to recover.
 /// Why: Prevents cascading failures and improves overall system stability.
 /// </summary>
-public class CircuitBreaker
+public sealed class CircuitBreaker
 {
     private CircuitBreakerState _state = CircuitBreakerState.Closed;
     private int _failureCount = 0;
@@ -168,7 +170,7 @@ public enum CircuitBreakerState
     HalfOpen    // Testing if service recovered
 }
 
-public class CircuitBreakerOpenException : Exception
+public sealed class CircuitBreakerOpenException : Exception
 {
     public CircuitBreakerOpenException(string message) : base(message) { }
 }

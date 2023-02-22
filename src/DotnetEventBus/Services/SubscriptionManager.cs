@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -48,7 +50,7 @@ public interface ISubscriptionManager
 /// <summary>
 /// Information about a subscription.
 /// </summary>
-public class SubscriptionInfo
+public sealed class SubscriptionInfo
 {
     public string Id { get; set; } = string.Empty;
     public string EventType { get; set; } = string.Empty;
@@ -63,7 +65,7 @@ public class SubscriptionInfo
 /// <summary>
 /// Statistics about subscriptions.
 /// </summary>
-public class SubscriptionStatistics
+public sealed class SubscriptionStatistics
 {
     public int TotalSubscriptions { get; set; }
     public int ActiveSubscriptions { get; set; }
@@ -78,7 +80,7 @@ public class SubscriptionStatistics
 /// <summary>
 /// Default implementation of subscription management.
 /// </summary>
-public class SubscriptionManager : ISubscriptionManager
+public sealed class SubscriptionManager : ISubscriptionManager
 {
     private readonly ISubscriptionRepository _repository;
     private readonly ILogger<SubscriptionManager>? _logger;

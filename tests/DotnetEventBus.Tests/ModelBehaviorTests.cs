@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -9,7 +11,7 @@ using DotnetEventBus.Models;
 
 namespace DotnetEventBus.Tests;
 
-public class EventMessageModelTests
+public sealed class EventMessageModelTests
 {
     [Fact]
     public void CreateRetry_ShouldIncrementProcessingAttemptsAndPreserveHeaders()
@@ -57,7 +59,7 @@ public class EventMessageModelTests
     }
 }
 
-public class SubscriptionModelTests
+public sealed class SubscriptionModelTests
 {
     [Fact]
     public void Disable_ThenEnable_ShouldToggleIsActiveCorrectly()

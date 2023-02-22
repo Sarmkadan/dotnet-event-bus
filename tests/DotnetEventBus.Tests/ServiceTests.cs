@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -15,7 +17,7 @@ namespace DotnetEventBus.Tests;
 /// <summary>
 /// Unit tests for DeadLetterService.
 /// </summary>
-public class DeadLetterServiceTests
+public sealed class DeadLetterServiceTests
 {
     private readonly IDeadLetterRepository _repository = new InMemoryDeadLetterRepository();
     private readonly IDeadLetterService _service;
@@ -106,7 +108,7 @@ public class DeadLetterServiceTests
 /// <summary>
 /// Unit tests for SubscriptionManager.
 /// </summary>
-public class SubscriptionManagerTests
+public sealed class SubscriptionManagerTests
 {
     private readonly ISubscriptionRepository _repository = new InMemorySubscriptionRepository();
     private readonly ISubscriptionManager _manager;
@@ -178,7 +180,7 @@ public class SubscriptionManagerTests
 /// <summary>
 /// Unit tests for HandlerInvoker.
 /// </summary>
-public class HandlerInvokerTests
+public sealed class HandlerInvokerTests
 {
     [Fact]
     public async Task InvokeAsync_WithValidHandler_ShouldInvoke()
@@ -242,7 +244,7 @@ public class HandlerInvokerTests
 /// <summary>
 /// Unit tests for configuration and options.
 /// </summary>
-public class ConfigurationTests
+public sealed class ConfigurationTests
 {
     [Fact]
     public void EventBusOptions_Validate_ShouldThrowOnInvalidOptions()

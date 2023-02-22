@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -160,7 +162,7 @@ public abstract class PolymorphicHandlerBase : IPolymorphicHandler
     /// </summary>
     protected void RegisterHandledType(Type eventType)
     {
-        if (eventType == null)
+        if (eventType is null)
             throw new ArgumentNullException(nameof(eventType));
 
         SupportedTypes.Add(eventType);

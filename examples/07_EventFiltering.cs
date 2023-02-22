@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -15,7 +17,7 @@ namespace DotnetEventBus.Examples;
 /// </summary>
 public static class EventFilteringExample
 {
-    public class SalesEvent
+    public sealed class SalesEvent
     {
         public string OrderId { get; set; }
         public string Region { get; set; }
@@ -24,7 +26,7 @@ public static class EventFilteringExample
         public DateTime Timestamp { get; set; }
     }
 
-    public class AlertEvent
+    public sealed class AlertEvent
     {
         public string AlertId { get; set; }
         public string Severity { get; set; } // Critical, High, Medium, Low

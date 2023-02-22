@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -15,7 +17,7 @@ namespace DotnetEventBus.Advanced;
 /// Tracks timing, counts, errors, and throughput for observability.
 /// Why: Provides visibility into system health and performance bottlenecks.
 /// </summary>
-public class MetricsCollector
+public sealed class MetricsCollector
 {
     private readonly ConcurrentDictionary<string, EventMetrics> _metrics = [];
     private readonly ConcurrentDictionary<string, HandlerMetrics> _handlerMetrics = [];
@@ -151,7 +153,7 @@ public class MetricsCollector
     }
 }
 
-public class EventMetrics
+public sealed class EventMetrics
 {
     public string? EventType { get; set; }
     public long PublishCount { get; set; }
@@ -168,7 +170,7 @@ public class EventMetrics
         : 100;
 }
 
-public class HandlerMetrics
+public sealed class HandlerMetrics
 {
     public string? HandlerName { get; set; }
     public string? EventType { get; set; }
@@ -182,7 +184,7 @@ public class HandlerMetrics
         : 100;
 }
 
-public class SystemMetrics
+public sealed class SystemMetrics
 {
     public DateTime StartTime { get; set; }
     public TimeSpan UpTime { get; set; }

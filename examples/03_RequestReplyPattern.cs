@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -16,12 +18,12 @@ namespace DotnetEventBus.Examples;
 public static class RequestReplyPatternExample
 {
     // Request/Response models
-    public class GetUserRequest
+    public sealed class GetUserRequest
     {
         public string UserId { get; set; }
     }
 
-    public class UserResponse
+    public sealed class UserResponse
     {
         public string UserId { get; set; }
         public string Name { get; set; }
@@ -29,12 +31,12 @@ public static class RequestReplyPatternExample
         public string Status { get; set; }
     }
 
-    public class GetProductAvailabilityRequest
+    public sealed class GetProductAvailabilityRequest
     {
         public string ProductId { get; set; }
     }
 
-    public class ProductAvailabilityResponse
+    public sealed class ProductAvailabilityResponse
     {
         public string ProductId { get; set; }
         public int AvailableUnits { get; set; }
@@ -42,14 +44,14 @@ public static class RequestReplyPatternExample
         public decimal Price { get; set; }
     }
 
-    public class GetPricingRequest
+    public sealed class GetPricingRequest
     {
         public string ProductId { get; set; }
         public int Quantity { get; set; }
         public string CustomerTier { get; set; }
     }
 
-    public class PricingResponse
+    public sealed class PricingResponse
     {
         public string ProductId { get; set; }
         public decimal UnitPrice { get; set; }

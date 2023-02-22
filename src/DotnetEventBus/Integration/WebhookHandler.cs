@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -16,7 +18,7 @@ namespace DotnetEventBus.Integration;
 /// Provides signature verification for security and filtering capabilities.
 /// Why: Webhooks allow external systems to react to events in near real-time.
 /// </summary>
-public class WebhookHandler
+public sealed class WebhookHandler
 {
     private readonly List<WebhookSubscription> _subscriptions = [];
     private readonly string? _signingSecret;
@@ -43,7 +45,7 @@ public class WebhookHandler
     public bool Unsubscribe(string subscriptionId)
     {
         var subscription = _subscriptions.FirstOrDefault(s => s.Id == subscriptionId);
-        if (subscription == null)
+        if (subscription is null)
             return false;
 
         _subscriptions.Remove(subscription);
@@ -103,7 +105,7 @@ public class WebhookHandler
     public bool UpdateSubscription(string subscriptionId, Action<WebhookSubscription> updates)
     {
         var subscription = _subscriptions.FirstOrDefault(s => s.Id == subscriptionId);
-        if (subscription == null)
+        if (subscription is null)
             return false;
 
         updates(subscription);
@@ -114,7 +116,7 @@ public class WebhookHandler
 /// <summary>
 /// Represents a webhook subscription for event delivery.
 /// </summary>
-public class WebhookSubscription
+public sealed class WebhookSubscription
 {
     public string? Id { get; set; }
     public required string Url { get; set; }

@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -35,7 +37,7 @@ public abstract class EventBusApiController
             return ApiResponse<EventPublishResult>.Error("Event type is required");
         }
 
-        if (payload == null)
+        if (payload is null)
         {
             return ApiResponse<EventPublishResult>.Error("Payload is required");
         }
@@ -65,7 +67,7 @@ public abstract class EventBusApiController
     /// </summary>
     public virtual async Task<ApiResponse<BatchPublishResult>> PublishBatchAsync(List<EventEnvelope> events)
     {
-        if (events == null || events.Count == 0)
+        if (events is null || events.Count == 0)
         {
             return ApiResponse<BatchPublishResult>.Error("At least one event is required");
         }
@@ -135,7 +137,7 @@ public abstract class EventBusApiController
 /// <summary>
 /// Generic API response wrapper.
 /// </summary>
-public class ApiResponse<T>
+public sealed class ApiResponse<T>
 {
     public bool IsSuccess { get; set; }
     public T? Data { get; set; }
@@ -164,7 +166,7 @@ public class ApiResponse<T>
 /// <summary>
 /// Result of publishing an event.
 /// </summary>
-public class EventPublishResult
+public sealed class EventPublishResult
 {
     public string? EventId { get; set; }
     public string? EventType { get; set; }
@@ -175,7 +177,7 @@ public class EventPublishResult
 /// <summary>
 /// Result of publishing a batch.
 /// </summary>
-public class BatchPublishResult
+public sealed class BatchPublishResult
 {
     public string? BatchId { get; set; }
     public int EventCount { get; set; }
@@ -186,7 +188,7 @@ public class BatchPublishResult
 /// <summary>
 /// Event bus statistics for API responses.
 /// </summary>
-public class EventBusStats
+public sealed class EventBusStats
 {
     public string? Status { get; set; }
     public long TotalEventsPublished { get; set; }

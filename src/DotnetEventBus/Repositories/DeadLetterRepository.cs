@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -54,7 +56,7 @@ public interface IDeadLetterRepository : IRepository<DeadLetterEntry>
 /// <summary>
 /// In-memory implementation of the dead letter repository.
 /// </summary>
-public class InMemoryDeadLetterRepository : InMemoryRepository<DeadLetterEntry>, IDeadLetterRepository
+public sealed class InMemoryDeadLetterRepository : InMemoryRepository<DeadLetterEntry>, IDeadLetterRepository
 {
     public async Task<IEnumerable<DeadLetterEntry>> GetPendingAsync(CancellationToken cancellationToken = default)
     {

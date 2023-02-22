@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -14,7 +16,7 @@ namespace DotnetEventBus.Monitoring;
 /// Performs periodic checks on critical components and reports status.
 /// Why: Enables automated detection of system degradation and failures.
 /// </summary>
-public class HealthCheck
+public sealed class HealthCheck
 {
     private readonly Dictionary<string, IHealthCheckProbe> _probes = [];
     private HealthStatus _lastStatus = HealthStatus.Unknown;
@@ -94,7 +96,7 @@ public interface IHealthCheckProbe
 /// <summary>
 /// Result of a single health check probe.
 /// </summary>
-public class ProbeResult
+public sealed class ProbeResult
 {
     public HealthStatus Status { get; set; }
     public string? Message { get; set; }
@@ -104,7 +106,7 @@ public class ProbeResult
 /// <summary>
 /// Result of the overall health check.
 /// </summary>
-public class HealthCheckResult
+public sealed class HealthCheckResult
 {
     public HealthStatus OverallStatus { get; set; }
     public DateTime CheckedAt { get; set; }
