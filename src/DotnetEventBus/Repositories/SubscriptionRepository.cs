@@ -63,18 +63,13 @@ public interface ISubscriptionRepository : IRepository<Subscription>
 /// </summary>
 public class InMemorySubscriptionRepository : InMemoryRepository<Subscription>, ISubscriptionRepository
 {
-    private readonly object _queryLock = new();
-
     public async Task<IEnumerable<Subscription>> GetByEventTypeAsync(string eventType, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(eventType))
             throw new ArgumentException("Event type cannot be empty", nameof(eventType));
 
-        lock (_queryLock)
-        {
-            var subscriptions = await GetAllAsync(cancellationToken);
-            return subscriptions.Where(s => s.EventType == eventType).ToList();
-        }
+        var subscriptions = await GetAllAsync(cancellationToken);
+        return subscriptions.Where(s => s.EventType == eventType).ToList();
     }
 
     public async Task<IEnumerable<Subscription>> GetActiveByEventTypeAsync(string eventType, CancellationToken cancellationToken = default)
@@ -82,11 +77,8 @@ public class InMemorySubscriptionRepository : InMemoryRepository<Subscription>, 
         if (string.IsNullOrWhiteSpace(eventType))
             throw new ArgumentException("Event type cannot be empty", nameof(eventType));
 
-        lock (_queryLock)
-        {
-            var subscriptions = await GetAllAsync(cancellationToken);
-            return subscriptions.Where(s => s.EventType == eventType && s.IsActive).ToList();
-        }
+        var subscriptions = await GetAllAsync(cancellationToken);
+        return subscriptions.Where(s => s.EventType == eventType && s.IsActive).ToList();
     }
 
     public async Task<IEnumerable<Subscription>> GetByHandlerNameAsync(string handlerName, CancellationToken cancellationToken = default)
@@ -94,29 +86,20 @@ public class InMemorySubscriptionRepository : InMemoryRepository<Subscription>, 
         if (string.IsNullOrWhiteSpace(handlerName))
             throw new ArgumentException("Handler name cannot be empty", nameof(handlerName));
 
-        lock (_queryLock)
-        {
-            var subscriptions = await GetAllAsync(cancellationToken);
-            return subscriptions.Where(s => s.HandlerName == handlerName).ToList();
-        }
+        var subscriptions = await GetAllAsync(cancellationToken);
+        return subscriptions.Where(s => s.HandlerName == handlerName).ToList();
     }
 
     public async Task<IEnumerable<Subscription>> GetAllActiveAsync(CancellationToken cancellationToken = default)
     {
-        lock (_queryLock)
-        {
-            var subscriptions = await GetAllAsync(cancellationToken);
-            return subscriptions.Where(s => s.IsActive).ToList();
-        }
+        var subscriptions = await GetAllAsync(cancellationToken);
+        return subscriptions.Where(s => s.IsActive).ToList();
     }
 
     public async Task<IEnumerable<Subscription>> GetAllInactiveAsync(CancellationToken cancellationToken = default)
     {
-        lock (_queryLock)
-        {
-            var subscriptions = await GetAllAsync(cancellationToken);
-            return subscriptions.Where(s => !s.IsActive).ToList();
-        }
+        var subscriptions = await GetAllAsync(cancellationToken);
+        return subscriptions.Where(s => !s.IsActive).ToList();
     }
 
     public async Task<IEnumerable<Subscription>> GetByEventTypeOrderedByPriorityAsync(
@@ -126,11 +109,8 @@ public class InMemorySubscriptionRepository : InMemoryRepository<Subscription>, 
         if (string.IsNullOrWhiteSpace(eventType))
             throw new ArgumentException("Event type cannot be empty", nameof(eventType));
 
-        lock (_queryLock)
-        {
-            var subscriptions = await GetByEventTypeAsync(eventType, cancellationToken);
-            return subscriptions.OrderByDescending(s => s.Priority).ToList();
-        }
+        var subscriptions = await GetByEventTypeAsync(eventType, cancellationToken);
+        return subscriptions.OrderByDescending(s => s.Priority).ToList();
     }
 
     public async Task<int> CountByEventTypeAsync(string eventType, CancellationToken cancellationToken = default)

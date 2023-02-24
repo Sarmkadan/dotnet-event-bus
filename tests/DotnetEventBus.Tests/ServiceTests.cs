@@ -5,6 +5,7 @@
 
 using Xunit;
 using DotnetEventBus.Services;
+using DotnetEventBus.Configuration;
 using DotnetEventBus.Repositories;
 using DotnetEventBus.Models;
 using Microsoft.Extensions.DependencyInjection;
@@ -90,8 +91,8 @@ public class DeadLetterServiceTests
     {
         // Arrange
         var msg = new EventMessage("Event1", "payload");
-        msg.CreatedAtUtc = DateTime.UtcNow.AddDays(-30);
         var entry = new DeadLetterEntry(msg, "Handler1", new Exception("Test"));
+        entry.CreatedAtUtc = DateTime.UtcNow.AddDays(-30);
         await _repository.AddAsync(entry);
 
         // Act
