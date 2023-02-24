@@ -31,6 +31,7 @@ bld/
 *.user
 *.userosscache
 *.sln.docstates
+*.DotSettings.user
 
 # Test Results
 TestResults/
@@ -41,6 +42,7 @@ TestResults/
 *.nupkg
 *.snupkg
 *.symbols.nupkg
+packages/
 
 # dotnet
 project.lock.json
@@ -50,6 +52,7 @@ artifacts/
 # Local environment variables
 .env
 .env.local
+appsettings.Development.json
 
 # OS files
 .DS_Store
