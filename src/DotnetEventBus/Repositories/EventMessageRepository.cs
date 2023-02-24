@@ -51,18 +51,13 @@ public interface IEventMessageRepository : IRepository<EventMessage>
 /// </summary>
 public class InMemoryEventMessageRepository : InMemoryRepository<EventMessage>, IEventMessageRepository
 {
-    private readonly object _queryLock = new();
-
     public async Task<IEnumerable<EventMessage>> GetByEventTypeAsync(string eventType, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(eventType))
             throw new ArgumentException("Event type cannot be empty", nameof(eventType));
 
-        lock (_queryLock)
-        {
-            var messages = await GetAllAsync(cancellationToken);
-            return messages.Where(m => m.EventType == eventType).ToList();
-        }
+        var messages = await GetAllAsync(cancellationToken);
+        return messages.Where(m => m.EventType == eventType).ToList();
     }
 
     public async Task<IEnumerable<EventMessage>> GetByTimeRangeAsync(
@@ -73,13 +68,10 @@ public class InMemoryEventMessageRepository : InMemoryRepository<EventMessage>, 
         if (endUtc < startUtc)
             throw new ArgumentException("End time must be after start time");
 
-        lock (_queryLock)
-        {
-            var messages = await GetAllAsync(cancellationToken);
-            return messages
-                .Where(m => m.CreatedAtUtc >= startUtc && m.CreatedAtUtc <= endUtc)
-                .ToList();
-        }
+        var messages = await GetAllAsync(cancellationToken);
+        return messages
+            .Where(m => m.CreatedAtUtc >= startUtc && m.CreatedAtUtc <= endUtc)
+            .ToList();
     }
 
     public async Task<IEnumerable<EventMessage>> GetByCorrelationIdAsync(string correlationId, CancellationToken cancellationToken = default)
@@ -87,11 +79,8 @@ public class InMemoryEventMessageRepository : InMemoryRepository<EventMessage>, 
         if (string.IsNullOrWhiteSpace(correlationId))
             throw new ArgumentException("Correlation ID cannot be empty", nameof(correlationId));
 
-        lock (_queryLock)
-        {
-            var messages = await GetAllAsync(cancellationToken);
-            return messages.Where(m => m.CorrelationId == correlationId).ToList();
-        }
+        var messages = await GetAllAsync(cancellationToken);
+        return messages.Where(m => m.CorrelationId == correlationId).ToList();
     }
 
     public async Task<IEnumerable<EventMessage>> GetBySourceAsync(string source, CancellationToken cancellationToken = default)
@@ -99,11 +88,8 @@ public class InMemoryEventMessageRepository : InMemoryRepository<EventMessage>, 
         if (string.IsNullOrWhiteSpace(source))
             throw new ArgumentException("Source cannot be empty", nameof(source));
 
-        lock (_queryLock)
-        {
-            var messages = await GetAllAsync(cancellationToken);
-            return messages.Where(m => m.Source == source).ToList();
-        }
+        var messages = await GetAllAsync(cancellationToken);
+        return messages.Where(m => m.Source == source).ToList();
     }
 
     public async Task<IEnumerable<EventMessage>> GetFailedMessagesAsync(int minAttempts = 1, CancellationToken cancellationToken = default)
@@ -111,11 +97,8 @@ public class InMemoryEventMessageRepository : InMemoryRepository<EventMessage>, 
         if (minAttempts < 1)
             throw new ArgumentException("Minimum attempts must be at least 1", nameof(minAttempts));
 
-        lock (_queryLock)
-        {
-            var messages = await GetAllAsync(cancellationToken);
-            return messages.Where(m => m.ProcessingAttempts >= minAttempts).ToList();
-        }
+        var messages = await GetAllAsync(cancellationToken);
+        return messages.Where(m => m.ProcessingAttempts >= minAttempts).ToList();
     }
 
     public async Task<int> DeleteOldMessagesAsync(TimeSpan retentionPeriod, CancellationToken cancellationToken = default)

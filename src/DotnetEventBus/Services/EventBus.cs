@@ -3,6 +3,7 @@
 // CTO & Software Architect
 // =============================================================================
 
+using System.Reflection;
 using System.Text.Json;
 using DotnetEventBus.Configuration;
 using DotnetEventBus.Exceptions;
@@ -97,12 +98,13 @@ public class EventBus : IEventBus
         {
             await _messageRepository.AddAsync(message, cancellationToken);
 
-            var subscriptions = lock (_subscriptionLock)
+            List<Subscription> subscriptions;
+            lock (_subscriptionLock)
             {
-                return _subscriptions.TryGetValue(eventTypeName, out var subs)
+                subscriptions = _subscriptions.TryGetValue(eventTypeName, out var subs)
                     ? subs.Where(s => s.IsActive).OrderByDescending(s => s.Priority).ToList()
                     : new List<Subscription>();
-            };
+            }
 
             if (subscriptions.Count == 0)
             {
@@ -216,7 +218,7 @@ public class EventBus : IEventBus
         int priority = 0)
         where TEvent : class
     {
-        return Subscribe(
+        return Subscribe<TEvent>(
             (e, ct) =>
             {
                 handler(e);

@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using DotnetEventBus.Models;
+using DotnetEventBus.Services;
 
 namespace DotnetEventBus.Api;
 
@@ -122,7 +123,7 @@ public abstract class EventBusApiController
         try
         {
             // TODO: Check actual health
-            return ApiResponse<HealthStatus>.Success("Healthy");
+            return ApiResponse<HealthStatus>.Success(HealthStatus.Healthy);
         }
         catch (Exception ex)
         {
@@ -136,16 +137,16 @@ public abstract class EventBusApiController
 /// </summary>
 public class ApiResponse<T>
 {
-    public bool Success { get; set; }
+    public bool IsSuccess { get; set; }
     public T? Data { get; set; }
-    public string? Error { get; set; }
+    public string? ErrorMessage { get; set; }
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 
     public static ApiResponse<T> Success(T data)
     {
         return new ApiResponse<T>
         {
-            Success = true,
+            IsSuccess = true,
             Data = data
         };
     }
@@ -154,8 +155,8 @@ public class ApiResponse<T>
     {
         return new ApiResponse<T>
         {
-            Success = false,
-            Error = error
+            IsSuccess = false,
+            ErrorMessage = error
         };
     }
 }

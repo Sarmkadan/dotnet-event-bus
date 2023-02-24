@@ -33,7 +33,7 @@ public class ErrorHandlingMiddleware
         _errorHandler = errorHandler;
     }
 
-    public ErrorHandlingMiddleware Create()
+    public EventBusMiddleware Create()
     {
         return async (context) =>
         {
