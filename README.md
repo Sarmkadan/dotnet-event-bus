@@ -1,3 +1,7 @@
+[![Build](https://github.com/sarmkadan/dotnet-event-bus/actions/workflows/build.yml/badge.svg)](https://github.com/sarmkadan/dotnet-event-bus/actions/workflows/build.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![.NET](https://img.shields.io/badge/.NET-10.0-purple.svg)](https://dotnet.microsoft.com/)
+
 # DotnetEventBus - High-Performance Event Bus for .NET
 
 A production-ready, in-process and distributed event bus for .NET with support for pub/sub messaging, request/reply patterns, dead letter queues, and polymorphic event handlers. Built for high-throughput, low-latency scenarios with comprehensive middleware, resilience patterns, and observability features.
