@@ -19,7 +19,7 @@ A production-ready, in-process and distributed event bus for .NET with support f
 - [Performance](#performance)
 - [Testing](#testing)
 - [Troubleshooting](#troubleshooting)
-- [Ecosystem](#ecosystem)
+- [Related Projects](#related-projects)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -821,7 +821,7 @@ foreach (var check in status.Checks)
 }
 ```
 
-## Ecosystem
+## Related Projects
 
 Part of a collection of .NET libraries and tools. See more at [github.com/sarmkadan](https://github.com/sarmkadan).
 
