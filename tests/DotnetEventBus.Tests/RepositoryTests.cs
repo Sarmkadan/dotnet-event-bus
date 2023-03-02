@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -12,7 +14,7 @@ namespace DotnetEventBus.Tests;
 /// <summary>
 /// Unit tests for repository implementations.
 /// </summary>
-public class InMemoryRepositoryTests
+public sealed class InMemoryRepositoryTests
 {
     [Fact]
     public async Task AddAsync_WithValidEntity_ShouldAddAndRetrieve()
@@ -139,7 +141,7 @@ public class InMemoryRepositoryTests
 /// <summary>
 /// Unit tests for event message repository.
 /// </summary>
-public class EventMessageRepositoryTests
+public sealed class EventMessageRepositoryTests
 {
     private readonly IEventMessageRepository _repository = new InMemoryEventMessageRepository();
 
@@ -205,7 +207,7 @@ public class EventMessageRepositoryTests
 /// <summary>
 /// Unit tests for dead letter repository.
 /// </summary>
-public class DeadLetterRepositoryTests
+public sealed class DeadLetterRepositoryTests
 {
     private readonly IDeadLetterRepository _repository = new InMemoryDeadLetterRepository();
 
@@ -268,7 +270,7 @@ public class DeadLetterRepositoryTests
 /// <summary>
 /// Test entity for repository testing.
 /// </summary>
-public class TestEntity
+public sealed class TestEntity
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
     public string Name { get; set; } = string.Empty;

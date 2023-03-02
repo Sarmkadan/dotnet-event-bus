@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -39,7 +41,7 @@ public interface IHandlerInvoker
 /// <summary>
 /// Default implementation of handler invocation using reflection.
 /// </summary>
-public class HandlerInvoker : IHandlerInvoker
+public sealed class HandlerInvoker : IHandlerInvoker
 {
     private readonly ILogger<HandlerInvoker>? _logger;
     private readonly Dictionary<(Type, Type), MethodInfo> _methodCache = new();
@@ -52,9 +54,9 @@ public class HandlerInvoker : IHandlerInvoker
 
     public async Task InvokeAsync(IEventHandler handler, object @event, CancellationToken cancellationToken = default)
     {
-        if (handler == null)
+        if (handler is null)
             throw new ArgumentNullException(nameof(handler));
-        if (@event == null)
+        if (@event is null)
             throw new ArgumentNullException(nameof(@event));
 
         var eventType = @event.GetType();
@@ -62,7 +64,7 @@ public class HandlerInvoker : IHandlerInvoker
         try
         {
             var method = GetHandleMethod(handler.GetType(), eventType);
-            if (method == null)
+            if (method is null)
                 throw new InvalidOperationException(
                     $"Handler {handler.GetType().Name} does not have a compatible Handle method for {eventType.Name}");
 
@@ -85,9 +87,9 @@ public class HandlerInvoker : IHandlerInvoker
 
     public async Task<object?> InvokeRequestAsync(object handler, object request, CancellationToken cancellationToken = default)
     {
-        if (handler == null)
+        if (handler is null)
             throw new ArgumentNullException(nameof(handler));
-        if (request == null)
+        if (request is null)
             throw new ArgumentNullException(nameof(request));
 
         var requestType = request.GetType();
@@ -104,7 +106,7 @@ public class HandlerInvoker : IHandlerInvoker
                     m.ReturnType.IsGenericType &&
                     m.ReturnType.GetGenericTypeDefinition() == typeof(Task<>));
 
-            if (method == null)
+            if (method is null)
                 throw new InvalidOperationException(
                     $"Handler {handlerType.Name} does not have a compatible Handle method for request {requestType.Name}");
 
@@ -130,20 +132,20 @@ public class HandlerInvoker : IHandlerInvoker
 
     public bool CanHandle(IEventHandler handler, Type eventType)
     {
-        if (handler == null)
+        if (handler is null)
             throw new ArgumentNullException(nameof(handler));
-        if (eventType == null)
+        if (eventType is null)
             throw new ArgumentNullException(nameof(eventType));
 
         if (handler is IPolymorphicHandler polymorphic)
             return polymorphic.CanHandle(eventType);
 
-        return GetHandleMethod(handler.GetType(), eventType) != null;
+        return GetHandleMethod(handler.GetType(), eventType) is not null;
     }
 
     public IEnumerable<Type> GetSupportedEventTypes(IEventHandler handler)
     {
-        if (handler == null)
+        if (handler is null)
             throw new ArgumentNullException(nameof(handler));
 
         var supportedTypes = new List<Type>();

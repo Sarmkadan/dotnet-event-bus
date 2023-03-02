@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -37,7 +39,7 @@ public abstract class EventSourcedAggregate
             new[] { @event.GetType() },
             null);
 
-        if (method != null)
+        if (method is not null)
         {
             method.Invoke(this, new[] { @event });
         }
@@ -129,7 +131,7 @@ public abstract class EventSourcedAggregate
 /// Represents a snapshot of an aggregate's state at a point in time.
 /// Used to optimize event replay by jumping to a known good state.
 /// </summary>
-public class AggregateSnapshot
+public sealed class AggregateSnapshot
 {
     public string? AggregateId { get; set; }
     public string? AggregateType { get; set; }
@@ -141,7 +143,7 @@ public class AggregateSnapshot
 /// <summary>
 /// Configuration for event sourcing behavior.
 /// </summary>
-public class EventSourcingOptions
+public sealed class EventSourcingOptions
 {
     /// <summary>
     /// Number of events after which a snapshot should be created.

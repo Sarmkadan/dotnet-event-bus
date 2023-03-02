@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -18,7 +20,7 @@ namespace DotnetEventBus.Workers;
 /// Attempts to reprocess failed events and track retry statistics.
 /// Why: Ensures no events are permanently lost and provides visibility into failures.
 /// </summary>
-public class DeadLetterProcessor : BackgroundService
+public sealed class DeadLetterProcessor : BackgroundService
 {
     private readonly ILogger<DeadLetterProcessor> _logger;
     private readonly TimeSpan _processingInterval;
@@ -156,7 +158,7 @@ public class DeadLetterProcessor : BackgroundService
     public bool RemoveItem(string id)
     {
         var item = _deadLetterQueue.FirstOrDefault(x => x.Id == id);
-        if (item != null)
+        if (item is not null)
         {
             _deadLetterQueue.Remove(item);
             return true;
@@ -166,7 +168,7 @@ public class DeadLetterProcessor : BackgroundService
     }
 }
 
-public class DeadLetterItem
+public sealed class DeadLetterItem
 {
     public string? Id { get; set; }
     public string? EventType { get; set; }
@@ -187,7 +189,7 @@ public enum DeadLetterStatus
     Failed
 }
 
-public class DeadLetterStats
+public sealed class DeadLetterStats
 {
     public int TotalItems { get; set; }
     public int PendingItems { get; set; }

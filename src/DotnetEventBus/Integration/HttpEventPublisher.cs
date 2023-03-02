@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -17,7 +19,7 @@ namespace DotnetEventBus.Integration;
 /// Supports retry logic, timeouts, and header customization.
 /// Why: Enables integration with external services and microservices over HTTP.
 /// </summary>
-public class HttpEventPublisher
+public sealed class HttpEventPublisher
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<HttpEventPublisher> _logger;
@@ -56,7 +58,7 @@ public class HttpEventPublisher
                     contentType ?? "application/json");
 
                 // Add custom headers
-                if (customHeaders != null)
+                if (customHeaders is not null)
                 {
                     foreach (var header in customHeaders)
                     {
@@ -120,7 +122,7 @@ public class HttpEventPublisher
     }
 }
 
-public class HttpEventPublisherOptions
+public sealed class HttpEventPublisherOptions
 {
     public int MaxRetries { get; set; } = 3;
     public int RetryDelayMs { get; set; } = 1000;
@@ -128,7 +130,7 @@ public class HttpEventPublisherOptions
     public string? CorrelationIdHeaderName { get; set; } = "X-Correlation-Id";
 }
 
-public class HttpPublishResult
+public sealed class HttpPublishResult
 {
     public bool Success { get; }
     public int StatusCode { get; }

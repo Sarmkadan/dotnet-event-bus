@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -59,7 +61,7 @@ public interface IEventCache
 /// <summary>
 /// Statistics about cache performance.
 /// </summary>
-public class CacheStats
+public sealed class CacheStats
 {
     public long Hits { get; set; }
     public long Misses { get; set; }

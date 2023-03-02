@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -15,14 +17,14 @@ namespace DotnetEventBus.Examples;
 /// </summary>
 public static class DeadLetterQueueHandlingExample
 {
-    public class PaymentProcessingEvent
+    public sealed class PaymentProcessingEvent
     {
         public string OrderId { get; set; }
         public decimal Amount { get; set; }
         public string PaymentMethod { get; set; }
     }
 
-    public class NotificationEvent
+    public sealed class NotificationEvent
     {
         public string RecipientId { get; set; }
         public string Message { get; set; }
@@ -30,7 +32,7 @@ public static class DeadLetterQueueHandlingExample
     }
 
     // Handler that sometimes fails (simulates external service failures)
-    public class FlakeyPaymentHandler : EventHandlerBase<PaymentProcessingEvent>
+    public sealed class FlakeyPaymentHandler : EventHandlerBase<PaymentProcessingEvent>
     {
         private static int _callCount = 0;
 
@@ -51,7 +53,7 @@ public static class DeadLetterQueueHandlingExample
     }
 
     // Handler that logs failures
-    public class NotificationHandler : EventHandlerBase<NotificationEvent>
+    public sealed class NotificationHandler : EventHandlerBase<NotificationEvent>
     {
         private static int _notificationCount = 0;
 

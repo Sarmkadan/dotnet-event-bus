@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -8,7 +10,7 @@ namespace DotnetEventBus.Models;
 /// <summary>
 /// Represents a message published to the event bus.
 /// </summary>
-public class EventMessage
+public sealed class EventMessage
 {
     /// <summary>
     /// Unique identifier for this message (alias for MessageId, required by repository infrastructure).
