@@ -102,7 +102,7 @@ DotnetEventBus is a lightweight yet feature-complete event bus designed to handl
 │  │           Middleware Pipeline                          │ │
 │  │ ┌─────────────┬──────────────┬──────────────────────┐ │ │
 │  │ │  Logging    │  Error       │  Rate Limiting       │ │ │
-│  │ │  Middleware │  Handling    │  Middleware          │ │ │
+│  │ │  Handling    │  Middleware │  Middleware          │ │ │
 │  │ └─────────────┴──────────────┴──────────────────────┘ │ │
 │  └────────────────────────────────────────────────────────┘ │
 │                       │                                      │
@@ -151,7 +151,7 @@ dotnet add package DotnetEventBus
 ### From Source
 
 ```bash
-git clone https://github.com/Sarmkadan/dotnet-event-bus.git
+git clone https://github.com/sarmkadan/dotnet-event-bus.git
 cd dotnet-event-bus
 dotnet build
 dotnet test
@@ -809,7 +809,8 @@ services.AddLogging(builder =>
 // Use performance profiler
 var profiler = serviceProvider.GetRequiredService<IPerformanceProfiler>();
 var report = profiler.GenerateReport();
-Console.WriteLine($"Report:\n{report}");
+Console.WriteLine($"Report:
+{report}");
 
 // Monitor health
 var healthCheck = serviceProvider.GetRequiredService<IHealthCheck>();
