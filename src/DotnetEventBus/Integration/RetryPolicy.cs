@@ -25,7 +25,7 @@ public sealed class RetryPolicy
     private TimeSpan _maxDelay = TimeSpan.FromMinutes(5);
     private bool _useJitter = true;
     private Func<Exception, bool>? _retryableExceptionFilter;
-    private readonly Random _random = new();
+    private Func<int, Exception, TimeSpan, Task>? _onRetryCallback;
 
     /// <summary>
     /// Sets the maximum number of retry attempts.
@@ -95,16 +95,27 @@ public sealed class RetryPolicy
     }
 
     /// <summary>
+    /// Sets a callback invoked before each retry attempt.
+    /// Receives the attempt number (1-based), the exception, and the delay before the retry.
+    /// Useful for logging, metrics, or adjusting external state between retries.
+    /// </summary>
+    public RetryPolicy OnRetry(Func<int, Exception, TimeSpan, Task>? callback)
+    {
+        _onRetryCallback = callback;
+        return this;
+    }
+
+    /// <summary>
     /// Executes an async operation with retry logic.
+    /// Returns the result along with execution metadata.
     /// </summary>
     public async Task<T> ExecuteAsync<T>(Func<Task<T>> operation)
     {
         ArgumentNullException.ThrowIfNull(operation);
 
         int attempt = 0;
-        Exception? lastException = null;
 
-        while (attempt <= _maxRetries)
+        while (true)
         {
             try
             {
@@ -112,33 +123,30 @@ public sealed class RetryPolicy
             }
             catch (Exception ex)
             {
-                lastException = ex;
-
                 if (!IsRetryable(ex) || attempt >= _maxRetries)
-                {
                     throw;
-                }
 
                 var delay = CalculateDelay(attempt);
+
+                if (_onRetryCallback is not null)
+                    await _onRetryCallback(attempt + 1, ex, delay);
+
                 await Task.Delay(delay);
                 attempt++;
             }
         }
-
-        throw lastException ?? new InvalidOperationException("Operation failed");
     }
 
     /// <summary>
-    /// Executes an async operation with retry logic (void).
+    /// Executes an async operation with retry logic (void return).
     /// </summary>
     public async Task ExecuteAsync(Func<Task> operation)
     {
         ArgumentNullException.ThrowIfNull(operation);
 
         int attempt = 0;
-        Exception? lastException = null;
 
-        while (attempt <= _maxRetries)
+        while (true)
         {
             try
             {
@@ -147,20 +155,18 @@ public sealed class RetryPolicy
             }
             catch (Exception ex)
             {
-                lastException = ex;
-
                 if (!IsRetryable(ex) || attempt >= _maxRetries)
-                {
                     throw;
-                }
 
                 var delay = CalculateDelay(attempt);
+
+                if (_onRetryCallback is not null)
+                    await _onRetryCallback(attempt + 1, ex, delay);
+
                 await Task.Delay(delay);
                 attempt++;
             }
         }
-
-        throw lastException ?? new InvalidOperationException("Operation failed");
     }
 
     private TimeSpan CalculateDelay(int attemptNumber)
@@ -172,8 +178,9 @@ public sealed class RetryPolicy
         if (_useJitter)
         {
             // Add jitter: ±10% of the calculated delay
+            // Using Random.Shared for thread safety (safe for concurrent callers)
             var jitterRange = delayMs * 0.1;
-            delayMs += (_random.NextDouble() * jitterRange * 2) - jitterRange;
+            delayMs += (Random.Shared.NextDouble() * jitterRange * 2) - jitterRange;
         }
 
         return TimeSpan.FromMilliseconds(delayMs);
