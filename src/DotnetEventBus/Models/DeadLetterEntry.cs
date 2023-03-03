@@ -70,7 +70,9 @@ public sealed class DeadLetterEntry
         Message = message ?? throw new ArgumentNullException(nameof(message));
         FailedHandlerName = failedHandlerName ?? throw new ArgumentNullException(nameof(failedHandlerName));
         ExceptionMessage = exception?.Message ?? "Unknown exception";
-        ExceptionStackTrace = exception?.StackTrace;
+        // Hotfix: Capture full exception details including stack trace and inner exceptions
+        // using ToString() instead of just StackTrace property to preserve complete exception chain
+        ExceptionStackTrace = exception?.ToString();
         CreatedAtUtc = DateTime.UtcNow;
         MaxRetryAttempts = maxRetryAttempts;
         Status = DeadLetterStatus.Pending;
