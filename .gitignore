@@ -1,8 +1,6 @@
-# Build results
+## Build results
 [Dd]ebug/
-[Dd]ebugPublic/
 [Rr]elease/
-[Rr]eleases/
 x64/
 x86/
 [Ww][Ii][Nn]32/
@@ -11,52 +9,57 @@ x86/
 bld/
 [Bb]in/
 [Oo]bj/
+[Oo]ut/
 [Ll]og/
 [Ll]ogs/
+msbuild.log
+msbuild.err
+msbuild.wrn
 
-# Visual Studio cache/options directory
+## NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+project.lock.json
+project.fragment.lock.json
+
+## Visual Studio
 .vs/
-
-# Visual Studio Code
-.vscode/
-*.code-workspace
-
-# Rider
-.idea/
-*.sln.iml
-
-# User-specific files
-*.rsuser
 *.suo
 *.user
 *.userosscache
 *.sln.docstates
-*.DotSettings.user
-
-# Test Results
-TestResults/
-*.trx
-*.coverage
-
-# NuGet Packages
-*.nupkg
-*.snupkg
-*.symbols.nupkg
-packages/
-
-# dotnet
-project.lock.json
-project.fragment.lock.json
+*.userprefs
+*.rsuser
+[Tt]est[Rr]esult*/
+[Dd]ebugPublic/
+[Rr]eleases/
+BenchmarkDotNet.Artifacts/
 artifacts/
 
-# Local environment variables
-.env
-.env.local
-appsettings.Development.json
+## Rider
+.idea/
+*.sln.iml
 
-# OS files
+## VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+## User-specific
+*.DotSettings.user
+
+## OS
 .DS_Store
 Thumbs.db
+ehthumbs.db
+Desktop.ini
 
-# npm/node (if needed for any tooling)
-node_modules/
+## dotnet tool
+.dotnet/
