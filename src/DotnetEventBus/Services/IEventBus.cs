@@ -11,12 +11,33 @@ using DotnetEventBus.Handlers;
 namespace DotnetEventBus.Services;
 
 /// <summary>
-/// Core interface for the event bus providing pub/sub, request/reply, and message handling capabilities.
+/// Core interface for the in-process event bus providing publish/subscribe, request/reply,
+/// and dead-letter handling capabilities. Supports both strongly-typed and dynamic event publishing.
 /// </summary>
+/// <remarks>
+/// <para>
+/// The event bus supports three communication patterns:
+/// <list type="bullet">
+///   <item><b>Publish/Subscribe</b> - fire-and-forget broadcasting to multiple handlers via <see cref="PublishAsync{TEvent}"/></item>
+///   <item><b>Request/Reply</b> - synchronous request with typed response via <see cref="SendAsync{TRequest,TResponse}"/></item>
+///   <item><b>Dead Letter</b> - failed events are captured for later inspection and retry</item>
+/// </list>
+/// </para>
+/// <para>
+/// Handlers are registered via <see cref="Subscribe{TEvent}(IEventHandler{TEvent})"/> and can be
+/// unregistered by disposing the returned <see cref="IDisposable"/>. Handlers support priority ordering -
+/// lower priority values execute first.
+/// </para>
+/// <para>
+/// Configure via <see cref="EventBusBuilder"/> at startup. Use the <see cref="GetOptions"/> method
+/// to inspect the current configuration at runtime.
+/// </para>
+/// </remarks>
 public interface IEventBus
 {
     /// <summary>
-    /// Publishes an event to all registered handlers.
+    /// Publishes an event to all registered handlers for <typeparamref name="TEvent"/>.
+    /// Returns a <see cref="PublishResult"/> indicating how many handlers processed the event.
     /// </summary>
     Task<PublishResult> PublishAsync<TEvent>(
         TEvent @event,
