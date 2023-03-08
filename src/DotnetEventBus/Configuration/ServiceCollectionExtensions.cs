@@ -74,10 +74,18 @@ public static class ServiceCollectionExtensions
                 messageRepository,
                 subscriptionRepository,
                 deadLetterRepository,
+                sp.GetRequiredService<IDeadLetterService>(),
+                sp.GetRequiredService<IEventFormatter>(),
                 options,
                 sp.GetService<Microsoft.Extensions.Logging.ILogger<EventBus>>()));
         services.AddSingleton<IDeadLetterService, DeadLetterService>();
         services.AddSingleton<ISubscriptionManager, SubscriptionManager>();
+        services.AddSingleton<IHandlerInvoker, HandlerInvoker>();
+
+        return services;
+    }
+}
+r, SubscriptionManager>();
         services.AddSingleton<IHandlerInvoker, HandlerInvoker>();
 
         return services;
