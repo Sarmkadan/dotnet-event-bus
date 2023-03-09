@@ -34,7 +34,15 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IEventMessageRepository, InMemoryEventMessageRepository>();
         services.AddSingleton<ISubscriptionRepository, InMemorySubscriptionRepository>();
         services.AddSingleton<IDeadLetterRepository, InMemoryDeadLetterRepository>();
-        services.AddSingleton<IEventBus, EventBus>();
+        services.AddSingleton<EventFormatterFactory>(); // Added for Issue #13
+        services.AddSingleton<IEventFormatter, Formatters.JsonEventFormatter>(); // Added for Issue #13, default
+        services.AddSingleton<IEventBus>(sp => // Modified for Issue #13
+            new Services.EventBus(
+                options,
+                sp.GetService<Microsoft.Extensions.Logging.ILogger<Services.EventBus>>(),
+                sp.GetRequiredService<IDeadLetterService>(), // Added for Issue #13
+                sp.GetRequiredService<IEventFormatter>(), // Added for Issue #13
+                sp.GetRequiredService<IServiceProvider>())); // Added for Issue #16
         services.AddSingleton<IDeadLetterService, DeadLetterService>();
         services.AddSingleton<ISubscriptionManager, SubscriptionManager>();
         services.AddSingleton<IHandlerInvoker, HandlerInvoker>();
@@ -70,22 +78,17 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(subscriptionRepository);
         services.AddSingleton(deadLetterRepository);
         services.AddSingleton<IEventBus>(sp =>
-            new EventBus(
+            new Services.EventBus(
                 messageRepository,
                 subscriptionRepository,
                 deadLetterRepository,
                 sp.GetRequiredService<IDeadLetterService>(),
                 sp.GetRequiredService<IEventFormatter>(),
+                sp.GetRequiredService<IServiceProvider>(), // Add IServiceProvider here
                 options,
-                sp.GetService<Microsoft.Extensions.Logging.ILogger<EventBus>>()));
+                sp.GetService<Microsoft.Extensions.Logging.ILogger<Services.EventBus>>()));
         services.AddSingleton<IDeadLetterService, DeadLetterService>();
         services.AddSingleton<ISubscriptionManager, SubscriptionManager>();
-        services.AddSingleton<IHandlerInvoker, HandlerInvoker>();
-
-        return services;
-    }
-}
-r, SubscriptionManager>();
         services.AddSingleton<IHandlerInvoker, HandlerInvoker>();
 
         return services;
