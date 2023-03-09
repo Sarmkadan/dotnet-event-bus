@@ -104,15 +104,50 @@ public sealed class EventBus : IEventBus
         {
             await _messageRepository.AddAsync(message, cancellationToken);
 
-            List<Subscription> subscriptions;
-            lock (_subscriptionLock)
+            List<Subscription> applicableSubscriptions = new List<Subscription>();
+            HashSet<string> invokedHandlerNames = new HashSet<string>();
+
+            Type? currentEventType = eventType;
+            while (currentEventType != null && currentEventType != typeof(object))
             {
-                subscriptions = _subscriptions.TryGetValue(eventTypeName, out var subs)
-                    ? subs.Where(s => s.IsActive).OrderByDescending(s => s.Priority).ToList()
-                    : new List<Subscription>();
+                lock (_subscriptionLock)
+                {
+                    if (_subscriptions.TryGetValue(currentEventType.FullName ?? currentEventType.Name, out var subs))
+                    {
+                        foreach (var sub in subs.Where(s => s.IsActive).OrderByDescending(s => s.Priority))
+                        {
+                            // Add if not already added to avoid duplicate invocation for the same handler instance
+                            if (!invokedHandlerNames.Contains(sub.HandlerName))
+                            {
+                                applicableSubscriptions.Add(sub);
+                                invokedHandlerNames.Add(sub.HandlerName);
+                            }
+                        }
+                    }
+                }
+                currentEventType = currentEventType.BaseType;
             }
 
-            if (subscriptions.Count == 0)
+            // Also consider interfaces
+            foreach (var iface in eventType.GetInterfaces())
+            {
+                lock (_subscriptionLock)
+                {
+                    if (_subscriptions.TryGetValue(iface.FullName ?? iface.Name, out var subs))
+                    {
+                        foreach (var sub in subs.Where(s => s.IsActive).OrderByDescending(s => s.Priority))
+                        {
+                            if (!invokedHandlerNames.Contains(sub.HandlerName))
+                            {
+                                applicableSubscriptions.Add(sub);
+                                invokedHandlerNames.Add(sub.HandlerName);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (applicableSubscriptions.Count == 0)
             {
                 _logger?.LogWarning("No handlers registered for event type: {EventType}", eventTypeName);
             }
@@ -121,13 +156,12 @@ public sealed class EventBus : IEventBus
 
             if (_options.AllowParallelHandling)
             {
-                await InvokeHandlersInParallel(subscriptions, @event, message, result, cancellationToken);
+                await InvokeHandlersInParallel(applicableSubscriptions, @event, message, result, cancellationToken);
             }
             else
             {
-                await InvokeHandlersSequentially(subscriptions, @event, message, result, cancellationToken);
+                await InvokeHandlersSequentially(applicableSubscriptions, @event, message, result, cancellationToken);
             }
-
             result.ElapsedTime = DateTime.UtcNow.Subtract(startTime);
             result.Success = result.FailedHandlers == 0;
 
