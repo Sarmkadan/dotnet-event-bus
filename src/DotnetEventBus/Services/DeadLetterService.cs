@@ -37,6 +37,18 @@ public interface IDeadLetterService
     Task<bool> ReprocessEntryAsync(string entryId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Reprocesses all pending dead letter entries with the given event type.
+    /// Processing continues even if individual entries fail.
+    /// </summary>
+    /// <param name="eventType">Event type to reprocess.</param>
+    /// <param name="maxEntries">Optional upper limit on how many entries to reprocess in one call.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<BatchReprocessResult> ReprocessByEventTypeAsync(
+        string eventType,
+        int? maxEntries = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Marks a dead letter entry as reviewed but not reprocessed.
     /// </summary>
     Task MarkAsReviewedAsync(string entryId, string? reason = null, CancellationToken cancellationToken = default);
@@ -81,6 +93,26 @@ public sealed class DeadLetterStatistics
     public int ArchivedEntries { get; set; }
     public Dictionary<string, int> EntriesByEventType { get; set; } = new();
     public Dictionary<string, int> EntriesByHandler { get; set; } = new();
+}
+
+/// <summary>
+/// Result of a batch reprocess operation.
+/// </summary>
+public sealed class BatchReprocessResult
+{
+    /// <summary>Number of entries that were successfully reprocessed.</summary>
+    public int SucceededCount { get; set; }
+
+    /// <summary>Number of entries that failed reprocessing.</summary>
+    public int FailedCount { get; set; }
+
+    /// <summary>Total entries attempted.</summary>
+    public int TotalAttempted => SucceededCount + FailedCount;
+
+    /// <summary>IDs of entries that failed reprocessing.</summary>
+    public List<string> FailedEntryIds { get; set; } = [];
+
+    public bool AllSucceeded => FailedCount == 0;
 }
 
 /// <summary>
@@ -174,6 +206,47 @@ public sealed class DeadLetterService : IDeadLetterService
         }
     }
 
+    public async Task<BatchReprocessResult> ReprocessByEventTypeAsync(
+        string eventType,
+        int? maxEntries = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(eventType))
+            throw new ArgumentException("Event type cannot be empty", nameof(eventType));
+
+        var entries = await _repository.GetByEventTypeAsync(eventType, cancellationToken);
+        var pending = entries
+            .Where(e => e.Status == DeadLetterStatus.Pending)
+            .ToList();
+
+        if (maxEntries.HasValue)
+            pending = pending.Take(maxEntries.Value).ToList();
+
+        var batchResult = new BatchReprocessResult();
+
+        _logger?.LogInformation(
+            "Starting batch reprocess for event type {EventType}: {Count} entries",
+            eventType, pending.Count);
+
+        foreach (var entry in pending)
+        {
+            var succeeded = await ReprocessEntryAsync(entry.Id, cancellationToken);
+            if (succeeded)
+                batchResult.SucceededCount++;
+            else
+            {
+                batchResult.FailedCount++;
+                batchResult.FailedEntryIds.Add(entry.Id);
+            }
+        }
+
+        _logger?.LogInformation(
+            "Batch reprocess for {EventType} complete: {Succeeded} succeeded, {Failed} failed",
+            eventType, batchResult.SucceededCount, batchResult.FailedCount);
+
+        return batchResult;
+    }
+
     public async Task MarkAsReviewedAsync(string entryId, string? reason = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(entryId))
@@ -222,23 +295,10 @@ public sealed class DeadLetterService : IDeadLetterService
             ReviewedNotProcessedEntries = reviewedCount,
             ReprocessedEntries = reprocessedCount,
             ReprocessFailedEntries = reprocessFailedCount,
-            ArchivedEntries = archivedCount
+            ArchivedEntries = archivedCount,
+            EntriesByEventType = await _repository.GetCountsByEventTypeAsync(cancellationToken),
+            EntriesByHandler = await _repository.GetCountsByHandlerAsync(cancellationToken)
         };
-
-        // Only load pending entries for grouping (not the entire history)
-        var pendingEntries = await _repository.GetPendingAsync(cancellationToken);
-        foreach (var entry in pendingEntries)
-        {
-            var eventType = entry.Message.EventType;
-            if (!stats.EntriesByEventType.TryGetValue(eventType, out _))
-                stats.EntriesByEventType[eventType] = 0;
-            stats.EntriesByEventType[eventType]++;
-
-            var handler = entry.FailedHandlerName;
-            if (!stats.EntriesByHandler.TryGetValue(handler, out _))
-                stats.EntriesByHandler[handler] = 0;
-            stats.EntriesByHandler[handler]++;
-        }
 
         return stats;
     }
@@ -247,44 +307,6 @@ public sealed class DeadLetterService : IDeadLetterService
     {
         await _repository.ClearAsync(cancellationToken);
         _logger?.LogWarning("Purged all dead letter entries");
-    }
-
-    public async Task AddDeadLetterEntryAsync(
-        string eventType,
-        string rawPayload,
-        Exception exception,
-        string? correlationId = null,
-        string? handlerName = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(eventType))
-            throw new ArgumentException("Event type cannot be empty", nameof(eventType));
-        if (string.IsNullOrWhiteSpace(rawPayload))
-            throw new ArgumentException("Raw payload cannot be empty", nameof(rawPayload));
-        if (exception is null)
-            throw new ArgumentNullException(nameof(exception));
-
-        var message = new EventMessage(eventType, rawPayload)
-        {
-            CorrelationId = correlationId,
-            Scope = MessageScope.Distributed, // Mark as distributed as it's typically from external source
-            Timestamp = DateTime.UtcNow
-        };
-
-        var deadLetterEntry = new DeadLetterEntry(
-            message,
-            handlerName ?? "DeserializationFailed", // Use a generic name for deserialization failures
-            exception,
-            0 // No retries for deserialization failures as they are structural
-        );
-
-        await _repository.AddAsync(deadLetterEntry, cancellationToken);
-
-        _logger?.LogError(
-            exception,
-            "Raw distributed event of type {EventType} failed deserialization and was added to dead letter queue. CorrelationId: {CorrelationId}",
-            eventType,
-            correlationId);
     }
 
     public async Task AddDeadLetterEntryAsync(
