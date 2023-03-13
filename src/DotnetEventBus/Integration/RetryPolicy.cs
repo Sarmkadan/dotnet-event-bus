@@ -97,7 +97,14 @@ public sealed class RetryPolicy
     /// <summary>
     /// Executes an async operation with retry logic.
     /// </summary>
-    public async Task<T> ExecuteAsync<T>(Func<Task<T>> operation)
+    /// <param name="operation">The operation to execute.</param>
+    /// <param name="onRetry">
+    /// Optional callback invoked before each retry delay.
+    /// Parameters: attempt number (1-based), exception that triggered the retry, calculated delay.
+    /// </param>
+    public async Task<T> ExecuteAsync<T>(
+        Func<Task<T>> operation,
+        Func<int, Exception, TimeSpan, Task>? onRetry = null)
     {
         ArgumentNullException.ThrowIfNull(operation);
 
@@ -120,6 +127,12 @@ public sealed class RetryPolicy
                 }
 
                 var delay = CalculateDelay(attempt);
+
+                if (onRetry is not null)
+                {
+                    await onRetry(attempt + 1, ex, delay);
+                }
+
                 await Task.Delay(delay);
                 attempt++;
             }
@@ -131,7 +144,14 @@ public sealed class RetryPolicy
     /// <summary>
     /// Executes an async operation with retry logic (void).
     /// </summary>
-    public async Task ExecuteAsync(Func<Task> operation)
+    /// <param name="operation">The operation to execute.</param>
+    /// <param name="onRetry">
+    /// Optional callback invoked before each retry delay.
+    /// Parameters: attempt number (1-based), exception that triggered the retry, calculated delay.
+    /// </param>
+    public async Task ExecuteAsync(
+        Func<Task> operation,
+        Func<int, Exception, TimeSpan, Task>? onRetry = null)
     {
         ArgumentNullException.ThrowIfNull(operation);
 
@@ -155,6 +175,12 @@ public sealed class RetryPolicy
                 }
 
                 var delay = CalculateDelay(attempt);
+
+                if (onRetry is not null)
+                {
+                    await onRetry(attempt + 1, ex, delay);
+                }
+
                 await Task.Delay(delay);
                 attempt++;
             }
