@@ -18,6 +18,10 @@ public interface IEventBus
     /// <summary>
     /// Publishes an event to all registered handlers.
     /// </summary>
+    /// <param name="event">The event object to publish.</param>
+    /// <param name="correlationId">Optional correlation ID.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task representing the result of the publish operation.</returns>
     Task<PublishResult> PublishAsync<TEvent>(
         TEvent @event,
         string? correlationId = null,
@@ -26,6 +30,11 @@ public interface IEventBus
     /// <summary>
     /// Publishes an event as an object (for dynamic publishing).
     /// </summary>
+    /// <param name="event">The event object to publish.</param>
+    /// <param name="eventType">The type of the event.</param>
+    /// <param name="correlationId">Optional correlation ID.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task representing the result of the publish operation.</returns>
     Task<PublishResult> PublishAsync(
         object @event,
         Type eventType,
@@ -35,6 +44,13 @@ public interface IEventBus
     /// <summary>
     /// Publishes a message and waits for a response (request/reply pattern).
     /// </summary>
+    /// <typeparam name="TRequest">The request type.</typeparam>
+    /// <typeparam name="TResponse">The response type.</typeparam>
+    /// <param name="request">The request message.</param>
+    /// <param name="correlationId">Optional correlation ID.</param>
+    /// <param name="timeout">The optional timeout for the request.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task representing the response message.</returns>
     Task<TResponse> SendAsync<TRequest, TResponse>(
         TRequest request,
         string? correlationId = null,
@@ -46,6 +62,9 @@ public interface IEventBus
     /// <summary>
     /// Subscribes a handler to an event type.
     /// </summary>
+    /// <typeparam name="TEvent">The event type.</typeparam>
+    /// <param name="handler">The handler to subscribe.</param>
+    /// <returns>An IDisposable to manage the subscription.</returns>
     IDisposable Subscribe<TEvent>(IEventHandler<TEvent> handler)
         where TEvent : class;
 
