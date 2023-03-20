@@ -1,0 +1,12 @@
+bin/
+obj/
+.git/
+.vs/
+.vscode/
+test-results/
+coverage/
+node_modules/
+.DS_Store
+*.log
+artifacts/
+.nuget/
