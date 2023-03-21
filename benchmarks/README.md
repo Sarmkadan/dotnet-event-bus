@@ -8,9 +8,14 @@ This directory contains performance benchmarks for the DotnetEventBus library, b
 - .NET 10.0 SDK
 
 ### Run All Benchmarks
-
+```bash
+dotnet run -c Release --project benchmarks/DotnetEventBus.Benchmarks/DotnetEventBus.Benchmarks.csproj
+```
 
 ### Run Specific Benchmark
+```bash
+dotnet run -c Release --project benchmarks/DotnetEventBus.Benchmarks/DotnetEventBus.Benchmarks.csproj -- --filter *EventBusBenchmarks*
+```
 
 
 ## Benchmark Categories
