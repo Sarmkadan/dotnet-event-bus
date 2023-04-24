@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -15,7 +17,7 @@ namespace DotnetEventBus.Cli;
 /// CLI command for publishing events.
 /// Supports JSON payload and metadata options.
 /// </summary>
-public class PublishCommand : ICommand
+public sealed class PublishCommand : ICommand
 {
     public string Name => "publish";
     public string Description => "Publish an event to the event bus";

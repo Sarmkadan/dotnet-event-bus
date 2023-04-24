@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -8,7 +10,7 @@ namespace DotnetEventBus.Models;
 /// <summary>
 /// Represents a message that failed processing and was moved to the dead letter queue.
 /// </summary>
-public class DeadLetterEntry
+public sealed class DeadLetterEntry
 {
     /// <summary>
     /// Unique identifier for this dead letter entry.

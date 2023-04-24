@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -157,7 +159,7 @@ public sealed class PredicateSubscriptionBuilder<TEvent>
     /// </exception>
     public IDisposable Register()
     {
-        if (_asyncHandler == null)
+        if (_asyncHandler is null)
             throw new InvalidOperationException(
                 $"No handler configured. Call {nameof(WithHandler)} before calling {nameof(Register)}.");
 

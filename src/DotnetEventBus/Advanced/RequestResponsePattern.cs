@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -15,7 +17,7 @@ namespace DotnetEventBus.Advanced;
 /// Allows handlers to return responses and clients to wait for replies.
 /// Why: Enables synchronous communication patterns while using an async event bus.
 /// </summary>
-public class RequestResponseBus
+public sealed class RequestResponseBus
 {
     private readonly ConcurrentDictionary<string, TaskCompletionSource<object?>> _pendingRequests = [];
     private readonly TimeSpan _defaultTimeout;
@@ -161,7 +163,7 @@ public abstract class RequestResponseHandler<TRequest, TResponse> where TRequest
 /// <summary>
 /// Request message for RPC-style calls.
 /// </summary>
-public class RequestMessage<T> where T : class
+public sealed class RequestMessage<T> where T : class
 {
     public string? RequestId { get; set; }
     public required T Payload { get; set; }
@@ -173,7 +175,7 @@ public class RequestMessage<T> where T : class
 /// <summary>
 /// Response message for RPC-style calls.
 /// </summary>
-public class ResponseMessage<T> where T : class
+public sealed class ResponseMessage<T> where T : class
 {
     public string? RequestId { get; set; }
     public required T Payload { get; set; }

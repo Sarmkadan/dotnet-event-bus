@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -15,7 +17,7 @@ namespace DotnetEventBus.Examples;
 public static class BasicPubSubExample
 {
     // Event definition
-    public class UserRegisteredEvent
+    public sealed class UserRegisteredEvent
     {
         public string UserId { get; set; }
         public string Email { get; set; }
@@ -24,7 +26,7 @@ public static class BasicPubSubExample
     }
 
     // Handler 1: Send welcome email
-    public class SendWelcomeEmailHandler : EventHandlerBase<UserRegisteredEvent>
+    public sealed class SendWelcomeEmailHandler : EventHandlerBase<UserRegisteredEvent>
     {
         public override async Task Handle(UserRegisteredEvent @event, CancellationToken cancellationToken = default)
         {
@@ -35,7 +37,7 @@ public static class BasicPubSubExample
     }
 
     // Handler 2: Update user profile
-    public class UpdateUserProfileHandler : EventHandlerBase<UserRegisteredEvent>
+    public sealed class UpdateUserProfileHandler : EventHandlerBase<UserRegisteredEvent>
     {
         public override async Task Handle(UserRegisteredEvent @event, CancellationToken cancellationToken = default)
         {

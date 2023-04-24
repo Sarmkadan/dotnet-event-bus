@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -44,7 +46,7 @@ public static class CollectionExtensions
     /// Determines if a collection is null or empty.
     /// </summary>
     public static bool IsNullOrEmpty<T>(this IEnumerable<T>? source) =>
-        source == null || !source.Any();
+        source is null || !source.Any();
 
     /// <summary>
     /// Safely returns the first element or a default value if the collection is empty.
@@ -166,7 +168,7 @@ public static class CollectionExtensions
 /// <summary>
 /// Represents a page of items from a paginated collection.
 /// </summary>
-public class Page<T>
+public sealed class Page<T>
 {
     public int PageNumber { get; }
     public int PageSize { get; }

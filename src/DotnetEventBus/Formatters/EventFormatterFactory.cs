@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -14,7 +16,7 @@ namespace DotnetEventBus.Formatters;
 /// Provides a registry of formatters and format negotiation by MIME type.
 /// Why: Allows flexible switching between output formats without changing client code.
 /// </summary>
-public class EventFormatterFactory
+public sealed class EventFormatterFactory
 {
     private readonly Dictionary<string, IEventFormatter> _formatters = [];
 
@@ -65,7 +67,7 @@ public class EventFormatterFactory
         var formatter = _formatters.Values.FirstOrDefault(f =>
             f.ContentType.Equals(contentType, StringComparison.OrdinalIgnoreCase));
 
-        if (formatter != null)
+        if (formatter is not null)
             return formatter;
 
         // Partial match (e.g., "application/json" matches "json")

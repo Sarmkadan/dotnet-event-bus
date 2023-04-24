@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -8,7 +10,7 @@ namespace DotnetEventBus.Exceptions;
 /// <summary>
 /// Base exception for all event bus related errors.
 /// </summary>
-public class EventBusException : Exception
+public sealed class EventBusException : Exception
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="EventBusException"/> class.
@@ -30,7 +32,7 @@ public class EventBusException : Exception
 /// <summary>
 /// Thrown when no handlers are registered for a given event type.
 /// </summary>
-public class NoHandlersRegisteredException : EventBusException
+public sealed class NoHandlersRegisteredException : EventBusException
 {
     public string EventType { get; }
 
@@ -44,7 +46,7 @@ public class NoHandlersRegisteredException : EventBusException
 /// <summary>
 /// Thrown when an event handler invocation fails.
 /// </summary>
-public class HandlerInvocationException : EventBusException
+public sealed class HandlerInvocationException : EventBusException
 {
     public string HandlerName { get; }
     public string EventType { get; }
@@ -60,7 +62,7 @@ public class HandlerInvocationException : EventBusException
 /// <summary>
 /// Thrown when attempting to subscribe with an invalid handler.
 /// </summary>
-public class InvalidHandlerException : EventBusException
+public sealed class InvalidHandlerException : EventBusException
 {
     public Type HandlerType { get; }
 
@@ -74,7 +76,7 @@ public class InvalidHandlerException : EventBusException
 /// <summary>
 /// Thrown when message serialization or deserialization fails.
 /// </summary>
-public class MessageSerializationException : EventBusException
+public sealed class MessageSerializationException : EventBusException
 {
     public string MessageType { get; }
 
@@ -88,7 +90,7 @@ public class MessageSerializationException : EventBusException
 /// <summary>
 /// Thrown when attempting to access a distributed event bus without proper configuration.
 /// </summary>
-public class DistributedBusNotConfiguredException : EventBusException
+public sealed class DistributedBusNotConfiguredException : EventBusException
 {
     public DistributedBusNotConfiguredException()
         : base("Distributed event bus is not properly configured. Ensure transport is registered.")
@@ -99,7 +101,7 @@ public class DistributedBusNotConfiguredException : EventBusException
 /// <summary>
 /// Thrown when a request times out waiting for a reply.
 /// </summary>
-public class RequestTimeoutException : EventBusException
+public sealed class RequestTimeoutException : EventBusException
 {
     public string RequestType { get; }
     public TimeSpan Timeout { get; }

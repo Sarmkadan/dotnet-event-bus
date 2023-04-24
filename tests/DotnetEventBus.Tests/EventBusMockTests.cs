@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -13,7 +15,7 @@ using DotnetEventBus.Services;
 
 namespace DotnetEventBus.Tests;
 
-public class EventBusMockTests
+public sealed class EventBusMockTests
 {
     [Fact]
     public async Task PublishAsync_WithFailingHandler_ShouldAddEntryToDeadLetterRepository()
