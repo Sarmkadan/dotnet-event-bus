@@ -55,6 +55,17 @@ public interface IDeadLetterService
     /// Purges all dead letter entries.
     /// </summary>
     Task PurgeAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Adds a new dead letter entry, typically for messages that failed deserialization.
+    /// </summary>
+    Task AddDeadLetterEntryAsync(
+        string eventType,
+        string rawPayload,
+        Exception exception,
+        string? correlationId = null,
+        string? handlerName = null,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -236,5 +247,81 @@ public sealed class DeadLetterService : IDeadLetterService
     {
         await _repository.ClearAsync(cancellationToken);
         _logger?.LogWarning("Purged all dead letter entries");
+    }
+
+    public async Task AddDeadLetterEntryAsync(
+        string eventType,
+        string rawPayload,
+        Exception exception,
+        string? correlationId = null,
+        string? handlerName = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(eventType))
+            throw new ArgumentException("Event type cannot be empty", nameof(eventType));
+        if (string.IsNullOrWhiteSpace(rawPayload))
+            throw new ArgumentException("Raw payload cannot be empty", nameof(rawPayload));
+        if (exception is null)
+            throw new ArgumentNullException(nameof(exception));
+
+        var message = new EventMessage(eventType, rawPayload)
+        {
+            CorrelationId = correlationId,
+            Scope = MessageScope.Distributed, // Mark as distributed as it's typically from external source
+            Timestamp = DateTime.UtcNow
+        };
+
+        var deadLetterEntry = new DeadLetterEntry(
+            message,
+            handlerName ?? "DeserializationFailed", // Use a generic name for deserialization failures
+            exception,
+            0 // No retries for deserialization failures as they are structural
+        );
+
+        await _repository.AddAsync(deadLetterEntry, cancellationToken);
+
+        _logger?.LogError(
+            exception,
+            "Raw distributed event of type {EventType} failed deserialization and was added to dead letter queue. CorrelationId: {CorrelationId}",
+            eventType,
+            correlationId);
+    }
+
+    public async Task AddDeadLetterEntryAsync(
+        string eventType,
+        string rawPayload,
+        Exception exception,
+        string? correlationId = null,
+        string? handlerName = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(eventType))
+            throw new ArgumentException("Event type cannot be empty", nameof(eventType));
+        if (string.IsNullOrWhiteSpace(rawPayload))
+            throw new ArgumentException("Raw payload cannot be empty", nameof(rawPayload));
+        if (exception is null)
+            throw new ArgumentNullException(nameof(exception));
+
+        var message = new EventMessage(eventType, rawPayload)
+        {
+            CorrelationId = correlationId,
+            Scope = MessageScope.Distributed, // Mark as distributed as it's typically from external source
+            Timestamp = DateTime.UtcNow
+        };
+
+        var deadLetterEntry = new DeadLetterEntry(
+            message,
+            handlerName ?? "DeserializationFailed", // Use a generic name for deserialization failures
+            exception,
+            0 // No retries for deserialization failures as they are structural
+        );
+
+        await _repository.AddAsync(deadLetterEntry, cancellationToken);
+
+        _logger?.LogError(
+            exception,
+            "Raw distributed event of type {EventType} failed deserialization and was added to dead letter queue. CorrelationId: {CorrelationId}",
+            eventType,
+            correlationId);
     }
 }
