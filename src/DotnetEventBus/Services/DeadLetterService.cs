@@ -198,28 +198,33 @@ public sealed class DeadLetterService : IDeadLetterService
 
     public async Task<DeadLetterStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
-        var allEntries = await _repository.GetAllAsync(cancellationToken);
-        var entriesList = allEntries.ToList();
+        var pendingCount = await _repository.CountByStatusAsync(DeadLetterStatus.Pending, cancellationToken);
+        var reviewedCount = await _repository.CountByStatusAsync(DeadLetterStatus.ReviewedNotProcessed, cancellationToken);
+        var reprocessedCount = await _repository.CountByStatusAsync(DeadLetterStatus.Reprocessed, cancellationToken);
+        var reprocessFailedCount = await _repository.CountByStatusAsync(DeadLetterStatus.ReprocessFailed, cancellationToken);
+        var archivedCount = await _repository.CountByStatusAsync(DeadLetterStatus.Archived, cancellationToken);
 
         var stats = new DeadLetterStatistics
         {
-            TotalEntries = entriesList.Count,
-            PendingEntries = await _repository.CountByStatusAsync(DeadLetterStatus.Pending, cancellationToken),
-            ReviewedNotProcessedEntries = await _repository.CountByStatusAsync(DeadLetterStatus.ReviewedNotProcessed, cancellationToken),
-            ReprocessedEntries = await _repository.CountByStatusAsync(DeadLetterStatus.Reprocessed, cancellationToken),
-            ReprocessFailedEntries = await _repository.CountByStatusAsync(DeadLetterStatus.ReprocessFailed, cancellationToken),
-            ArchivedEntries = await _repository.CountByStatusAsync(DeadLetterStatus.Archived, cancellationToken)
+            TotalEntries = pendingCount + reviewedCount + reprocessedCount + reprocessFailedCount + archivedCount,
+            PendingEntries = pendingCount,
+            ReviewedNotProcessedEntries = reviewedCount,
+            ReprocessedEntries = reprocessedCount,
+            ReprocessFailedEntries = reprocessFailedCount,
+            ArchivedEntries = archivedCount
         };
 
-        foreach (var entry in entriesList)
+        // Only load pending entries for grouping (not the entire history)
+        var pendingEntries = await _repository.GetPendingAsync(cancellationToken);
+        foreach (var entry in pendingEntries)
         {
             var eventType = entry.Message.EventType;
-            if (!stats.EntriesByEventType.ContainsKey(eventType))
+            if (!stats.EntriesByEventType.TryGetValue(eventType, out _))
                 stats.EntriesByEventType[eventType] = 0;
             stats.EntriesByEventType[eventType]++;
 
             var handler = entry.FailedHandlerName;
-            if (!stats.EntriesByHandler.ContainsKey(handler))
+            if (!stats.EntriesByHandler.TryGetValue(handler, out _))
                 stats.EntriesByHandler[handler] = 0;
             stats.EntriesByHandler[handler]++;
         }
