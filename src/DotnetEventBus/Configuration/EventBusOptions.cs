@@ -78,10 +78,10 @@ public sealed class EventBusOptions
     /// </summary>
     public void Validate()
     {
-        if (DefaultHandlerTimeout <= TimeSpan.Zero)
+        if (RequestTimeout <= TimeSpan.Zero)
             throw new ArgumentException(
-                "DefaultHandlerTimeout must be greater than zero",
-                nameof(DefaultHandlerTimeout));
+                "RequestTimeout must be greater than zero",
+                nameof(RequestTimeout));
 
         if (MaxRetryAttempts < 0)
             throw new ArgumentException(
@@ -141,6 +141,15 @@ public sealed class EventBusOptions
             ThrowOnHandlerFailure = ThrowOnHandlerFailure,
             IsDistributed = IsDistributed,
             DistributedTransportType = DistributedTransportType,
+            DistributedTransportConnectionString = DistributedTransportConnectionString
+        };
+    }
+}
+nString = DistributedTransportConnectionString
+        };
+    }
+}
+dTransportType,
             DistributedTransportConnectionString = DistributedTransportConnectionString
         };
     }
