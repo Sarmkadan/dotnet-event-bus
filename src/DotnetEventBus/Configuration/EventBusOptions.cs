@@ -73,6 +73,11 @@ public sealed class EventBusOptions
     public string? DistributedTransportConnectionString { get; set; }
 
     /// <summary>
+    /// List of middleware types to be executed in the event bus pipeline.
+    /// </summary>
+    public List<Type> MiddlewareTypes { get; } = new List<Type>();
+
+    /// <summary>
     /// Validates the configuration options.
     /// Throws if any configuration is invalid.
     /// </summary>
@@ -141,16 +146,8 @@ public sealed class EventBusOptions
             ThrowOnHandlerFailure = ThrowOnHandlerFailure,
             IsDistributed = IsDistributed,
             DistributedTransportType = DistributedTransportType,
-            DistributedTransportConnectionString = DistributedTransportConnectionString
-        };
-    }
-}
-nString = DistributedTransportConnectionString
-        };
-    }
-}
-dTransportType,
-            DistributedTransportConnectionString = DistributedTransportConnectionString
+            DistributedTransportConnectionString = DistributedTransportConnectionString,
+            MiddlewareTypes = new List<Type>(MiddlewareTypes)
         };
     }
 }

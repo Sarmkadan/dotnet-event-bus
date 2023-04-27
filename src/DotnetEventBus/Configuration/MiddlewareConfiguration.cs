@@ -1,171 +1,81 @@
 #nullable enable
 
-// =============================================================================
-// Author: Vladyslav Zaiets | https://sarmkadan.com
-// CTO & Software Architect
-// =============================================================================
-
 using System;
+using DotnetEventBus.Configuration;
+using DotnetEventBus.Middleware;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DotnetEventBus.Configuration;
 
 /// <summary>
-/// Configuration options for middleware components.
-/// Centralizes all middleware settings in one place.
+/// Provides extension methods for configuring event bus middleware.
 /// </summary>
-public sealed class MiddlewareConfiguration
+public static class MiddlewareConfiguration
 {
     /// <summary>
-    /// Logging configuration.
+    /// Adds a middleware type to the event bus pipeline.
+    /// The middleware will be constructed via dependency injection.
     /// </summary>
-    public LoggingOptions Logging { get; set; } = new();
+    /// <typeparam name="TMiddleware">The type of the middleware to add.</typeparam>
+    /// <param name="options">The event bus options to configure.</param>
+    /// <returns>The modified event bus options.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if options is null.</exception>
+    /// <exception cref="ArgumentException">Thrown if TMiddleware does not implement IEventBusMiddleware.</exception>
+    public static EventBusOptions UseMiddleware<TMiddleware>(this EventBusOptions options)
+        where TMiddleware : IEventBusMiddleware
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        var middlewareType = typeof(TMiddleware);
+        if (!typeof(IEventBusMiddleware).IsAssignableFrom(middlewareType))
+        {
+            throw new ArgumentException(
+                $"Type {middlewareType.FullName} must implement {typeof(IEventBusMiddleware).FullName}",
+                nameof(TMiddleware));
+        }
+
+        if (!options.MiddlewareTypes.Contains(middlewareType))
+        {
+            options.MiddlewareTypes.Add(middlewareType);
+        }
+
+        return options;
+    }
 
     /// <summary>
-    /// Error handling configuration.
+    /// Adds a middleware type to the event bus pipeline if a predicate is true.
+    /// The middleware will be constructed via dependency injection.
     /// </summary>
-    public ErrorHandlingOptions ErrorHandling { get; set; } = new();
+    /// <typeparam name="TMiddleware">The type of the middleware to add.</typeparam>
+    /// <param name="options">The event bus options to configure.</param>
+    /// <param name="predicate">A function that returns true if the middleware should be added.</param>
+    /// <returns>The modified event bus options.</returns>
+    public static EventBusOptions UseMiddlewareIf<TMiddleware>(this EventBusOptions options, Func<EventBusOptions, bool> predicate)
+        where TMiddleware : IEventBusMiddleware
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(predicate);
+
+        if (predicate(options))
+        {
+            options.UseMiddleware<TMiddleware>();
+        }
+
+        return options;
+    }
 
     /// <summary>
-    /// Rate limiting configuration.
+    /// Registers a middleware as a transient service in the DI container.
+    /// This should be called for each middleware type added using `UseMiddleware`.
     /// </summary>
-    public RateLimitingOptions RateLimiting { get; set; } = new();
-
-    /// <summary>
-    /// Caching configuration.
-    /// </summary>
-    public CachingOptions Caching { get; set; } = new();
-}
-
-/// <summary>
-/// Logging middleware configuration.
-/// </summary>
-public sealed class LoggingOptions
-{
-    /// <summary>
-    /// Whether to log event payloads.
-    /// </summary>
-    public bool LogPayloads { get; set; } = false;
-
-    /// <summary>
-    /// Maximum payload size to log in bytes.
-    /// </summary>
-    public int MaxPayloadSizeBytes { get; set; } = 10240;
-
-    /// <summary>
-    /// Whether to redact sensitive data.
-    /// </summary>
-    public bool RedactSensitiveData { get; set; } = true;
-
-    /// <summary>
-    /// List of sensitive field names to redact.
-    /// </summary>
-    public List<string> SensitiveFields { get; set; } = new() { "password", "token", "apiKey", "secret" };
-
-    /// <summary>
-    /// Log level for events.
-    /// </summary>
-    public string LogLevel { get; set; } = "Information";
-}
-
-/// <summary>
-/// Error handling middleware configuration.
-/// </summary>
-public sealed class ErrorHandlingOptions
-{
-    /// <summary>
-    /// Maximum number of retry attempts.
-    /// </summary>
-    public int MaxRetries { get; set; } = 3;
-
-    /// <summary>
-    /// Delay between retry attempts in milliseconds.
-    /// </summary>
-    public int RetryDelayMs { get; set; } = 1000;
-
-    /// <summary>
-    /// Whether to use exponential backoff.
-    /// </summary>
-    public bool UseExponentialBackoff { get; set; } = true;
-
-    /// <summary>
-    /// Backoff multiplier for exponential backoff.
-    /// </summary>
-    public double BackoffMultiplier { get; set; } = 2.0;
-
-    /// <summary>
-    /// Whether to send failed events to dead letter queue.
-    /// </summary>
-    public bool EnableDeadLetterQueue { get; set; } = true;
-
-    /// <summary>
-    /// Custom error handler type name (must implement IErrorHandler).
-    /// </summary>
-    public string? CustomErrorHandlerType { get; set; }
-}
-
-/// <summary>
-/// Rate limiting middleware configuration.
-/// </summary>
-public sealed class RateLimitingOptions
-{
-    /// <summary>
-    /// Whether to enable rate limiting.
-    /// </summary>
-    public bool Enabled { get; set; } = true;
-
-    /// <summary>
-    /// Number of requests allowed per window.
-    /// </summary>
-    public int RequestsPerWindow { get; set; } = 1000;
-
-    /// <summary>
-    /// Time window in seconds.
-    /// </summary>
-    public int WindowSizeSeconds { get; set; } = 60;
-
-    /// <summary>
-    /// Whether to limit per event type.
-    /// </summary>
-    public bool LimitPerEventType { get; set; } = true;
-
-    /// <summary>
-    /// Custom limits per event type (eventType -> requestsPerWindow).
-    /// </summary>
-    public Dictionary<string, int> EventTypeSpecificLimits { get; set; } = [];
-}
-
-/// <summary>
-/// Caching configuration.
-/// </summary>
-public sealed class CachingOptions
-{
-    /// <summary>
-    /// Whether to enable caching.
-    /// </summary>
-    public bool Enabled { get; set; } = true;
-
-    /// <summary>
-    /// Maximum number of cached items.
-    /// </summary>
-    public int MaxCacheSize { get; set; } = 10000;
-
-    /// <summary>
-    /// Default cache expiration time in minutes.
-    /// </summary>
-    public int DefaultExpirationMinutes { get; set; } = 60;
-
-    /// <summary>
-    /// Cache type: "memory" or "distributed".
-    /// </summary>
-    public string CacheType { get; set; } = "memory";
-
-    /// <summary>
-    /// Whether to use compression for cached items.
-    /// </summary>
-    public bool UseCompression { get; set; } = false;
-
-    /// <summary>
-    /// Cache key prefix.
-    /// </summary>
-    public string KeyPrefix { get; set; } = "eventbus:";
+    /// <typeparam name="TMiddleware">The type of the middleware to register.</typeparam>
+    /// <param name="services">The service collection.</param>
+    /// <returns>The service collection.</returns>
+    public static IServiceCollection AddEventBusMiddleware<TMiddleware>(this IServiceCollection services)
+        where TMiddleware : class, IEventBusMiddleware
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        services.AddTransient<TMiddleware>();
+        return services;
+    }
 }
