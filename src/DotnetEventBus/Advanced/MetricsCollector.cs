@@ -21,6 +21,9 @@ public sealed class MetricsCollector
 {
     private readonly ConcurrentDictionary<string, EventMetrics> _metrics = [];
     private readonly ConcurrentDictionary<string, HandlerMetrics> _handlerMetrics = [];
+    // Stores recent duration samples per event type for percentile calculations.
+    private readonly ConcurrentDictionary<string, ConcurrentQueue<long>> _durationSamples = [];
+    private const int MaxSamplesPerEventType = 1000;
     private long _totalEventsPublished = 0;
     private long _totalEventsFailed = 0;
     private DateTime _startTime = DateTime.UtcNow;
@@ -40,6 +43,15 @@ public sealed class MetricsCollector
 
         if (durationMs > metrics.MaxDurationMs)
             metrics.MaxDurationMs = durationMs;
+
+        if (metrics.MinDurationMs == 0 || durationMs < metrics.MinDurationMs)
+            metrics.MinDurationMs = durationMs;
+
+        // Keep a bounded sample window for percentile calculations.
+        var samples = _durationSamples.GetOrAdd(eventType, _ => new ConcurrentQueue<long>());
+        samples.Enqueue(durationMs);
+        while (samples.Count > MaxSamplesPerEventType)
+            samples.TryDequeue(out _);
     }
 
     /// <summary>
@@ -129,12 +141,56 @@ public sealed class MetricsCollector
     }
 
     /// <summary>
+    /// Gets detailed latency statistics for a specific event type, including p95.
+    /// Returns null when no data has been recorded for the event type.
+    /// </summary>
+    public LatencyStats? GetLatencyStats(string eventType)
+    {
+        if (!_metrics.TryGetValue(eventType, out var metrics))
+            return null;
+
+        long p95Ms = 0;
+        if (_durationSamples.TryGetValue(eventType, out var samples))
+        {
+            var sorted = samples.ToArray();
+            Array.Sort(sorted);
+            if (sorted.Length > 0)
+            {
+                var p95Index = (int)Math.Ceiling(sorted.Length * 0.95) - 1;
+                p95Ms = sorted[Math.Max(0, p95Index)];
+            }
+        }
+
+        return new LatencyStats
+        {
+            EventType = eventType,
+            MinMs = metrics.MinDurationMs,
+            MaxMs = metrics.MaxDurationMs,
+            AvgMs = metrics.AverageDurationMs,
+            P95Ms = p95Ms,
+            SampleCount = metrics.PublishCount
+        };
+    }
+
+    /// <summary>
+    /// Gets latency statistics for all recorded event types.
+    /// </summary>
+    public IEnumerable<LatencyStats> GetAllLatencyStats()
+    {
+        return _metrics.Keys
+            .Select(GetLatencyStats)
+            .Where(s => s is not null)
+            .Cast<LatencyStats>();
+    }
+
+    /// <summary>
     /// Resets all metrics.
     /// </summary>
     public void Reset()
     {
         _metrics.Clear();
         _handlerMetrics.Clear();
+        _durationSamples.Clear();
         _totalEventsPublished = 0;
         _totalEventsFailed = 0;
         _startTime = DateTime.UtcNow;
@@ -160,6 +216,7 @@ public sealed class EventMetrics
     public long FailureCount { get; set; }
     public long TotalDurationMs { get; set; }
     public double AverageDurationMs { get; set; }
+    public long MinDurationMs { get; set; }
     public long MaxDurationMs { get; set; }
     public DateTime LastPublishedAt { get; set; }
     public DateTime? LastFailureAt { get; set; }
@@ -194,4 +251,22 @@ public sealed class SystemMetrics
     public int EventTypesCount { get; set; }
     public int HandlersCount { get; set; }
     public double ThroughputPerSecond { get; set; }
+}
+
+/// <summary>
+/// Latency statistics for a specific event type.
+/// </summary>
+public sealed class LatencyStats
+{
+    public string? EventType { get; set; }
+    /// <summary>Minimum observed publish latency in milliseconds.</summary>
+    public long MinMs { get; set; }
+    /// <summary>Maximum observed publish latency in milliseconds.</summary>
+    public long MaxMs { get; set; }
+    /// <summary>Average publish latency in milliseconds.</summary>
+    public double AvgMs { get; set; }
+    /// <summary>95th-percentile publish latency in milliseconds (based on recent samples).</summary>
+    public long P95Ms { get; set; }
+    /// <summary>Total number of recorded samples.</summary>
+    public long SampleCount { get; set; }
 }
