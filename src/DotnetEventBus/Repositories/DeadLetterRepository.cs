@@ -48,6 +48,16 @@ public interface IDeadLetterRepository : IRepository<DeadLetterEntry>
     Task<int> CountByStatusAsync(DeadLetterStatus status, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets entry counts grouped by event type without loading full entry objects.
+    /// </summary>
+    Task<Dictionary<string, int>> GetCountsByEventTypeAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets entry counts grouped by handler name without loading full entry objects.
+    /// </summary>
+    Task<Dictionary<string, int>> GetCountsByHandlerAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Archives old dead letter entries.
     /// </summary>
     Task<int> ArchiveOldEntriesAsync(TimeSpan retentionPeriod, CancellationToken cancellationToken = default);
@@ -105,6 +115,22 @@ public sealed class InMemoryDeadLetterRepository : InMemoryRepository<DeadLetter
     {
         var entries = await GetByStatusAsync(status, cancellationToken);
         return entries.Count();
+    }
+
+    public async Task<Dictionary<string, int>> GetCountsByEventTypeAsync(CancellationToken cancellationToken = default)
+    {
+        var entries = await GetAllAsync(cancellationToken);
+        return entries
+            .GroupBy(e => e.Message.EventType)
+            .ToDictionary(g => g.Key, g => g.Count());
+    }
+
+    public async Task<Dictionary<string, int>> GetCountsByHandlerAsync(CancellationToken cancellationToken = default)
+    {
+        var entries = await GetAllAsync(cancellationToken);
+        return entries
+            .GroupBy(e => e.FailedHandlerName)
+            .ToDictionary(g => g.Key, g => g.Count());
     }
 
     public async Task<int> ArchiveOldEntriesAsync(TimeSpan retentionPeriod, CancellationToken cancellationToken = default)
