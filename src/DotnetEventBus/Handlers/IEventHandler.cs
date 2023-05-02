@@ -26,18 +26,24 @@ public interface IEventHandler
 /// <summary>
 /// Handles events of a specific type synchronously.
 /// </summary>
+/// <typeparam name="TEvent">The event type.</typeparam>
 public interface IEventHandler<in TEvent> : IEventHandler
     where TEvent : class
 {
     /// <summary>
     /// Handles the event.
     /// </summary>
+    /// <param name="event">The event to handle.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task representing the operation.</returns>
     Task Handle(TEvent @event, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
 /// Handles request/reply patterns with a request and response type.
 /// </summary>
+/// <typeparam name="TRequest">The request type.</typeparam>
+/// <typeparam name="TResponse">The response type.</typeparam>
 public interface IRequestHandler<in TRequest, TResponse> : IEventHandler
     where TRequest : class
     where TResponse : class
@@ -45,6 +51,9 @@ public interface IRequestHandler<in TRequest, TResponse> : IEventHandler
     /// <summary>
     /// Handles the request and returns a response.
     /// </summary>
+    /// <param name="request">The request to handle.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task representing the response.</returns>
     Task<TResponse> Handle(TRequest request, CancellationToken cancellationToken = default);
 }
 
