@@ -296,7 +296,14 @@ await publisher.FlushAsync();
 
 ## Usage Examples
 
-### Example 1: E-Commerce Order Processing
+For comprehensive practical implementations, see the `/examples` directory:
+
+- `BasicUsage.cs`: A minimal setup for subscribing and publishing events.
+- `AdvancedUsage.cs`: Configuration options, handling priorities, and error management.
+- `IntegrationExample.cs`: How to wire the event bus into an ASP.NET Core dependency injection container.
+
+Below are several specific scenarios documented:
+
 
 ```csharp
 // Event models
