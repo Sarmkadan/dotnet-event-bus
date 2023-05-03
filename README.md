@@ -157,6 +157,42 @@ dotnet build
 dotnet test
 ```
 
+## Docker Usage
+
+DotnetEventBus includes support for containerized development and deployment using Docker.
+
+### Development
+
+To start a full development environment with all dependencies (Redis, PostgreSQL, Prometheus, Grafana), use the following command:
+
+```bash
+docker-compose up dev
+```
+
+### Testing
+
+Run the test suite in a clean, containerized environment:
+
+```bash
+docker-compose up test
+```
+
+### Production
+
+To run the application in a production-like container:
+
+```bash
+docker-compose up production
+```
+
+### Building
+
+To build the NuGet package inside a container:
+
+```bash
+docker-compose up build
+```
+
 ### Local Development
 
 ```bash
