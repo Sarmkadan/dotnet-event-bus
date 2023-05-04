@@ -154,7 +154,7 @@ public sealed class MetricsCollectorTests
 
         // Assert
         var successRate = collector.GetSuccessRate("Handler1", "Event1");
-        successRate.Should().Be(66.67, precision: 0.01);
+        successRate.Should().BeApproximately(66.67, 0.01);
     }
 
     [Fact]

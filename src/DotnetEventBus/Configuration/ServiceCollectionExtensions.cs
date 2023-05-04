@@ -6,6 +6,7 @@
 // =============================================================================
 
 using Microsoft.Extensions.DependencyInjection;
+using DotnetEventBus.Formatters;
 using DotnetEventBus.Repositories;
 using DotnetEventBus.Services;
 

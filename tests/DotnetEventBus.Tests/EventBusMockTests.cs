@@ -9,9 +9,11 @@ using FluentAssertions;
 using Moq;
 using Xunit;
 using DotnetEventBus.Configuration;
+using DotnetEventBus.Formatters;
 using DotnetEventBus.Models;
 using DotnetEventBus.Repositories;
 using DotnetEventBus.Services;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DotnetEventBus.Tests;
 
@@ -37,6 +39,9 @@ public sealed class EventBusMockTests
             new InMemoryEventMessageRepository(),
             new InMemorySubscriptionRepository(),
             mockDeadLetterRepo.Object,
+            new DeadLetterService(mockDeadLetterRepo.Object),
+            new JsonEventFormatter(),
+            new ServiceCollection().BuildServiceProvider(),
             options);
 
         eventBus.Subscribe<TestEvent>(
@@ -73,6 +78,9 @@ public sealed class EventBusMockTests
             new InMemoryEventMessageRepository(),
             new InMemorySubscriptionRepository(),
             mockDeadLetterRepo.Object,
+            new DeadLetterService(mockDeadLetterRepo.Object),
+            new JsonEventFormatter(),
+            new ServiceCollection().BuildServiceProvider(),
             options);
 
         eventBus.Subscribe<TestEvent>(

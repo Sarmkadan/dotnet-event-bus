@@ -328,7 +328,7 @@ public sealed class DeadLetterService : IDeadLetterService
         {
             CorrelationId = correlationId,
             Scope = MessageScope.Distributed, // Mark as distributed as it's typically from external source
-            Timestamp = DateTime.UtcNow
+            CreatedAtUtc = DateTime.UtcNow
         };
 
         var deadLetterEntry = new DeadLetterEntry(

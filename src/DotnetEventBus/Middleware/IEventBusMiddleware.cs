@@ -10,7 +10,7 @@ namespace DotnetEventBus.Middleware;
 /// <summary>
 /// Represents the context for an event as it flows through the middleware pipeline.
 /// </summary>
-public sealed class EventContext
+public sealed class EventMiddlewareContext
 {
     /// <summary>
     /// The event object being processed.
@@ -25,7 +25,7 @@ public sealed class EventContext
     /// <summary>
     /// The correlation ID associated with the event.
     /// </summary>
-    public string? CorrelationId { get; }
+    public string? CorrelationId { get; set; }
 
     /// <summary>
     /// The original EventMessage before handler invocation.
@@ -38,9 +38,9 @@ public sealed class EventContext
     public CancellationToken CancellationToken { get; }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="EventContext"/> class.
+    /// Initializes a new instance of the <see cref="EventMiddlewareContext"/> class.
     /// </summary>
-    public EventContext(
+    public EventMiddlewareContext(
         object @event,
         Type eventType,
         string? correlationId,
@@ -66,10 +66,10 @@ public interface IEventBusMiddleware
     /// <param name="context">The event context.</param>
     /// <param name="next">The next middleware delegate in the pipeline.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
-    Task InvokeAsync(EventContext context, EventMiddlewareDelegate next);
+    Task InvokeAsync(EventMiddlewareContext context, EventMiddlewareDelegate next);
 }
 
 /// <summary>
 /// Represents the delegate for the next middleware in the pipeline.
 /// </summary>
-public delegate Task EventMiddlewareDelegate(EventContext context);
+public delegate Task EventMiddlewareDelegate(EventMiddlewareContext context);

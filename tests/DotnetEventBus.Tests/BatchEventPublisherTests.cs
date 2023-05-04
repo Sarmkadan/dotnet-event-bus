@@ -23,10 +23,7 @@ public sealed class BatchEventPublisherTests
     {
         // Arrange
         var publisher = new BatchEventPublisher(_mockLogger.Object, batchSize: 10);
-        var envelope = new EventEnvelope(
-            new EventMessage("TestEvent", "payload"),
-            System.Reflection.typeof(object).Assembly
-        );
+        var envelope = new EventEnvelope { EventType = "TestEvent", Payload = "payload" };
 
         // Act
         var result = await publisher.AddEventAsync(envelope);
@@ -40,10 +37,7 @@ public sealed class BatchEventPublisherTests
     {
         // Arrange
         var publisher = new BatchEventPublisher(_mockLogger.Object, batchSize: 10);
-        var envelope = new EventEnvelope(
-            new EventMessage("", ""), // Invalid - empty event type
-            System.Reflection.typeof(object).Assembly
-        );
+        var envelope = new EventEnvelope { EventType = "", Payload = "" }; // Invalid - empty event type
 
         // Act
         var result = await publisher.AddEventAsync(envelope);
@@ -79,10 +73,7 @@ public sealed class BatchEventPublisherTests
         // Act - Add 3 events to trigger flush
         for (int i = 0; i < 3; i++)
         {
-            var envelope = new EventEnvelope(
-                new EventMessage("Event" + i, "payload" + i),
-                System.Reflection.typeof(object).Assembly
-            );
+            var envelope = new EventEnvelope { EventType = "Event" + i, Payload = "payload" + i };
             await publisher.AddEventAsync(envelope);
         }
 
@@ -113,7 +104,7 @@ public sealed class BatchEventPublisherTests
         publisher.SetFlushHandlerWithResult(
             async envelope =>
             {
-                processedEvents.Add(envelope.EventMessage.EventType);
+                processedEvents.Add(envelope.EventType);
                 return new EventBatchItemResult { Success = true };
             },
             batch => batchResults.Add(batch)
@@ -122,10 +113,7 @@ public sealed class BatchEventPublisherTests
         // Act
         for (int i = 0; i < 2; i++)
         {
-            var envelope = new EventEnvelope(
-                new EventMessage("Event" + i, "payload"),
-                System.Reflection.typeof(object).Assembly
-            );
+            var envelope = new EventEnvelope { EventType = "Event" + i, Payload = "payload" };
             await publisher.AddEventAsync(envelope);
         }
 
@@ -146,7 +134,7 @@ public sealed class BatchEventPublisherTests
             async envelope =>
             {
                 processedCount++;
-                if (envelope.EventMessage.EventType == "Event1")
+                if (envelope.EventType == "Event1")
                 {
                     failedCount++;
                     return new EventBatchItemResult { Success = false, ErrorMessage = "Failed" };
@@ -158,10 +146,7 @@ public sealed class BatchEventPublisherTests
         // Act
         for (int i = 0; i < 3; i++)
         {
-            var envelope = new EventEnvelope(
-                new EventMessage("Event" + i, "payload"),
-                System.Reflection.typeof(object).Assembly
-            );
+            var envelope = new EventEnvelope { EventType = "Event" + i, Payload = "payload" };
             await publisher.AddEventAsync(envelope);
         }
 
@@ -197,10 +182,7 @@ public sealed class BatchEventPublisherTests
         // Act - Add 5 events (should flush 2 batches with 1 remaining)
         for (int i = 0; i < 5; i++)
         {
-            var envelope = new EventEnvelope(
-                new EventMessage("Event" + i, "payload"),
-                System.Reflection.typeof(object).Assembly
-            );
+            var envelope = new EventEnvelope { EventType = "Event" + i, Payload = "payload" };
             await publisher.AddEventAsync(envelope);
         }
 
@@ -234,10 +216,7 @@ public sealed class BatchEventPublisherTests
         var publisher = new BatchEventPublisher(_mockLogger.Object, batchSize: 100);
 
         // Act & Assert - Should not throw
-        var envelope = new EventEnvelope(
-            new EventMessage("Event", "payload"),
-            System.Reflection.typeof(object).Assembly
-        );
+        var envelope = new EventEnvelope { EventType = "Event", Payload = "payload" };
         var result = await publisher.AddEventAsync(envelope);
         result.Should().BeTrue();
     }

@@ -119,6 +119,45 @@ public sealed class MetricsCollector
     }
 
     /// <summary>
+    /// Gets metrics for a specific handler/event type combination.
+    /// Returns null when no execution has been recorded for that combination.
+    /// </summary>
+    public HandlerMetrics? GetHandlerMetrics(string handlerName, string eventType)
+    {
+        var key = $"{handlerName}:{eventType}";
+        _handlerMetrics.TryGetValue(key, out var metrics);
+        return metrics;
+    }
+
+    /// <summary>
+    /// Gets metrics for every handler/event type combination that has been recorded.
+    /// </summary>
+    public IEnumerable<HandlerMetrics> GetAllHandlerMetrics()
+    {
+        return _handlerMetrics.Values.OrderByDescending(m => m.ExecutionCount);
+    }
+
+    /// <summary>
+    /// Gets the success rate (0-100) for a specific handler/event type combination.
+    /// Returns 0 when no execution has been recorded for that combination.
+    /// </summary>
+    public double GetSuccessRate(string handlerName, string eventType)
+    {
+        var metrics = GetHandlerMetrics(handlerName, eventType);
+        return metrics?.SuccessRate ?? 0;
+    }
+
+    /// <summary>
+    /// Gets the average execution duration (in milliseconds) for a specific handler/event type combination.
+    /// Returns 0 when no execution has been recorded for that combination.
+    /// </summary>
+    public double GetAverageDuration(string handlerName, string eventType)
+    {
+        var metrics = GetHandlerMetrics(handlerName, eventType);
+        return metrics?.AverageDurationMs ?? 0;
+    }
+
+    /// <summary>
     /// Gets overall system metrics.
     /// </summary>
     public SystemMetrics GetSystemMetrics()
@@ -235,6 +274,8 @@ public sealed class HandlerMetrics
     public long FailureCount { get; set; }
     public long TotalDurationMs { get; set; }
     public double AverageDurationMs { get; set; }
+
+    public long SuccessCount => ExecutionCount - FailureCount;
 
     public double SuccessRate => ExecutionCount > 0
         ? ((ExecutionCount - FailureCount) / (double)ExecutionCount) * 100

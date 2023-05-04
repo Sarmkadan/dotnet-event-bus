@@ -9,9 +9,12 @@ using System.Reflection;
 using System.Text.Json;
 using DotnetEventBus.Configuration;
 using DotnetEventBus.Exceptions;
+using DotnetEventBus.Formatters;
 using DotnetEventBus.Handlers;
+using DotnetEventBus.Middleware;
 using DotnetEventBus.Models;
 using DotnetEventBus.Repositories;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace DotnetEventBus.Services;
@@ -26,6 +29,9 @@ public sealed class EventBus : IEventBus
     private readonly IEventMessageRepository _messageRepository;
     private readonly ISubscriptionRepository _subscriptionRepository;
     private readonly IDeadLetterRepository _deadLetterRepository;
+    private readonly IDeadLetterService _deadLetterService;
+    private readonly IEventFormatter _eventFormatter;
+    private readonly IServiceProvider _serviceProvider;
     private readonly SemaphoreSlim _concurrencyLimiter;
     private readonly Dictionary<string, List<Subscription>> _subscriptions = new();
     private readonly Dictionary<string, TaskCompletionSource<object?>> _pendingRequests = new();
@@ -44,7 +50,7 @@ public sealed class EventBus : IEventBus
         _messageRepository = new InMemoryEventMessageRepository();
         _subscriptionRepository = new InMemorySubscriptionRepository();
         _deadLetterRepository = new InMemoryDeadLetterRepository();
-        _deadLetterService = deadLetterService ?? new DeadLetterService(_deadLetterRepository, this, logger);
+        _deadLetterService = deadLetterService ?? new DeadLetterService(_deadLetterRepository, this);
         _eventFormatter = eventFormatter ?? new Formatters.JsonEventFormatter();
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _concurrencyLimiter = new SemaphoreSlim(_options.MaxConcurrentHandlers);
@@ -163,7 +169,7 @@ public sealed class EventBus : IEventBus
             var result = new PublishResult(message.MessageId);
 
             // Construct the EventContext for the middleware pipeline
-            var eventContext = new Middleware.EventContext(@event, eventType, correlationId, message, cancellationToken);
+            var eventContext = new Middleware.EventMiddlewareContext(@event, eventType, correlationId, message, cancellationToken);
 
             // Create the terminal delegate (actual handler invocation logic)
             EventMiddlewareDelegate terminalDelegate = async ctx =>
@@ -180,7 +186,7 @@ public sealed class EventBus : IEventBus
 
             // Build the middleware pipeline
             EventMiddlewareDelegate pipeline = terminalDelegate;
-            foreach (var middlewareType in _options.MiddlewareTypes.Reverse()) // Reverse to build from inside out
+            foreach (var middlewareType in Enumerable.Reverse(_options.MiddlewareTypes)) // Reverse to build from inside out
             {
                 var middlewareInstance = _serviceProvider.GetRequiredService(middlewareType) as Middleware.IEventBusMiddleware;
                 if (middlewareInstance is null)

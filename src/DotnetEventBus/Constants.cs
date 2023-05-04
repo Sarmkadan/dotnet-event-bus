@@ -183,6 +183,11 @@ public enum HandlerPriority
     Normal = 5,
 
     /// <summary>
+    /// Medium priority. Alias of <see cref="Normal"/> for readability at call sites.
+    /// </summary>
+    Medium = 5,
+
+    /// <summary>
     /// High priority.
     /// </summary>
     High = 10,

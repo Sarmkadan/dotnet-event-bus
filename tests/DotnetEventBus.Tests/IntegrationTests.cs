@@ -314,10 +314,7 @@ public sealed class BatchEventPublisherIntegrationTests
         // Act
         for (int i = 0; i < 12; i++)
         {
-            var envelope = new EventEnvelope(
-                new EventMessage($"Event{i}", $"payload{i}"),
-                System.Reflection.typeof(object).Assembly
-            );
+            var envelope = new EventEnvelope { EventType = $"Event{i}", Payload = $"payload{i}" };
             await publisher.AddEventAsync(envelope);
         }
 
@@ -339,7 +336,7 @@ public sealed class BatchEventPublisherIntegrationTests
             async envelope =>
             {
                 processedCount++;
-                if (envelope.EventMessage.EventType.Contains("error"))
+                if (envelope.EventType.Contains("error"))
                 {
                     failedCount++;
                     return new EventBatchItemResult { Success = false, ErrorMessage = "Processing failed" };
@@ -352,10 +349,7 @@ public sealed class BatchEventPublisherIntegrationTests
         for (int i = 0; i < 3; i++)
         {
             var eventType = i == 1 ? "error-event" : $"event{i}";
-            var envelope = new EventEnvelope(
-                new EventMessage(eventType, "payload"),
-                System.Reflection.typeof(object).Assembly
-            );
+            var envelope = new EventEnvelope { EventType = eventType, Payload = "payload" };
             await publisher.AddEventAsync(envelope);
         }
 

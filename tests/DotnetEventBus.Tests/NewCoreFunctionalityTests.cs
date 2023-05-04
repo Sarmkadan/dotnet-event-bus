@@ -1,6 +1,7 @@
 using DotnetEventBus.Configuration;
 using DotnetEventBus.Middleware;
 using DotnetEventBus.Models;
+using DotnetEventBus.Repositories;
 using DotnetEventBus.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -29,8 +30,8 @@ public class NewCoreFunctionalityTests
         var bus = new EventBus(options: options, serviceProvider: _serviceProvider);
         var invocationOrder = new List<string>();
 
-        bus.Subscribe<string>(e => { invocationOrder.Add("Low"); return Task.CompletedTask; }, "LowPriority", priority: 0);
-        bus.Subscribe<string>(e => { invocationOrder.Add("High"); return Task.CompletedTask; }, "HighPriority", priority: 10);
+        bus.Subscribe<string>((e, ct) => { invocationOrder.Add("Low"); return Task.CompletedTask; }, "LowPriority", priority: 0);
+        bus.Subscribe<string>((e, ct) => { invocationOrder.Add("High"); return Task.CompletedTask; }, "HighPriority", priority: 10);
 
         // Act
         await bus.PublishAsync("test-event");
@@ -46,9 +47,9 @@ public class NewCoreFunctionalityTests
         var options = new EventBusOptions();
         var middlewareMock = new Mock<IEventBusMiddleware>();
         middlewareMock
-            .Setup(m => m.InvokeAsync(It.IsAny<EventContext>(), It.IsAny<EventMiddlewareDelegate>()))
-            .Callback<EventContext, EventMiddlewareDelegate>((ctx, next) => ctx.CorrelationId = "modified")
-            .Returns<EventContext, EventMiddlewareDelegate>((ctx, next) => next(ctx));
+            .Setup(m => m.InvokeAsync(It.IsAny<EventMiddlewareContext>(), It.IsAny<EventMiddlewareDelegate>()))
+            .Callback<EventMiddlewareContext, EventMiddlewareDelegate>((ctx, next) => ctx.CorrelationId = "modified")
+            .Returns<EventMiddlewareContext, EventMiddlewareDelegate>((ctx, next) => next(ctx));
 
         var services = new ServiceCollection();
         services.AddSingleton(middlewareMock.Object);
@@ -62,7 +63,7 @@ public class NewCoreFunctionalityTests
         var result = await bus.PublishAsync("test", correlationId: "original");
 
         // Assert
-        middlewareMock.Verify(m => m.InvokeAsync(It.IsAny<EventContext>(), It.IsAny<EventMiddlewareDelegate>()), Times.Once);
+        middlewareMock.Verify(m => m.InvokeAsync(It.IsAny<EventMiddlewareContext>(), It.IsAny<EventMiddlewareDelegate>()), Times.Once);
     }
 
     [Fact]
@@ -73,7 +74,7 @@ public class NewCoreFunctionalityTests
         var bus = new EventBus(options: options, serviceProvider: _serviceProvider);
         int attempts = 0;
 
-        bus.Subscribe<string>(e => {
+        bus.Subscribe<string>((e, ct) => {
             attempts++;
             throw new Exception("Temporary failure");
         });
@@ -112,7 +113,7 @@ public class NewCoreFunctionalityTests
             _serviceProvider,
             options);
 
-        bus.Subscribe<string>(e => throw new Exception("Fatal error"), "BadHandler", priority: 0);
+        bus.Subscribe<string>((e, ct) => throw new Exception("Fatal error"), "BadHandler", priority: 0);
 
         // Act
         await bus.PublishAsync("test");
@@ -129,7 +130,7 @@ public class NewCoreFunctionalityTests
         var bus = new EventBus(options: new EventBusOptions(), serviceProvider: _serviceProvider);
         int callCount = 0;
         
-        var subscription = bus.Subscribe<string>(e => callCount++);
+        var subscription = bus.SubscribeSync<string>(e => callCount++);
 
         // Act
         await bus.PublishAsync("first");

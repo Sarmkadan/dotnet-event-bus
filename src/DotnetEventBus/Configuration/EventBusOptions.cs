@@ -78,6 +78,11 @@ public sealed class EventBusOptions
     public List<Type> MiddlewareTypes { get; } = new List<Type>();
 
     /// <summary>
+    /// Default timeout for request/reply operations when no per-request timeout is configured.
+    /// </summary>
+    public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>
     /// Validates the configuration options.
     /// Throws if any configuration is invalid.
     /// </summary>
@@ -133,7 +138,7 @@ public sealed class EventBusOptions
     /// </summary>
     public EventBusOptions Clone()
     {
-        return new EventBusOptions
+        var clone = new EventBusOptions
         {
             DefaultHandlerTimeout = DefaultHandlerTimeout,
             MaxRetryAttempts = MaxRetryAttempts,
@@ -147,7 +152,9 @@ public sealed class EventBusOptions
             IsDistributed = IsDistributed,
             DistributedTransportType = DistributedTransportType,
             DistributedTransportConnectionString = DistributedTransportConnectionString,
-            MiddlewareTypes = new List<Type>(MiddlewareTypes)
+            RequestTimeout = RequestTimeout
         };
+        clone.MiddlewareTypes.AddRange(MiddlewareTypes);
+        return clone;
     }
 }
