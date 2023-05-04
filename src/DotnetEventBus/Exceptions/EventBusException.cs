@@ -10,7 +10,7 @@ namespace DotnetEventBus.Exceptions;
 /// <summary>
 /// Base exception for all event bus related errors.
 /// </summary>
-public sealed class EventBusException : Exception
+public class EventBusException : Exception
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="EventBusException"/> class.

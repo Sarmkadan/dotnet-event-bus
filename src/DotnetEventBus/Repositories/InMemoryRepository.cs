@@ -11,7 +11,7 @@ namespace DotnetEventBus.Repositories;
 /// In-memory repository implementation using a thread-safe dictionary.
 /// Suitable for testing and single-process deployments.
 /// </summary>
-public sealed class InMemoryRepository<T> : IRepository<T> where T : class
+public class InMemoryRepository<T> : IRepository<T> where T : class
 {
     private readonly Dictionary<string, T> _store = new();
     private readonly ReaderWriterLockSlim _lock = new();
