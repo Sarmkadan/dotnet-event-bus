@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace DotnetEventBus.Integration;
 
@@ -22,10 +23,12 @@ public sealed class WebhookHandler
 {
     private readonly List<WebhookSubscription> _subscriptions = [];
     private readonly string? _signingSecret;
+    private readonly ILogger<WebhookHandler>? _logger;
 
-    public WebhookHandler(string? signingSecret = null)
+    public WebhookHandler(string? signingSecret = null, ILogger<WebhookHandler>? logger = null)
     {
         _signingSecret = signingSecret;
+        _logger = logger;
     }
 
     /// <summary>
@@ -37,6 +40,9 @@ public sealed class WebhookHandler
 
         subscription.Id = subscription.Id ?? Guid.NewGuid().ToString();
         _subscriptions.Add(subscription);
+
+        _logger?.LogInformation("Webhook subscription registered: {Id} for event types: {EventTypes}",
+            subscription.Id, string.Join(", ", subscription.EventTypes));
     }
 
     /// <summary>
@@ -49,6 +55,8 @@ public sealed class WebhookHandler
             return false;
 
         _subscriptions.Remove(subscription);
+
+        _logger?.LogInformation("Webhook subscription unregistered: {Id}", subscriptionId);
         return true;
     }
 
@@ -109,6 +117,8 @@ public sealed class WebhookHandler
             return false;
 
         updates(subscription);
+
+        _logger?.LogInformation("Webhook subscription updated: {Id}", subscriptionId);
         return true;
     }
 }

@@ -3,12 +3,14 @@
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
-// =============================================================================
+// =====================================================================
 
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using Microsoft.Extensions.Logging;
 
 namespace DotnetEventBus.Advanced;
 
@@ -27,6 +29,12 @@ public sealed class MetricsCollector
     private long _totalEventsPublished = 0;
     private long _totalEventsFailed = 0;
     private DateTime _startTime = DateTime.UtcNow;
+    private readonly ILogger<MetricsCollector>? _logger;
+
+    public MetricsCollector(ILogger<MetricsCollector>? logger = null)
+    {
+        _logger = logger;
+    }
 
     /// <summary>
     /// Records an event publication.
@@ -52,6 +60,8 @@ public sealed class MetricsCollector
         samples.Enqueue(durationMs);
         while (samples.Count > MaxSamplesPerEventType)
             samples.TryDequeue(out _);
+
+        _logger?.LogDebug("Event published metrics recorded: {EventType}, Duration: {DurationMs}ms", eventType, durationMs);
     }
 
     /// <summary>
@@ -67,6 +77,8 @@ public sealed class MetricsCollector
         metrics.LastError = exception.Message;
 
         RecordHandlerFailure(handlerName, eventType);
+
+        _logger?.LogWarning(exception, "Event failed: {EventType} handled by {HandlerName}", eventType, handlerName);
     }
 
     /// <summary>
@@ -89,6 +101,9 @@ public sealed class MetricsCollector
         {
             metrics.FailureCount++;
         }
+
+        _logger?.LogDebug("Handler executed: {HandlerName} for {EventType}, Duration: {DurationMs}ms, Success: {Success}",
+            handlerName, eventType, durationMs, success);
     }
 
     /// <summary>
@@ -114,8 +129,8 @@ public sealed class MetricsCollector
     public IEnumerable<HandlerMetrics> GetHandlerMetrics(string handlerName)
     {
         return _handlerMetrics.Values
-            .Where(m => m.HandlerName == handlerName)
-            .OrderByDescending(m => m.ExecutionCount);
+        .Where(m => m.HandlerName == handlerName)
+        .OrderByDescending(m => m.ExecutionCount);
     }
 
     /// <summary>
@@ -165,6 +180,9 @@ public sealed class MetricsCollector
         var uptime = DateTime.UtcNow - _startTime;
         var totalEvents = _totalEventsPublished;
         var successRate = totalEvents > 0 ? ((totalEvents - _totalEventsFailed) / (double)totalEvents) * 100 : 100;
+
+        _logger?.LogInformation("System metrics retrieved: TotalEvents={TotalEvents}, Failed={Failed}, SuccessRate={SuccessRate}%",
+            totalEvents, _totalEventsFailed, successRate);
 
         return new SystemMetrics
         {
@@ -217,9 +235,9 @@ public sealed class MetricsCollector
     public IEnumerable<LatencyStats> GetAllLatencyStats()
     {
         return _metrics.Keys
-            .Select(GetLatencyStats)
-            .Where(s => s is not null)
-            .Cast<LatencyStats>();
+        .Select(GetLatencyStats)
+        .Where(s => s is not null)
+        .Cast<LatencyStats>();
     }
 
     /// <summary>
@@ -233,6 +251,8 @@ public sealed class MetricsCollector
         _totalEventsPublished = 0;
         _totalEventsFailed = 0;
         _startTime = DateTime.UtcNow;
+
+        _logger?.LogInformation("Metrics collector reset");
     }
 
     private void RecordHandlerFailure(string handlerName, string eventType)
@@ -262,8 +282,8 @@ public sealed class EventMetrics
     public string? LastError { get; set; }
 
     public double SuccessRate => PublishCount > 0
-        ? ((PublishCount - FailureCount) / (double)PublishCount) * 100
-        : 100;
+    ? ((PublishCount - FailureCount) / (double)PublishCount) * 100
+    : 100;
 }
 
 public sealed class HandlerMetrics
@@ -278,8 +298,8 @@ public sealed class HandlerMetrics
     public long SuccessCount => ExecutionCount - FailureCount;
 
     public double SuccessRate => ExecutionCount > 0
-        ? ((ExecutionCount - FailureCount) / (double)ExecutionCount) * 100
-        : 100;
+    ? ((ExecutionCount - FailureCount) / (double)ExecutionCount) * 100
+    : 100;
 }
 
 public sealed class SystemMetrics
