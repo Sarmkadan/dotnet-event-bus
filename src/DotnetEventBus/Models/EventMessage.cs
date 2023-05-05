@@ -12,6 +12,10 @@ namespace DotnetEventBus.Models;
 /// </summary>
 public sealed class EventMessage
 {
+    private const string EmptyMessageIdError = "MessageId cannot be empty";
+    private const string EmptyEventTypeError = "EventType cannot be empty";
+    private const string EmptyPayloadError = "Payload cannot be empty";
+
     /// <summary>
     /// Unique identifier for this message (alias for MessageId, required by repository infrastructure).
     /// </summary>
@@ -67,9 +71,15 @@ public sealed class EventMessage
     /// </summary>
     public EventMessage(string eventType, string payload)
     {
+        if (string.IsNullOrWhiteSpace(eventType))
+            throw new ArgumentException(EmptyEventTypeError, nameof(eventType));
+
+        if (string.IsNullOrWhiteSpace(payload))
+            throw new ArgumentException(EmptyPayloadError, nameof(payload));
+
         MessageId = Guid.NewGuid().ToString();
-        EventType = eventType ?? throw new ArgumentNullException(nameof(eventType));
-        Payload = payload ?? throw new ArgumentNullException(nameof(payload));
+        EventType = eventType;
+        Payload = payload;
         CreatedAtUtc = DateTime.UtcNow;
         Headers = new Dictionary<string, string>();
         Scope = MessageScope.InProcess;
@@ -83,13 +93,13 @@ public sealed class EventMessage
     public void Validate()
     {
         if (string.IsNullOrWhiteSpace(MessageId))
-            throw new ArgumentException("MessageId cannot be empty", nameof(MessageId));
+            throw new ArgumentException(EmptyMessageIdError, nameof(MessageId));
 
         if (string.IsNullOrWhiteSpace(EventType))
-            throw new ArgumentException("EventType cannot be empty", nameof(EventType));
+            throw new ArgumentException(EmptyEventTypeError, nameof(EventType));
 
         if (string.IsNullOrWhiteSpace(Payload))
-            throw new ArgumentException("Payload cannot be empty", nameof(Payload));
+            throw new ArgumentException(EmptyPayloadError, nameof(Payload));
     }
 
     /// <summary>
@@ -97,7 +107,7 @@ public sealed class EventMessage
     /// </summary>
     public EventMessage CreateRetry()
     {
-        return new EventMessage(EventType, Payload)
+        var retryMessage = new EventMessage(EventType, Payload)
         {
             CorrelationId = CorrelationId,
             Source = Source,
@@ -105,6 +115,8 @@ public sealed class EventMessage
             ProcessingAttempts = ProcessingAttempts + 1,
             Headers = new Dictionary<string, string>(Headers)
         };
+
+        return retryMessage;
     }
 
     /// <summary>
