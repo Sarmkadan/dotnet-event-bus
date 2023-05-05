@@ -9,6 +9,7 @@ using FluentAssertions;
 using Moq;
 using Xunit;
 using DotnetEventBus.Configuration;
+using DotnetEventBus.Exceptions;
 using DotnetEventBus.Formatters;
 using DotnetEventBus.Models;
 using DotnetEventBus.Repositories;
@@ -114,7 +115,7 @@ public sealed class EventBusMockTests
         var act = () => options.Validate();
 
         // Assert
-        act.Should().Throw<ArgumentException>()
+        act.Should().Throw<ValidationException>()
             .WithMessage("*DistributedTransportType*");
     }
 }

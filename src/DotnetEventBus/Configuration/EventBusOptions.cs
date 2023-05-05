@@ -5,6 +5,8 @@
 // CTO & Software Architect
 // =============================================================================
 
+using DotnetEventBus.Exceptions;
+
 namespace DotnetEventBus.Configuration;
 
 /// <summary>
@@ -89,34 +91,23 @@ public sealed class EventBusOptions
     public void Validate()
     {
         if (RequestTimeout <= TimeSpan.Zero)
-            throw new ArgumentException(
-                "RequestTimeout must be greater than zero",
-                nameof(RequestTimeout));
+            throw new ValidationException("RequestTimeout must be greater than zero");
 
         if (MaxRetryAttempts < 0)
-            throw new ArgumentException(
-                "MaxRetryAttempts cannot be negative",
-                nameof(MaxRetryAttempts));
+            throw new ValidationException("MaxRetryAttempts cannot be negative");
 
         if (RetryDelay < TimeSpan.Zero)
-            throw new ArgumentException(
-                "RetryDelay cannot be negative",
-                nameof(RetryDelay));
+            throw new ValidationException("RetryDelay cannot be negative");
 
         if (RetryDelayMultiplier < 1.0)
-            throw new ArgumentException(
-                "RetryDelayMultiplier must be at least 1.0",
-                nameof(RetryDelayMultiplier));
+            throw new ValidationException("RetryDelayMultiplier must be at least 1.0");
 
         if (MaxConcurrentHandlers < 1)
-            throw new ArgumentException(
-                "MaxConcurrentHandlers must be at least 1",
-                nameof(MaxConcurrentHandlers));
+            throw new ValidationException("MaxConcurrentHandlers must be at least 1");
 
         if (IsDistributed && string.IsNullOrWhiteSpace(DistributedTransportType))
-            throw new ArgumentException(
-                "DistributedTransportType must be specified when IsDistributed is true",
-                nameof(DistributedTransportType));
+            throw new ValidationException(
+                "DistributedTransportType must be specified when IsDistributed is true");
     }
 
     /// <summary>

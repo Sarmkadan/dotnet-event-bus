@@ -255,7 +255,7 @@ public sealed class EventBus : IEventBus
 
         if (_options.IsDistributed == false || _options.DistributedTransportType == null)
         {
-            throw new NotImplementedException(
+            throw new ConfigurationException(
                 "Request/reply pattern requires distributed transport configuration. " +
                 $"Configured timeout for this request: {effectiveTimeout.TotalSeconds} seconds.");
         }

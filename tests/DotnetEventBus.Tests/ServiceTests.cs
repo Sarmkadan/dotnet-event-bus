@@ -8,8 +8,11 @@
 using Xunit;
 using DotnetEventBus.Services;
 using DotnetEventBus.Configuration;
-using DotnetEventBus.Repositories;
 using DotnetEventBus.Models;
+using DotnetEventBus.Repositories;
+using DotnetEventBus.Handlers;
+using DotnetEventBus.Exceptions;
+using DotnetEventBus.Workers;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DotnetEventBus.Tests;
@@ -61,7 +64,7 @@ public sealed class DeadLetterServiceTests
 
         // Assert
         Assert.NotNull(updated);
-        Assert.Equal(DeadLetterStatus.ReviewedNotProcessed, updated.Status);
+        Assert.Equal(DotnetEventBus.Models.DeadLetterStatus.ReviewedNotProcessed, updated.Status);
     }
 
     [Fact]
@@ -326,11 +329,11 @@ public sealed class ConfigurationTests
         // Arrange
         var options = new DotnetEventBus.Configuration.EventBusOptions
         {
-            DefaultHandlerTimeout = TimeSpan.Zero // Invalid
+            RequestTimeout = TimeSpan.Zero // Invalid
         };
 
         // Act & Assert
-        Assert.Throws<ArgumentException>(() => options.Validate());
+        Assert.Throws<ValidationException>(() => options.Validate());
     }
 
     [Fact]
