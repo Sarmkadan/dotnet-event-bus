@@ -1,31 +1,30 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 
 namespace DotnetEventBus.Benchmarks;
 
 /// <summary>
-/// System.Text.Json serialization extensions for EventBusBenchmarks.
-/// Provides JSON serialization/deserialization helpers for benchmark data.
+/// Provides JSON serialization and deserialization extensions for <see cref="EventBusBenchmarks"/> instances.
 /// </summary>
 public static class EventBusBenchmarksJsonExtensions
 {
-    private static readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
+    private static readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        WriteIndented = false
+        WriteIndented = false,
+        PropertyNameCaseInsensitive = true
     };
 
     /// <summary>
-    /// Serializes an EventBusBenchmarks instance to JSON string.
+    /// Serializes an <see cref="EventBusBenchmarks"/> instance to a JSON string.
     /// </summary>
-    /// <param name="value">The EventBusBenchmarks instance to serialize</param>
-    /// <param name="indented">Whether to format the JSON with indentation</param>
-    /// <returns>JSON string representation</returns>
+    /// <param name="value">The <see cref="EventBusBenchmarks"/> instance to serialize.</param>
+    /// <param name="indented">Whether to format the JSON with indentation for readability.</param>
+    /// <returns>A JSON string representation of the <see cref="EventBusBenchmarks"/> instance.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is <see langword="null"/>.</exception>
     public static string ToJson(this EventBusBenchmarks value, bool indented = false)
     {
-        if (value == null)
-        {
-            throw new ArgumentNullException(nameof(value));
-        }
+        ArgumentNullException.ThrowIfNull(value);
 
         var options = indented
             ? new JsonSerializerOptions(_jsonOptions)
@@ -38,11 +37,18 @@ public static class EventBusBenchmarksJsonExtensions
     }
 
     /// <summary>
-    /// Deserializes an EventBusBenchmarks instance from JSON string.
+    /// Deserializes an <see cref="EventBusBenchmarks"/> instance from a JSON string.
     /// </summary>
-    /// <param name="json">JSON string to deserialize</param>
-    /// <returns>Deserialized EventBusBenchmarks instance, or null if JSON is null or empty</returns>
-    public static EventBusBenchmarks? FromJson(string json)
+    /// <param name="json">The JSON string to deserialize.</param>
+    /// <returns>
+    /// The deserialized <see cref="EventBusBenchmarks"/> instance if successful;
+    /// <see langword="null"/> if the input JSON is <see langword="null"/>, empty, or whitespace.
+    /// </returns>
+    /// <remarks>
+    /// This method catches and discards <see cref="JsonException"/> to provide a forgiving API.
+    /// For more control over error handling, use <see cref="TryFromJson(string, out EventBusBenchmarks)"/> instead.
+    /// </remarks>
+    public static EventBusBenchmarks? FromJson(string? json)
     {
         if (string.IsNullOrWhiteSpace(json))
         {
@@ -60,12 +66,18 @@ public static class EventBusBenchmarksJsonExtensions
     }
 
     /// <summary>
-    /// Attempts to deserialize an EventBusBenchmarks instance from JSON string.
+    /// Attempts to deserialize an <see cref="EventBusBenchmarks"/> instance from a JSON string.
     /// </summary>
-    /// <param name="json">JSON string to deserialize</param>
-    /// <param name="value">Output parameter for the deserialized value</param>
-    /// <returns>True if deserialization succeeded, false otherwise</returns>
-    public static bool TryFromJson(string json, out EventBusBenchmarks? value)
+    /// <param name="json">The JSON string to deserialize.</param>
+    /// <param name="value">
+    /// When this method returns, contains the deserialized <see cref="EventBusBenchmarks"/> instance if successful,
+    /// or <see langword="null"/> if the deserialization failed.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> if the deserialization succeeded;
+    /// <see langword="false"/> if the input JSON is <see langword="null"/>, empty, whitespace, or invalid.
+    /// </returns>
+    public static bool TryFromJson(string? json, [NotNullWhen(true)] out EventBusBenchmarks? value)
     {
         value = null;
 
@@ -77,7 +89,7 @@ public static class EventBusBenchmarksJsonExtensions
         try
         {
             value = JsonSerializer.Deserialize<EventBusBenchmarks>(json, _jsonOptions);
-            return true;
+            return value is not null;
         }
         catch (JsonException)
         {
