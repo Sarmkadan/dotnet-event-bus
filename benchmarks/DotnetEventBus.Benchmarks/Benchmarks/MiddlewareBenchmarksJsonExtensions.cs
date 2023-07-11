@@ -3,83 +3,88 @@ using System.Text.Json.Serialization;
 
 namespace DotnetEventBus.Benchmarks;
 
+/// <summary>
+/// Provides JSON serialization and deserialization extensions for <see cref="MiddlewareBenchmarks"/>.
+/// </summary>
 public static class MiddlewareBenchmarksJsonExtensions
 {
-    private static readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        WriteIndented = false,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-    };
+	private static readonly JsonSerializerOptions _jsonOptions = new()
+	{
+		PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+		WriteIndented = false,
+		DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+	};
 
-    /// <summary>
-    /// Serializes MiddlewareBenchmarks to a JSON string
-    /// </summary>
-    /// <param name="value">The MiddlewareBenchmarks instance to serialize</param>
-    /// <param name="indented">Whether to format the JSON with indentation</param>
-    /// <returns>JSON string representation</returns>
-    public static string ToJson(this MiddlewareBenchmarks value, bool indented = false)
-    {
-        if (value == null)
-        {
-            return "{}";
-        }
+	/// <summary>
+	/// Serializes MiddlewareBenchmarks to a JSON string.
+	/// </summary>
+	/// <param name="value">The MiddlewareBenchmarks instance to serialize.</param>
+	/// <param name="indented">Whether to format the JSON with indentation.</param>
+	/// <returns>JSON string representation.</returns>
+	/// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is <see langword="null"/>.</exception>
+	public static string ToJson(this MiddlewareBenchmarks value, bool indented = false)
+	{
+		ArgumentNullException.ThrowIfNull(value);
 
-        var options = indented
-            ? new JsonSerializerOptions(_jsonOptions)
-            {
-                WriteIndented = true
-            }
-            : _jsonOptions;
+		var options = indented
+			? new JsonSerializerOptions(_jsonOptions) { WriteIndented = true }
+			: _jsonOptions;
 
-        return JsonSerializer.Serialize(value, options);
-    }
+		return JsonSerializer.Serialize(value, options);
+	}
 
-    /// <summary>
-    /// Deserializes MiddlewareBenchmarks from a JSON string
-    /// </summary>
-    /// <param name="json">JSON string to deserialize</param>
-    /// <returns>Deserialized MiddlewareBenchmarks instance or null if parsing fails</returns>
-    public static MiddlewareBenchmarks? FromJson(string json)
-    {
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return null;
-        }
+	/// <summary>
+	/// Deserializes MiddlewareBenchmarks from a JSON string.
+	/// </summary>
+	/// <param name="json">JSON string to deserialize.</param>
+	/// <returns>Deserialized MiddlewareBenchmarks instance, or <see langword="null"/> if parsing fails.</returns>
+	/// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is <see langword="null"/>.</exception>
+	/// <exception cref="FormatException">Thrown when the JSON is malformed or cannot be deserialized.</exception>
+	public static MiddlewareBenchmarks? FromJson(string json)
+	{
+		ArgumentNullException.ThrowIfNull(json);
 
-        try
-        {
-            return JsonSerializer.Deserialize<MiddlewareBenchmarks>(json, _jsonOptions);
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-    }
+		if (string.IsNullOrWhiteSpace(json))
+		{
+			return null;
+		}
 
-    /// <summary>
-    /// Attempts to deserialize MiddlewareBenchmarks from a JSON string
-    /// </summary>
-    /// <param name="json">JSON string to deserialize</param>
-    /// <param name="value">Output parameter for the deserialized instance</param>
-    /// <returns>True if deserialization succeeded, false otherwise</returns>
-    public static bool TryFromJson(string json, out MiddlewareBenchmarks? value)
-    {
-        value = null;
+		try
+		{
+			return JsonSerializer.Deserialize<MiddlewareBenchmarks>(json, _jsonOptions);
+		}
+		catch (JsonException ex)
+		{
+			throw new FormatException("Failed to deserialize MiddlewareBenchmarks from JSON", ex);
+		}
+	}
 
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return false;
-        }
+	/// <summary>
+	/// Attempts to deserialize MiddlewareBenchmarks from a JSON string.
+	/// </summary>
+	/// <param name="json">JSON string to deserialize.</param>
+	/// <param name="value">Output parameter for the deserialized instance.</param>
+	/// <returns><see langword="true"/> if deserialization succeeded; otherwise, <see langword="false"/>.</returns>
+	/// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is <see langword="null"/>.</exception>
+	public static bool TryFromJson(string json, out MiddlewareBenchmarks? value)
+	{
+		ArgumentNullException.ThrowIfNull(json);
 
-        try
-        {
-            value = JsonSerializer.Deserialize<MiddlewareBenchmarks>(json, _jsonOptions);
-            return true;
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
-    }
+		value = null;
+
+		if (string.IsNullOrWhiteSpace(json))
+		{
+			return false;
+		}
+
+		try
+		{
+			value = JsonSerializer.Deserialize<MiddlewareBenchmarks>(json, _jsonOptions);
+			return true;
+		}
+		catch (JsonException)
+		{
+			return false;
+		}
+	}
 }
