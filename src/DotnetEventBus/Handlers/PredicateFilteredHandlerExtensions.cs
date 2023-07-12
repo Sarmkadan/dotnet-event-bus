@@ -22,37 +22,35 @@ public static class PredicateFilteredHandlerExtensions
     /// <typeparam name="TEvent">The event type.</typeparam>
     /// <param name="source">The source predicate-filtered handler.</param>
     /// <param name="newInner">The new inner handler to wrap.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="source"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="newInner"/> is <see langword="null"/>.</exception>
     /// <returns>A new predicate-filtered handler with the same predicate and logger.</returns>
     public static PredicateFilteredHandler<TEvent> WithInnerHandler<TEvent>(
         this PredicateFilteredHandler<TEvent> source,
         IEventHandler<TEvent> newInner)
         where TEvent : class
     {
-        if (source is null)
-        {
-            throw new ArgumentNullException(nameof(source));
-        }
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(newInner);
 
-        if (newInner is null)
-        {
-            throw new ArgumentNullException(nameof(newInner));
-        }
-
-        // Use reflection to access the private predicate and logger fields
+        // Extract the predicate and logger from the source handler via reflection
         var predicateField = typeof(PredicateFilteredHandler<TEvent>).GetField(
             "_predicate",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
         var loggerField = typeof(PredicateFilteredHandler<TEvent>).GetField(
             "_logger",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
-        var predicate = (Func<TEvent, bool>)predicateField?.GetValue(source)!;
+        var predicate = (Func<TEvent, bool>?)predicateField?.GetValue(source);
         var logger = (ILogger?)loggerField?.GetValue(source);
 
-        return new PredicateFilteredHandler<TEvent>(
-            newInner,
-            predicate ?? throw new InvalidOperationException("Predicate cannot be null"),
-            logger);
+        return predicate is null
+            ? throw new InvalidOperationException("Predicate cannot be null")
+            : new PredicateFilteredHandler<TEvent>(
+                newInner,
+                predicate,
+                logger);
     }
 
     /// <summary>
@@ -61,29 +59,26 @@ public static class PredicateFilteredHandlerExtensions
     /// </summary>
     /// <typeparam name="TEvent">The event type.</typeparam>
     /// <param name="source">The source predicate-filtered handler.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="source"/> is <see langword="null"/>.</exception>
     /// <returns>A new predicate-filtered handler with inverted filtering logic.</returns>
     public static PredicateFilteredHandler<TEvent> InvertPredicate<TEvent>(
         this PredicateFilteredHandler<TEvent> source)
         where TEvent : class
     {
-        if (source is null)
-        {
-            throw new ArgumentNullException(nameof(source));
-        }
+        ArgumentNullException.ThrowIfNull(source);
 
-        // Use reflection to access the private predicate field
         var predicateField = typeof(PredicateFilteredHandler<TEvent>).GetField(
             "_predicate",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
-        var predicate = (Func<TEvent, bool>)predicateField?.GetValue(source)!;
+        var predicate = (Func<TEvent, bool>?)predicateField?.GetValue(source);
 
-        return new PredicateFilteredHandler<TEvent>(
-            source, // Keep the same inner handler
-            e => !predicate(e), // Inverted predicate
-            (ILogger?)predicateField?.GetValue(source)?.GetType()
-                .GetField("_logger", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-                ?.GetValue(source));
+        return predicate is null
+            ? throw new InvalidOperationException("Predicate cannot be null")
+            : new PredicateFilteredHandler<TEvent>(
+                source,
+                e => !predicate(e),
+                null);
     }
 
     /// <summary>
@@ -93,35 +88,29 @@ public static class PredicateFilteredHandlerExtensions
     /// <typeparam name="TEvent">The event type.</typeparam>
     /// <param name="source">The source predicate-filtered handler.</param>
     /// <param name="additionalPredicate">The additional predicate to combine with AND.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="source"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="additionalPredicate"/> is <see langword="null"/>.</exception>
     /// <returns>A new predicate-filtered handler with combined filtering logic.</returns>
     public static PredicateFilteredHandler<TEvent> AndPredicate<TEvent>(
         this PredicateFilteredHandler<TEvent> source,
         Func<TEvent, bool> additionalPredicate)
         where TEvent : class
     {
-        if (source is null)
-        {
-            throw new ArgumentNullException(nameof(source));
-        }
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(additionalPredicate);
 
-        if (additionalPredicate is null)
-        {
-            throw new ArgumentNullException(nameof(additionalPredicate));
-        }
-
-        // Use reflection to access the private predicate field
         var predicateField = typeof(PredicateFilteredHandler<TEvent>).GetField(
             "_predicate",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
-        var originalPredicate = (Func<TEvent, bool>)predicateField?.GetValue(source)!;
+        var originalPredicate = (Func<TEvent, bool>?)predicateField?.GetValue(source);
 
-        return new PredicateFilteredHandler<TEvent>(
-            source,
-            e => originalPredicate(e) && additionalPredicate(e),
-            (ILogger?)predicateField?.GetValue(source)?.GetType()
-                .GetField("_logger", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-                ?.GetValue(source));
+        return originalPredicate is null
+            ? throw new InvalidOperationException("Original predicate cannot be null")
+            : new PredicateFilteredHandler<TEvent>(
+                source,
+                e => originalPredicate(e) && additionalPredicate(e),
+                null);
     }
 
     /// <summary>
@@ -131,34 +120,28 @@ public static class PredicateFilteredHandlerExtensions
     /// <typeparam name="TEvent">The event type.</typeparam>
     /// <param name="source">The source predicate-filtered handler.</param>
     /// <param name="additionalPredicate">The additional predicate to combine with OR.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="source"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="additionalPredicate"/> is <see langword="null"/>.</exception>
     /// <returns>A new predicate-filtered handler with combined filtering logic.</returns>
     public static PredicateFilteredHandler<TEvent> OrPredicate<TEvent>(
         this PredicateFilteredHandler<TEvent> source,
         Func<TEvent, bool> additionalPredicate)
         where TEvent : class
     {
-        if (source is null)
-        {
-            throw new ArgumentNullException(nameof(source));
-        }
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(additionalPredicate);
 
-        if (additionalPredicate is null)
-        {
-            throw new ArgumentNullException(nameof(additionalPredicate));
-        }
-
-        // Use reflection to access the private predicate field
         var predicateField = typeof(PredicateFilteredHandler<TEvent>).GetField(
             "_predicate",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
-        var originalPredicate = (Func<TEvent, bool>)predicateField?.GetValue(source)!;
+        var originalPredicate = (Func<TEvent, bool>?)predicateField?.GetValue(source);
 
-        return new PredicateFilteredHandler<TEvent>(
-            source,
-            e => originalPredicate(e) || additionalPredicate(e),
-            (ILogger?)predicateField?.GetValue(source)?.GetType()
-                .GetField("_logger", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-                ?.GetValue(source));
+        return originalPredicate is null
+            ? throw new InvalidOperationException("Original predicate cannot be null")
+            : new PredicateFilteredHandler<TEvent>(
+                source,
+                e => originalPredicate(e) || additionalPredicate(e),
+                null);
     }
 }
