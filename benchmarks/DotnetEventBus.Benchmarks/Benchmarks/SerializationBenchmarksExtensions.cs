@@ -16,8 +16,11 @@ public static class SerializationBenchmarksExtensions
     /// </summary>
     /// <param name="benchmarks">The serialization benchmarks instance.</param>
     /// <returns>True if the serialized JSON is valid and can be deserialized; otherwise false.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="benchmarks"/> is null.</exception>
     public static bool ValidateJsonSerialization(this SerializationBenchmarks benchmarks)
     {
+        ArgumentNullException.ThrowIfNull(benchmarks);
+
         var serialized = benchmarks.Serialize_Json();
         if (string.IsNullOrWhiteSpace(serialized))
         {
@@ -38,8 +41,13 @@ public static class SerializationBenchmarksExtensions
 
             return false;
         }
-        catch
+        catch (System.Text.Json.JsonException)
         {
+            return false;
+        }
+        catch (Exception)
+        {
+            // Catch any other exceptions during JSON parsing
             return false;
         }
     }
@@ -49,8 +57,11 @@ public static class SerializationBenchmarksExtensions
     /// </summary>
     /// <param name="benchmarks">The serialization benchmarks instance.</param>
     /// <returns>True if the serialized CSV is valid and contains expected headers; otherwise false.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="benchmarks"/> is null.</exception>
     public static bool ValidateCsvSerialization(this SerializationBenchmarks benchmarks)
     {
+        ArgumentNullException.ThrowIfNull(benchmarks);
+
         var serialized = benchmarks.Serialize_Csv();
         if (string.IsNullOrWhiteSpace(serialized))
         {
@@ -69,8 +80,13 @@ public static class SerializationBenchmarksExtensions
 
             return false;
         }
-        catch
+        catch (ArgumentNullException)
         {
+            throw;
+        }
+        catch (Exception)
+        {
+            // Catch any other exceptions during CSV parsing
             return false;
         }
     }
@@ -80,8 +96,11 @@ public static class SerializationBenchmarksExtensions
     /// </summary>
     /// <param name="benchmarks">The serialization benchmarks instance.</param>
     /// <returns>True if the serialized XML is valid and can be loaded; otherwise false.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="benchmarks"/> is null.</exception>
     public static bool ValidateXmlSerialization(this SerializationBenchmarks benchmarks)
     {
+        ArgumentNullException.ThrowIfNull(benchmarks);
+
         var serialized = benchmarks.Serialize_Xml();
         if (string.IsNullOrWhiteSpace(serialized))
         {
@@ -92,8 +111,7 @@ public static class SerializationBenchmarksExtensions
         {
             // Check if it starts with XML declaration or root element
             var trimmed = serialized.Trim();
-            if (trimmed.StartsWith("<?xml", StringComparison.OrdinalIgnoreCase) ||
-                trimmed.StartsWith('<'))
+            if (trimmed.StartsWith("<?xml", StringComparison.OrdinalIgnoreCase) || trimmed.StartsWith('<'))
             {
                 // Try to load as XML
                 var doc = new System.Xml.XmlDocument();
@@ -103,8 +121,17 @@ public static class SerializationBenchmarksExtensions
 
             return false;
         }
-        catch
+        catch (ArgumentNullException)
         {
+            throw;
+        }
+        catch (System.Xml.XmlException)
+        {
+            return false;
+        }
+        catch (Exception)
+        {
+            // Catch any other exceptions during XML parsing
             return false;
         }
     }
@@ -114,30 +141,19 @@ public static class SerializationBenchmarksExtensions
     /// </summary>
     /// <param name="benchmarks">The serialization benchmarks instance.</param>
     /// <returns>A string describing the serialization format being tested.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="benchmarks"/> is null.</exception>
     public static string GetSerializationFormat(this SerializationBenchmarks benchmarks)
     {
-        if (benchmarks == null)
-        {
-            throw new ArgumentNullException(nameof(benchmarks));
-        }
+        ArgumentNullException.ThrowIfNull(benchmarks);
 
-        // This is a heuristic based on the method names
-        // Since we can't directly inspect the formatter types, we use the benchmark method names
-        if (benchmarks.Serialize_Json() != null)
+        // Use pattern matching to determine the format based on the benchmark type
+        // This is more reliable than calling serialization methods which may have side effects
+        return benchmarks switch
         {
-            return "JSON";
-        }
-
-        if (benchmarks.Serialize_Csv() != null)
-        {
-            return "CSV";
-        }
-
-        if (benchmarks.Serialize_Xml() != null)
-        {
-            return "XML";
-        }
-
-        return "Unknown";
+            _ when benchmarks.GetType().Name.Contains("Json") => "JSON",
+            _ when benchmarks.GetType().Name.Contains("Csv") => "CSV",
+            _ when benchmarks.GetType().Name.Contains("Xml") => "XML",
+            _ => "Unknown"
+        };
     }
 }
