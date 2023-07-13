@@ -29,15 +29,13 @@ public static class WebhookHandlerJsonExtensions
     /// <param name="value">The webhook handler to serialize.</param>
     /// <param name="indented">Whether to format the JSON with indentation for readability.</param>
     /// <returns>A JSON string representation of the webhook handler.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is <see langword="null"/>.</exception>
     public static string ToJson(this WebhookHandler value, bool indented = false)
     {
         ArgumentNullException.ThrowIfNull(value);
 
         var options = indented
-            ? new JsonSerializerOptions(_jsonSerializerOptions)
-            {
-                WriteIndented = true
-            }
+            ? new JsonSerializerOptions(_jsonSerializerOptions) { WriteIndented = true }
             : _jsonSerializerOptions;
 
         return JsonSerializer.Serialize(value, options);
@@ -48,9 +46,11 @@ public static class WebhookHandlerJsonExtensions
     /// </summary>
     /// <param name="json">The JSON string to deserialize.</param>
     /// <returns>A deserialized <see cref="WebhookHandler"/> instance, or null if the JSON is invalid.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is empty or consists only of whitespace.</exception>
     public static WebhookHandler? FromJson(string json)
     {
-        ArgumentException.ThrowIfNullOrEmpty(json);
+        ArgumentException.ThrowIfNullOrWhiteSpace(json);
 
         try
         {
@@ -68,13 +68,78 @@ public static class WebhookHandlerJsonExtensions
     /// <param name="json">The JSON string to deserialize.</param>
     /// <param name="value">Receives the deserialized <see cref="WebhookHandler"/> instance if successful.</param>
     /// <returns>True if deserialization succeeded; otherwise, false.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is empty or consists only of whitespace.</exception>
     public static bool TryFromJson(string json, out WebhookHandler? value)
     {
-        ArgumentException.ThrowIfNullOrEmpty(json);
+        ArgumentException.ThrowIfNullOrWhiteSpace(json);
 
         try
         {
             value = JsonSerializer.Deserialize<WebhookHandler>(json, _jsonSerializerOptions);
+            return true;
+        }
+        catch (JsonException)
+        {
+            value = null;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Serializes a <see cref="WebhookSubscription"/> instance to a JSON string.
+    /// </summary>
+    /// <param name="value">The webhook subscription to serialize.</param>
+    /// <param name="indented">Whether to format the JSON with indentation for readability.</param>
+    /// <returns>A JSON string representation of the webhook subscription.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is <see langword="null"/>.</exception>
+    public static string ToJson(this WebhookSubscription value, bool indented = false)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+
+        var options = indented
+            ? new JsonSerializerOptions(_jsonSerializerOptions) { WriteIndented = true }
+            : _jsonSerializerOptions;
+
+        return JsonSerializer.Serialize(value, options);
+    }
+
+    /// <summary>
+    /// Deserializes a JSON string to a <see cref="WebhookSubscription"/> instance.
+    /// </summary>
+    /// <param name="json">The JSON string to deserialize.</param>
+    /// <returns>A deserialized <see cref="WebhookSubscription"/> instance, or null if the JSON is invalid.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is empty or consists only of whitespace.</exception>
+    public static WebhookSubscription? FromJsonToSubscription(string json)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(json);
+
+        try
+        {
+            return JsonSerializer.Deserialize<WebhookSubscription>(json, _jsonSerializerOptions);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Attempts to deserialize a JSON string to a <see cref="WebhookSubscription"/> instance.
+    /// </summary>
+    /// <param name="json">The JSON string to deserialize.</param>
+    /// <param name="value">Receives the deserialized <see cref="WebhookSubscription"/> instance if successful.</param>
+    /// <returns>True if deserialization succeeded; otherwise, false.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is empty or consists only of whitespace.</exception>
+    public static bool TryFromJsonToSubscription(string json, out WebhookSubscription? value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(json);
+
+        try
+        {
+            value = JsonSerializer.Deserialize<WebhookSubscription>(json, _jsonSerializerOptions);
             return true;
         }
         catch (JsonException)
