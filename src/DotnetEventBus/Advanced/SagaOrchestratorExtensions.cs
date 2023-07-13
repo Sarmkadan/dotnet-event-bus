@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DotnetEventBus.Advanced;
@@ -26,6 +27,7 @@ public static class SagaOrchestratorExtensions
     /// <param name="orchestrator">The saga orchestrator instance.</param>
     /// <param name="name">The name to assign to the saga.</param>
     /// <returns>The saga orchestrator instance for fluent chaining.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="orchestrator"/> or <paramref name="name"/> is <see langword="null"/>.</exception>
     public static SagaOrchestrator<TContext> WithName<TContext>(
         this SagaOrchestrator<TContext> orchestrator,
         string name) where TContext : class
@@ -35,7 +37,7 @@ public static class SagaOrchestratorExtensions
 
         // Since Name is a required property in the constructor, we can't change it after creation.
         // This method is kept for API consistency but doesn't modify anything.
-        // In a real implementation, we would need to modify the class to support name changes.
+        // In a real implementation, the SagaOrchestrator class would need to support name changes.
         return orchestrator;
     }
 
@@ -48,6 +50,8 @@ public static class SagaOrchestratorExtensions
     /// <param name="context">The context to pass to the saga steps.</param>
     /// <param name="timeout">The maximum duration to allow for saga execution.</param>
     /// <returns>A task that represents the saga execution result with timeout handling.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="orchestrator"/> or <paramref name="context"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="timeout"/> is negative.</exception>
     public static async Task<SagaExecutionResult> ExecuteAsync<TContext>(
         this SagaOrchestrator<TContext> orchestrator,
         TContext context,
@@ -55,6 +59,11 @@ public static class SagaOrchestratorExtensions
     {
         ArgumentNullException.ThrowIfNull(orchestrator);
         ArgumentNullException.ThrowIfNull(context);
+
+        if (timeout < TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(timeout), "Timeout must be non-negative.");
+        }
 
         using var cts = new CancellationTokenSource(timeout);
 
@@ -102,6 +111,7 @@ public static class SagaOrchestratorExtensions
     /// </summary>
     /// <param name="result">The saga execution result.</param>
     /// <returns>A dictionary containing the saga execution metadata.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="result"/> is <see langword="null"/>.</exception>
     public static Dictionary<string, object> ToDictionary(this SagaExecutionResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
@@ -123,6 +133,7 @@ public static class SagaOrchestratorExtensions
     /// <typeparam name="TContext">The context type.</typeparam>
     /// <param name="orchestrator">The saga orchestrator instance.</param>
     /// <returns>An enumerable of failed saga steps.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="orchestrator"/> is <see langword="null"/>.</exception>
     public static IEnumerable<SagaStep<TContext>> GetFailedSteps<TContext>(
         this SagaOrchestrator<TContext> orchestrator) where TContext : class
     {
