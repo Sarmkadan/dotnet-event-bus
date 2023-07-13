@@ -3,10 +3,11 @@
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
-// =============================================================================
+// =====================================================================
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace DotnetEventBus.Advanced;
 
@@ -20,9 +21,10 @@ public static class EventSourcedAggregateExtensions
     /// Creates a deep clone of the aggregate by replaying its uncommitted events.
     /// Useful for testing, backup, or creating aggregate copies without shared state.
     /// </summary>
-    /// <param name="aggregate">The aggregate to clone</param>
-    /// <returns>A new aggregate instance with the same state</returns>
-    /// <exception cref="ArgumentNullException">Thrown if aggregate is null</exception>
+    /// <param name="aggregate">The aggregate to clone.</param>
+    /// <returns>A new aggregate instance with the same state.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="aggregate"/> is null.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when the aggregate type cannot be instantiated.</exception>
     public static EventSourcedAggregate DeepClone(this EventSourcedAggregate aggregate)
     {
         ArgumentNullException.ThrowIfNull(aggregate);
@@ -31,7 +33,7 @@ public static class EventSourcedAggregateExtensions
         var clone = (EventSourcedAggregate)Activator.CreateInstance(aggregate.GetType()
             ?? throw new InvalidOperationException("Cannot create instance of aggregate type"));
 
-        // Copy Id if set
+        // Copy Id if set using reflection since it's protected
         if (aggregate.Id is not null)
         {
             var idProperty = aggregate.GetType().GetProperty("Id");
@@ -56,10 +58,11 @@ public static class EventSourcedAggregateExtensions
     /// This is useful when you have a stream of events that need to be replayed
     /// without going through the normal event sourcing pipeline.
     /// </summary>
-    /// <param name="aggregate">The aggregate to load events into</param>
-    /// <param name="events">The sequence of events to replay</param>
-    /// <returns>The aggregate with events applied</returns>
-    /// <exception cref="ArgumentNullException">Thrown if aggregate or events is null</exception>
+    /// <param name="aggregate">The aggregate to load events into.</param>
+    /// <param name="events">The sequence of events to replay.</param>
+    /// <returns>The aggregate with events applied.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="aggregate"/> is null.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="events"/> is null.</exception>
     public static EventSourcedAggregate RehydrateFromEvents(
         this EventSourcedAggregate aggregate,
         IEnumerable<object> events)
@@ -76,9 +79,9 @@ public static class EventSourcedAggregateExtensions
     /// Determines whether the aggregate has uncommitted events that need to be persisted.
     /// Useful for checking if a save operation is needed.
     /// </summary>
-    /// <param name="aggregate">The aggregate to check</param>
-    /// <returns>True if there are uncommitted events; otherwise false</returns>
-    /// <exception cref="ArgumentNullException">Thrown if aggregate is null</exception>
+    /// <param name="aggregate">The aggregate to check.</param>
+    /// <returns>True if there are uncommitted events; otherwise false.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="aggregate"/> is null.</exception>
     public static bool HasUncommittedEvents(this EventSourcedAggregate aggregate)
     {
         ArgumentNullException.ThrowIfNull(aggregate);
