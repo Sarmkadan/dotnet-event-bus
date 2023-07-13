@@ -52,8 +52,9 @@ public static class EventFilterJsonExtensions
     /// <typeparam name="T">The event type filtered by the filter.</typeparam>
     /// <param name="json">The JSON string to deserialize.</param>
     /// <returns>The deserialized filter, or null if the JSON is null or empty.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="json"/> is null.</exception>
     /// <exception cref="JsonException">Thrown when the JSON is malformed or cannot be deserialized.</exception>
-    public static EventFilter<T>? FromJson<T>(string json) where T : class
+    public static EventFilter<T>? FromJson<T>(string? json) where T : class
     {
         if (string.IsNullOrWhiteSpace(json))
         {
@@ -70,7 +71,8 @@ public static class EventFilterJsonExtensions
     /// <param name="json">The JSON string to deserialize.</param>
     /// <param name="value">Receives the deserialized filter if successful, otherwise null.</param>
     /// <returns>True if deserialization succeeded; false if the JSON is malformed or null/empty.</returns>
-    public static bool TryFromJson<T>(string json, out EventFilter<T>? value) where T : class
+    /// <exception cref="ArgumentNullException"><paramref name="json"/> is null.</exception>
+    public static bool TryFromJson<T>(string? json, out EventFilter<T>? value) where T : class
     {
         value = null;
 
