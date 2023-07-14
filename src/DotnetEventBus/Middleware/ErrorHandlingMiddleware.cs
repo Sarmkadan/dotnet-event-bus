@@ -35,7 +35,7 @@ public sealed class ErrorHandlingMiddleware
         _errorHandler = errorHandler;
     }
 
-    public EventBusMiddleware Create()
+    public EventBusMiddleware Create(EventBusMiddleware next)
     {
         return async (context) =>
         {
@@ -47,7 +47,7 @@ public sealed class ErrorHandlingMiddleware
                 try
                 {
                     attemptCount++;
-                    await Task.CompletedTask;
+                    await next(context);
                     context.IsProcessed = true;
                     return;
                 }

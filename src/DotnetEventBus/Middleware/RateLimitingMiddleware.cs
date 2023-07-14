@@ -38,7 +38,7 @@ public sealed class RateLimitingMiddleware
         _timeWindow = timeWindow ?? TimeSpan.FromSeconds(60);
     }
 
-    public EventBusMiddleware Create()
+    public EventBusMiddleware Create(EventBusMiddleware next)
     {
         return async (context) =>
         {
@@ -56,7 +56,7 @@ public sealed class RateLimitingMiddleware
             await RecordRequest(context.EventType);
 
             // Proceed to next middleware
-            await Task.CompletedTask;
+            await next(context);
         };
     }
 

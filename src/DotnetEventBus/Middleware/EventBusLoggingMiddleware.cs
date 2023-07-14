@@ -35,7 +35,7 @@ public sealed class EventBusLoggingMiddleware
     /// Wraps the next middleware with logging instrumentation.
     /// Captures timing and exception information automatically.
     /// </summary>
-    public EventBusMiddleware Create()
+    public EventBusMiddleware Create(EventBusMiddleware next)
     {
         return async (context) =>
         {
@@ -55,8 +55,8 @@ public sealed class EventBusLoggingMiddleware
                     _logger.Log(_logLevel, "Event payload: {Payload}", payload);
                 }
 
-                // Execute next middleware
-                await Task.CompletedTask;
+                // Execute next middleware in the pipeline
+                await next(context);
 
                 stopwatch.Stop();
                 context.IsProcessed = true;
