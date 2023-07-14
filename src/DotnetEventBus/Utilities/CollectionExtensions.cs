@@ -21,6 +21,7 @@ public static class CollectionExtensions
     /// Batches an enumerable into groups of specified size.
     /// Useful for processing large datasets in chunks.
     /// </summary>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="batchSize"/> is less than or equal to zero.</exception>
     public static IEnumerable<IEnumerable<T>> Batch<T>(this IEnumerable<T> items, int batchSize)
     {
         if (batchSize <= 0)
@@ -58,8 +59,10 @@ public static class CollectionExtensions
     /// Executes an action for each element in the enumerable.
     /// Returns the enumerable unchanged for chaining.
     /// </summary>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="source"/> or <paramref name="action"/> is null.</exception>
     public static IEnumerable<T> ForEach<T>(this IEnumerable<T> source, Action<T> action)
     {
+        ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(action);
 
         foreach (var item in source)
@@ -72,8 +75,10 @@ public static class CollectionExtensions
     /// <summary>
     /// Executes an async action for each element.
     /// </summary>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="source"/> or <paramref name="action"/> is null.</exception>
     public static async Task ForEachAsync<T>(this IEnumerable<T> source, Func<T, Task> action)
     {
+        ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(action);
 
         foreach (var item in source)
@@ -85,11 +90,16 @@ public static class CollectionExtensions
     /// <summary>
     /// Converts an enumerable to a dictionary, handling duplicate keys gracefully.
     /// </summary>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="source"/>, <paramref name="keySelector"/> or <paramref name="valueSelector"/> is null.</exception>
     public static Dictionary<TKey, TValue> ToDictionaryDistinct<TSource, TKey, TValue>(
         this IEnumerable<TSource> source,
         Func<TSource, TKey> keySelector,
         Func<TSource, TValue> valueSelector) where TKey : notnull
     {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(keySelector);
+        ArgumentNullException.ThrowIfNull(valueSelector);
+
         var dictionary = new Dictionary<TKey, TValue>();
 
         foreach (var item in source)
@@ -110,10 +120,14 @@ public static class CollectionExtensions
     /// <summary>
     /// Groups items by key and returns them as a dictionary.
     /// </summary>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="source"/> or <paramref name="keySelector"/> is null.</exception>
     public static Dictionary<TKey, List<T>> GroupByToDictionary<T, TKey>(
         this IEnumerable<T> source,
         Func<T, TKey> keySelector) where TKey : notnull
     {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(keySelector);
+
         return source
             .GroupBy(keySelector)
             .ToDictionary(g => g.Key, g => g.ToList());
@@ -128,8 +142,12 @@ public static class CollectionExtensions
     /// <summary>
     /// Returns distinct elements from a collection using a custom comparer.
     /// </summary>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="source"/> or <paramref name="keySelector"/> is null.</exception>
     public static IEnumerable<T> DistinctBy<T, TKey>(this IEnumerable<T> source, Func<T, TKey> keySelector)
     {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(keySelector);
+
         var seen = new HashSet<TKey>();
         foreach (var item in source)
         {
@@ -141,17 +159,26 @@ public static class CollectionExtensions
     /// <summary>
     /// Returns a random element from a collection.
     /// </summary>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="source"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="source"/> is empty.</exception>
     public static T? GetRandom<T>(this IEnumerable<T> source)
     {
+        ArgumentNullException.ThrowIfNull(source);
+
         var list = source as List<T> ?? source.ToList();
-        return list.Count == 0 ? default : list[new Random().Next(list.Count)];
+        return list.Count == 0
+            ? throw new ArgumentException("Collection cannot be empty", nameof(source))
+            : list[Random.Shared.Next(list.Count)];
     }
 
     /// <summary>
     /// Chunks collection into pages of specified size.
     /// </summary>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="source"/> is null.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="pageSize"/> is less than or equal to zero.</exception>
     public static IEnumerable<Page<T>> AsPages<T>(this IEnumerable<T> source, int pageSize)
     {
+        ArgumentNullException.ThrowIfNull(source);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(pageSize, 0);
 
         var pageNumber = 1;
