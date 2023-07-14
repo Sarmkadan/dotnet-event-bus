@@ -8,7 +8,7 @@
 namespace DotnetEventBus.Repositories;
 
 /// <summary>
-/// Extension methods for <see cref="InMemoryRepository{T}"/> providing additional convenience operations.
+/// Extension methods for <see cref="IRepository{T}"/> providing additional convenience operations.
 /// </summary>
 public static class InMemoryRepositoryExtensions
 {
@@ -16,16 +16,17 @@ public static class InMemoryRepositoryExtensions
     /// Gets the first entity matching the specified predicate, or null if not found.
     /// </summary>
     /// <typeparam name="T">The entity type.</typeparam>
-    /// <param name="repository">The repository instance.</param>
-    /// <param name="predicate">The predicate to match entities.</param>
+    /// <param name="repository">The repository instance. Cannot be null.</param>
+    /// <param name="predicate">The predicate to match entities. Cannot be null.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The first matching entity or null.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="repository"/> or <paramref name="predicate"/> is null.</exception>
     public static async Task<T?> FirstOrDefaultAsync<T>(this IRepository<T> repository,
         Func<T, bool> predicate,
         CancellationToken cancellationToken = default) where T : class
     {
-        if (predicate is null)
-            throw new ArgumentNullException(nameof(predicate));
+        ArgumentNullException.ThrowIfNull(repository);
+        ArgumentNullException.ThrowIfNull(predicate);
 
         var allItems = await repository.GetAllAsync(cancellationToken);
         return allItems.FirstOrDefault(predicate);
@@ -35,16 +36,17 @@ public static class InMemoryRepositoryExtensions
     /// Gets all entities matching the specified predicate.
     /// </summary>
     /// <typeparam name="T">The entity type.</typeparam>
-    /// <param name="repository">The repository instance.</param>
-    /// <param name="predicate">The predicate to match entities.</param>
+    /// <param name="repository">The repository instance. Cannot be null.</param>
+    /// <param name="predicate">The predicate to match entities. Cannot be null.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>Collection of matching entities.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="repository"/> or <paramref name="predicate"/> is null.</exception>
     public static async Task<IEnumerable<T>> WhereAsync<T>(this IRepository<T> repository,
         Func<T, bool> predicate,
         CancellationToken cancellationToken = default) where T : class
     {
-        if (predicate is null)
-            throw new ArgumentNullException(nameof(predicate));
+        ArgumentNullException.ThrowIfNull(repository);
+        ArgumentNullException.ThrowIfNull(predicate);
 
         var allItems = await repository.GetAllAsync(cancellationToken);
         return allItems.Where(predicate).ToList();
@@ -54,16 +56,17 @@ public static class InMemoryRepositoryExtensions
     /// Determines whether any entity matches the specified predicate.
     /// </summary>
     /// <typeparam name="T">The entity type.</typeparam>
-    /// <param name="repository">The repository instance.</param>
-    /// <param name="predicate">The predicate to match entities.</param>
+    /// <param name="repository">The repository instance. Cannot be null.</param>
+    /// <param name="predicate">The predicate to match entities. Cannot be null.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>True if any entity matches; otherwise false.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="repository"/> or <paramref name="predicate"/> is null.</exception>
     public static async Task<bool> AnyAsync<T>(this IRepository<T> repository,
         Func<T, bool> predicate,
         CancellationToken cancellationToken = default) where T : class
     {
-        if (predicate is null)
-            throw new ArgumentNullException(nameof(predicate));
+        ArgumentNullException.ThrowIfNull(repository);
+        ArgumentNullException.ThrowIfNull(predicate);
 
         var allItems = await repository.GetAllAsync(cancellationToken);
         return allItems.Any(predicate);
@@ -73,18 +76,22 @@ public static class InMemoryRepositoryExtensions
     /// Gets entities with pagination and applies a filter predicate.
     /// </summary>
     /// <typeparam name="T">The entity type.</typeparam>
-    /// <param name="repository">The repository instance.</param>
-    /// <param name="pageNumber">The page number (1-based).</param>
-    /// <param name="pageSize">The number of items per page.</param>
+    /// <param name="repository">The repository instance. Cannot be null.</param>
+    /// <param name="pageNumber">The page number (1-based). Must be greater than 0.</param>
+    /// <param name="pageSize">The number of items per page. Must be greater than 0.</param>
     /// <param name="predicate">Optional filter predicate to apply before pagination.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>Paginated result with filtered items.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="repository"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="pageNumber"/> or <paramref name="pageSize"/> is less than 1.</exception>
     public static async Task<PaginatedResult<T>> GetPagedAsync<T>(this IRepository<T> repository,
         int pageNumber,
         int pageSize,
         Func<T, bool>? predicate = null,
         CancellationToken cancellationToken = default) where T : class
     {
+        ArgumentNullException.ThrowIfNull(repository);
+
         if (pageNumber < 1)
             throw new ArgumentException("Page number must be at least 1", nameof(pageNumber));
         if (pageSize < 1)
