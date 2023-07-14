@@ -88,8 +88,7 @@ public static class PredicateSubscriptionExtensions
         ArgumentNullException.ThrowIfNull(handler);
         ArgumentNullException.ThrowIfNull(predicate);
 
-        var wrapped = new PredicateFilteredHandler<TEvent>(handler, predicate, logger);
-        return eventBus.Subscribe<TEvent>(wrapped);
+        return eventBus.Subscribe<TEvent>(new PredicateFilteredHandler<TEvent>(handler, predicate, logger));
     }
 
     /// <summary>
