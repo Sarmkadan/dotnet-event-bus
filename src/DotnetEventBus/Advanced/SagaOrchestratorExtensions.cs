@@ -35,9 +35,7 @@ public static class SagaOrchestratorExtensions
         ArgumentNullException.ThrowIfNull(orchestrator);
         ArgumentNullException.ThrowIfNull(name);
 
-        // Since Name is a required property in the constructor, we can't change it after creation.
-        // This method is kept for API consistency but doesn't modify anything.
-        // In a real implementation, the SagaOrchestrator class would need to support name changes.
+        orchestrator.Name = name;
         return orchestrator;
     }
 

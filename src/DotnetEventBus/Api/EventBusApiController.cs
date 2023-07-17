@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using DotnetEventBus.Advanced;
 using DotnetEventBus.Models;
 using DotnetEventBus.Services;
 
@@ -21,10 +22,20 @@ namespace DotnetEventBus.Api;
 public abstract class EventBusApiController
 {
     protected readonly IEventBus _eventBus;
+    protected readonly MetricsCollector? _metrics;
 
     protected EventBusApiController(IEventBus eventBus)
+        : this(eventBus, null)
+    {
+    }
+
+    /// <summary>
+    /// Creates a controller that also reports statistics from the supplied metrics collector.
+    /// </summary>
+    protected EventBusApiController(IEventBus eventBus, MetricsCollector? metrics)
     {
         _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
+        _metrics = metrics;
     }
 
     /// <summary>
@@ -45,8 +56,12 @@ public abstract class EventBusApiController
         try
         {
             var envelope = EventEnvelope.Create(eventType, payload);
-            // TODO: Use actual event bus when available
-            // var result = await _eventBus.PublishAsync(envelope);
+            var result = await _eventBus.PublishAsync(envelope);
+
+            if (!result.Success)
+            {
+                return ApiResponse<EventPublishResult>.Error(result.ErrorMessage ?? "Publish failed");
+            }
 
             return ApiResponse<EventPublishResult>.Success(new EventPublishResult
             {
@@ -75,15 +90,35 @@ public abstract class EventBusApiController
         try
         {
             var batch = EventBatch.Create(events.ToArray());
-            // TODO: Use actual batch publisher when available
-            // await _batchPublisher.AddEventsAsync(events);
+
+            var publishedCount = 0;
+            var failures = new List<string>();
+
+            foreach (var envelope in events)
+            {
+                var result = await _eventBus.PublishAsync(envelope);
+
+                if (result.Success)
+                {
+                    publishedCount++;
+                }
+                else
+                {
+                    failures.Add($"{envelope.EventId}: {result.ErrorMessage ?? "publish failed"}");
+                }
+            }
+
+            if (failures.Count == events.Count)
+            {
+                return ApiResponse<BatchPublishResult>.Error(string.Join("; ", failures));
+            }
 
             return ApiResponse<BatchPublishResult>.Success(new BatchPublishResult
             {
                 BatchId = batch.BatchId,
-                EventCount = batch.EventCount,
+                EventCount = publishedCount,
                 PublishedAt = DateTime.UtcNow,
-                Success = true
+                Success = failures.Count == 0
             });
         }
         catch (Exception ex)
@@ -99,13 +134,14 @@ public abstract class EventBusApiController
     {
         try
         {
-            // TODO: Get actual stats from event bus
+            var systemMetrics = _metrics?.GetSystemMetrics();
+
             var stats = new EventBusStats
             {
-                Status = "Healthy",
-                TotalEventsPublished = 0,
-                TotalEventsFailed = 0,
-                ActiveSubscriptions = 0,
+                Status = DetermineStatus(systemMetrics).ToString(),
+                TotalEventsPublished = systemMetrics?.TotalEventsPublished ?? 0,
+                TotalEventsFailed = systemMetrics?.TotalEventsFailed ?? 0,
+                ActiveSubscriptions = systemMetrics?.HandlersCount ?? 0,
                 LastCheckTime = DateTime.UtcNow
             };
 
@@ -124,13 +160,27 @@ public abstract class EventBusApiController
     {
         try
         {
-            // TODO: Check actual health
-            return ApiResponse<HealthStatus>.Success(HealthStatus.Healthy);
+            return ApiResponse<HealthStatus>.Success(DetermineStatus(_metrics?.GetSystemMetrics()));
         }
         catch (Exception ex)
         {
             return ApiResponse<HealthStatus>.Error(ex.Message);
         }
+    }
+
+    private static HealthStatus DetermineStatus(SystemMetrics? metrics)
+    {
+        if (metrics is null || metrics.TotalEventsPublished == 0)
+        {
+            return HealthStatus.Healthy;
+        }
+
+        return metrics.SuccessRate switch
+        {
+            < 50 => HealthStatus.Unhealthy,
+            < 95 => HealthStatus.Degraded,
+            _ => HealthStatus.Healthy
+        };
     }
 }
 

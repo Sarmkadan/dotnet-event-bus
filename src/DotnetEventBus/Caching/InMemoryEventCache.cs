@@ -18,10 +18,11 @@ namespace DotnetEventBus.Caching;
 /// Uses concurrent dictionary for thread-safe access and automatic expiration.
 /// Why: Provides fast, local caching without external dependencies for single-instance deployments.
 /// </summary>
-public sealed class InMemoryEventCache : IEventCache
+public sealed class InMemoryEventCache : IEventCache, IDisposable
 {
     private readonly ConcurrentDictionary<string, CacheEntry> _cache = [];
     private readonly object _statsLock = new();
+    private readonly CancellationTokenSource _cleanupCts = new();
     private long _hits = 0;
     private long _misses = 0;
 
@@ -34,15 +35,31 @@ public sealed class InMemoryEventCache : IEventCache
     {
         _maxCapacity = maxCapacity;
 
-        // Start cleanup task that runs every minute
+        // Start cleanup task that runs every minute until disposed.
         _ = Task.Run(async () =>
         {
-            while (true)
+            try
             {
-                await Task.Delay(TimeSpan.FromMinutes(1));
-                CleanupExpiredEntries();
+                while (!_cleanupCts.IsCancellationRequested)
+                {
+                    await Task.Delay(TimeSpan.FromMinutes(1), _cleanupCts.Token);
+                    CleanupExpiredEntries();
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected on dispose.
             }
         });
+    }
+
+    /// <summary>
+    /// Stops the background cleanup loop.
+    /// </summary>
+    public void Dispose()
+    {
+        _cleanupCts.Cancel();
+        _cleanupCts.Dispose();
     }
 
     public async Task<T?> GetAsync<T>(string key) where T : class
@@ -219,8 +236,25 @@ public sealed class InMemoryEventCache : IEventCache
 
     private long EstimateMemoryUsage()
     {
-        // Rough estimate: count entries and add average size
-        return _cache.Count * 100; // Simplified estimate
+        // Estimates managed footprint per entry: dictionary bucket plus entry object
+        // overhead, UTF-16 key characters, and payload size where it is measurable.
+        const long PerEntryOverhead = 88;
+
+        long total = 0;
+
+        foreach (var kvp in _cache)
+        {
+            total += PerEntryOverhead + (long)kvp.Key.Length * sizeof(char);
+
+            total += kvp.Value.Value switch
+            {
+                string s => (long)s.Length * sizeof(char) + 26,
+                byte[] bytes => bytes.LongLength + 24,
+                _ => 64
+            };
+        }
+
+        return total;
     }
 
     private class CacheEntry

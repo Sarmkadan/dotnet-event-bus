@@ -7,8 +7,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using DotnetEventBus.Repositories;
 
 namespace DotnetEventBus.Cli;
 
@@ -18,13 +21,29 @@ namespace DotnetEventBus.Cli;
 /// </summary>
 public sealed class QueryCommand : ICommand
 {
+    private const int DefaultLimit = 100;
+
+    private readonly IEventMessageRepository? _repository;
+
+    public QueryCommand()
+    {
+    }
+
+    /// <summary>
+    /// Creates a query command bound to a concrete event store.
+    /// </summary>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="repository"/> is null.</exception>
+    public QueryCommand(IEventMessageRepository repository)
+    {
+        ArgumentNullException.ThrowIfNull(repository);
+        _repository = repository;
+    }
+
     public string Name => "query";
     public string Description => "Query events and event history";
 
     public async Task<CommandResult> ExecuteAsync(string[] args)
     {
-        await Task.CompletedTask; // Keep async signature
-
         if (args.Length == 0)
         {
             return new CommandResult(false, GetHelpText());
@@ -35,22 +54,67 @@ public sealed class QueryCommand : ICommand
 
         try
         {
-            // TODO: Query actual event store when available
-            var mockResults = new[]
+            if (_repository is null)
             {
-                new {
-                    id = "evt-001",
-                    type = eventType,
-                    timestamp = DateTime.UtcNow.AddMinutes(-5).ToString("o"),
-                    data = new { id = 1, name = "Sample Event" }
+                return new CommandResult(false,
+                    "No event store is attached to this CLI. Construct the CLI with an IEventMessageRepository instance to query events.");
+            }
+
+            DateTime? since = null, until = null;
+
+            if (options.TryGetValue("since", out var sinceRaw))
+            {
+                if (!DateTime.TryParse(sinceRaw, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var parsedSince))
+                {
+                    return new CommandResult(false, $"Invalid --since value: {sinceRaw}. Use ISO 8601 format.");
                 }
-            };
+
+                since = parsedSince;
+            }
+
+            if (options.TryGetValue("until", out var untilRaw))
+            {
+                if (!DateTime.TryParse(untilRaw, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var parsedUntil))
+                {
+                    return new CommandResult(false, $"Invalid --until value: {untilRaw}. Use ISO 8601 format.");
+                }
+
+                until = parsedUntil;
+            }
+
+            var limit = DefaultLimit;
+
+            if (options.TryGetValue("limit", out var limitRaw))
+            {
+                if (!int.TryParse(limitRaw, NumberStyles.Integer, CultureInfo.InvariantCulture, out limit) || limit <= 0)
+                {
+                    return new CommandResult(false, $"Invalid --limit value: {limitRaw}. Use a positive integer.");
+                }
+            }
+
+            var messages = await _repository.GetByEventTypeAsync(eventType);
+
+            var results = messages
+                .Where(m => (!since.HasValue || m.CreatedAtUtc >= since.Value) &&
+                            (!until.HasValue || m.CreatedAtUtc <= until.Value))
+                .OrderByDescending(m => m.CreatedAtUtc)
+                .Take(limit)
+                .Select(m => new
+                {
+                    id = m.MessageId,
+                    type = m.EventType,
+                    timestamp = m.CreatedAtUtc.ToString("o", CultureInfo.InvariantCulture),
+                    correlationId = m.CorrelationId,
+                    source = m.Source,
+                    data = m.Payload
+                })
+                .ToList();
 
             var json = JsonSerializer.Serialize(new
             {
                 eventType = eventType,
-                resultCount = mockResults.Length,
-                results = mockResults
+                resultCount = results.Count,
+                results = results
             }, new JsonSerializerOptions { WriteIndented = true });
 
             return new CommandResult(true, json);

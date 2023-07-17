@@ -28,7 +28,13 @@ public sealed class SagaOrchestrator<TContext> where TContext : class
     {
         _sagaId = sagaId ?? throw new ArgumentNullException(nameof(sagaId));
         _logger = logger;
+        Name = sagaId;
     }
+
+    /// <summary>
+    /// Display name of the saga used for identification and logging. Defaults to the saga id.
+    /// </summary>
+    public string Name { get; set; }
 
     /// <summary>
     /// Adds a step to the saga.

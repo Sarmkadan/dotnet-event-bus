@@ -167,7 +167,7 @@ public sealed class RetryPolicyTests
         var executionCount = 0;
 
         // Act
-        var act = () => policy.ExecuteAsync(async () =>
+        var result = await policy.ExecuteAsync(async () =>
         {
             executionCount++;
             if (executionCount < 3)
@@ -176,15 +176,8 @@ public sealed class RetryPolicyTests
         });
 
         // Assert
-        var result = await policy.ExecuteAsync(async () =>
-        {
-            executionCount++;
-            if (executionCount < 4)
-                throw new TimeoutException("Retryable");
-            return "success";
-        });
-
         result.Should().Be("success");
+        executionCount.Should().Be(3); // Initial attempt plus two retries
     }
 
     [Fact]

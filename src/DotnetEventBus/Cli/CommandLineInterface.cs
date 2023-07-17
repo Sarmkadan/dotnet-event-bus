@@ -29,6 +29,33 @@ public sealed class CommandLineInterface
     }
 
     /// <summary>
+    /// Creates a CLI whose default commands are wired to concrete services.
+    /// Commands whose dependency is not supplied fall back to their unbound variant.
+    /// </summary>
+    public CommandLineInterface(
+        Services.IEventBus? eventBus,
+        Repositories.IEventMessageRepository? eventRepository = null,
+        Advanced.MetricsCollector? metrics = null)
+    {
+        RegisterDefaultCommands();
+
+        if (eventBus is not null)
+        {
+            RegisterCommand(new PublishCommand(eventBus));
+        }
+
+        if (eventRepository is not null)
+        {
+            RegisterCommand(new QueryCommand(eventRepository));
+        }
+
+        if (metrics is not null)
+        {
+            RegisterCommand(new StatsCommand(metrics));
+        }
+    }
+
+    /// <summary>
     /// Registers a command.
     /// </summary>
     public void RegisterCommand(ICommand command)

@@ -21,10 +21,24 @@ public sealed class RequestResponseBus
 {
     private readonly ConcurrentDictionary<string, TaskCompletionSource<object?>> _pendingRequests = [];
     private readonly TimeSpan _defaultTimeout;
+    private readonly Func<string, RequestMessage<object>, Task>? _publishRequest;
 
     public RequestResponseBus(TimeSpan? defaultTimeout = null)
     {
         _defaultTimeout = defaultTimeout ?? TimeSpan.FromSeconds(30);
+    }
+
+    /// <summary>
+    /// Creates a bus that dispatches outgoing requests through the supplied publisher.
+    /// The publisher receives the event type and the request message (including the request id)
+    /// and is responsible for delivering it to the underlying transport.
+    /// </summary>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="publishRequest"/> is null.</exception>
+    public RequestResponseBus(Func<string, RequestMessage<object>, Task> publishRequest, TimeSpan? defaultTimeout = null)
+        : this(defaultTimeout)
+    {
+        ArgumentNullException.ThrowIfNull(publishRequest);
+        _publishRequest = publishRequest;
     }
 
     /// <summary>
@@ -56,8 +70,17 @@ public sealed class RequestResponseBus
                     tcs.TrySetException(new TimeoutException($"Request {requestId} timed out after {actualTimeout.TotalSeconds}s"));
                 });
 
-                // TODO: Publish request event with requestId
-                // await eventBus.PublishAsync(eventType, request, metadata: { requestId });
+                if (_publishRequest is not null)
+                {
+                    var message = new RequestMessage<object>
+                    {
+                        RequestId = requestId,
+                        Payload = request,
+                        Timeout = actualTimeout
+                    };
+
+                    await _publishRequest(eventType, message);
+                }
 
                 var response = await tcs.Task;
                 return response as TResponse;
@@ -79,8 +102,8 @@ public sealed class RequestResponseBus
 
         if (_pendingRequests.TryRemove(requestId, out var tcs))
         {
-            tcs.SetResult(response);
-            return true;
+            // TrySetResult: the request may have already been faulted by its timeout callback.
+            return tcs.TrySetResult(response);
         }
 
         return false;
@@ -96,8 +119,8 @@ public sealed class RequestResponseBus
 
         if (_pendingRequests.TryRemove(requestId, out var tcs))
         {
-            tcs.SetException(exception);
-            return true;
+            // TrySetException: the request may have already been faulted by its timeout callback.
+            return tcs.TrySetException(exception);
         }
 
         return false;
