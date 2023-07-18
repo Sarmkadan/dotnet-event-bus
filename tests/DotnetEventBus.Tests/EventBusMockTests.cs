@@ -18,8 +18,23 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace DotnetEventBus.Tests;
 
+/// <summary>
+/// Contains unit tests for verifying the behavior of the <see cref="EventBus"/> class using mock objects.
+/// </summary>
+/// <remarks>
+/// These tests validate that the event bus correctly handles failed event processing scenarios,
+/// including dead letter queue functionality and configuration validation.
+/// </remarks>
 public sealed class EventBusMockTests
 {
+    /// <summary>
+    /// Tests that when an event handler throws an exception, the event bus adds an entry to the dead letter queue.
+    /// </summary>
+    /// <remarks>
+    /// This test verifies the dead letter queue functionality by creating an event bus with dead letter queue enabled,
+    /// subscribing a handler that always throws an exception, publishing an event, and asserting that the
+    /// dead letter repository's AddAsync method was called exactly once.
+    /// </remarks>
     [Fact]
     public async Task PublishAsync_WithFailingHandler_ShouldAddEntryToDeadLetterRepository()
     {
@@ -62,6 +77,15 @@ public sealed class EventBusMockTests
             Times.Once);
     }
 
+    /// <summary>
+    /// Tests that when dead letter queue is disabled, failed event handlers do not add entries to the dead letter repository.
+    /// </summary>
+    /// <remarks>
+    /// This test verifies that the dead letter queue can be disabled and that failed handlers do not attempt to
+    /// write to the dead letter repository when it is disabled. The test creates an event bus with dead letter queue disabled,
+    /// subscribes a failing handler, publishes an event, and asserts that the dead letter repository's AddAsync method
+    /// was never called.
+    /// </remarks>
     [Fact]
     public async Task PublishAsync_WithDeadLetterQueueDisabled_FailingHandlerShouldNotCallDeadLetterRepository()
     {
@@ -101,6 +125,15 @@ public sealed class EventBusMockTests
             Times.Never);
     }
 
+    /// <summary>
+    /// Tests that EventBusOptions validation throws an exception when distributed mode is enabled but no transport type is specified.
+    /// </summary>
+    /// <remarks>
+    /// This test verifies the configuration validation logic in EventBusOptions. When IsDistributed is set to true,
+    /// the DistributedTransportType property must be set to a valid value. This test creates an EventBusOptions instance
+    /// with IsDistributed=true and DistributedTransportType=null, then asserts that calling Validate() throws a
+    /// ValidationException with a message containing "DistributedTransportType".
+    /// </remarks>
     [Fact]
     public void EventBusOptions_Validate_WithDistributedModeAndNoTransportType_ShouldThrow()
     {
