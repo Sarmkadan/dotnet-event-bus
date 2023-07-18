@@ -7,6 +7,7 @@
 
 using DotnetEventBus.Models;
 using DotnetEventBus.Repositories;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace DotnetEventBus.Services;
@@ -121,8 +122,18 @@ public sealed class BatchReprocessResult
 public sealed class DeadLetterService : IDeadLetterService
 {
     private readonly IDeadLetterRepository _repository;
-    private readonly IEventBus? _eventBus;
+    private readonly IEventBus? _eventBusInstance;
+    private readonly IServiceProvider? _serviceProvider;
     private readonly ILogger<DeadLetterService>? _logger;
+
+    // Resolved lazily (never at construction time): DeadLetterService and EventBus are
+    // mutually dependent when wired through DI (AddEventBus registers EventBus with a
+    // factory that resolves IDeadLetterService, which historically resolved IEventBus back
+    // via its constructor). Requesting IEventBus eagerly here re-enters the same singleton
+    // resolution that is still in progress and deadlocks inside the container's singleton
+    // lock. Resolving through IServiceProvider on first use instead defers the lookup until
+    // the EventBus singleton has already finished constructing.
+    private IEventBus? _eventBus => _eventBusInstance ?? _serviceProvider?.GetService<IEventBus>();
 
     public DeadLetterService(
         IDeadLetterRepository repository,
@@ -130,7 +141,17 @@ public sealed class DeadLetterService : IDeadLetterService
         ILogger<DeadLetterService>? logger = null)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
-        _eventBus = eventBus;
+        _eventBusInstance = eventBus;
+        _logger = logger;
+    }
+
+    public DeadLetterService(
+        IDeadLetterRepository repository,
+        IServiceProvider serviceProvider,
+        ILogger<DeadLetterService>? logger = null)
+    {
+        _repository = repository ?? throw new ArgumentNullException(nameof(repository));
+        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _logger = logger;
     }
 

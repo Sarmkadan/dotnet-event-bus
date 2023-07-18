@@ -46,8 +46,19 @@ public static class ServiceCollectionExtensions
                 sp.GetService<Microsoft.Extensions.Logging.ILogger<Services.EventBus>>(),
                 sp.GetRequiredService<IDeadLetterService>(),
                 sp.GetRequiredService<IEventFormatter>(),
-                sp.GetRequiredService<IServiceProvider>()));
-        services.AddSingleton<IDeadLetterService, DeadLetterService>();
+                sp.GetRequiredService<IServiceProvider>(),
+                sp.GetRequiredService<IEventMessageRepository>(),
+                sp.GetRequiredService<ISubscriptionRepository>(),
+                sp.GetRequiredService<IDeadLetterRepository>()));
+        // Resolves IEventBus lazily (via IServiceProvider) instead of taking it as a
+        // direct constructor dependency: IEventBus's own factory above resolves
+        // IDeadLetterService, so an eager IEventBus dependency here would re-enter the
+        // still-in-progress EventBus singleton resolution and deadlock on first use.
+        services.AddSingleton<IDeadLetterService>(sp =>
+            new DeadLetterService(
+                sp.GetRequiredService<IDeadLetterRepository>(),
+                sp.GetRequiredService<IServiceProvider>(),
+                sp.GetService<Microsoft.Extensions.Logging.ILogger<DeadLetterService>>()));
         services.AddSingleton<ISubscriptionManager, SubscriptionManager>();
         services.AddSingleton<IHandlerInvoker, HandlerInvoker>();
 
@@ -85,7 +96,14 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(subscriptionRepository);
         services.AddSingleton(deadLetterRepository);
         services.AddSingleton<IEventFormatter, Formatters.JsonEventFormatter>();
-        services.AddSingleton<IDeadLetterService, DeadLetterService>();
+        // See remarks in the other AddEventBus overload: IDeadLetterService must resolve
+        // IEventBus lazily (via IServiceProvider), not as a direct constructor dependency,
+        // or the two singletons deadlock resolving each other on first use.
+        services.AddSingleton<IDeadLetterService>(sp =>
+            new DeadLetterService(
+                deadLetterRepository,
+                sp.GetRequiredService<IServiceProvider>(),
+                sp.GetService<Microsoft.Extensions.Logging.ILogger<DeadLetterService>>()));
         services.AddSingleton<ISubscriptionManager, SubscriptionManager>();
         services.AddSingleton<IHandlerInvoker, HandlerInvoker>();
         services.AddSingleton<IEventBus>(sp =>

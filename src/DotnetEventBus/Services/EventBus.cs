@@ -42,14 +42,21 @@ public sealed class EventBus : IEventBus
         ILogger<EventBus>? logger = null,
         IDeadLetterService? deadLetterService = null,
         IEventFormatter? eventFormatter = null,
-        IServiceProvider? serviceProvider = null)
+        IServiceProvider? serviceProvider = null,
+        IEventMessageRepository? messageRepository = null,
+        ISubscriptionRepository? subscriptionRepository = null,
+        IDeadLetterRepository? deadLetterRepository = null)
     {
         _options = options ?? new EventBusOptions();
         _options.Validate();
         _logger = logger;
-        _messageRepository = new InMemoryEventMessageRepository();
-        _subscriptionRepository = new InMemorySubscriptionRepository();
-        _deadLetterRepository = new InMemoryDeadLetterRepository();
+        // Falls back to private, per-instance repositories only when none are supplied.
+        // When wired through DI, the caller must pass the same repository singletons that
+        // IDeadLetterService/ISubscriptionManager use - otherwise dead letters written here
+        // land in a repository nobody else can see them in.
+        _messageRepository = messageRepository ?? new InMemoryEventMessageRepository();
+        _subscriptionRepository = subscriptionRepository ?? new InMemorySubscriptionRepository();
+        _deadLetterRepository = deadLetterRepository ?? new InMemoryDeadLetterRepository();
         _deadLetterService = deadLetterService ?? new DeadLetterService(_deadLetterRepository, this);
         _eventFormatter = eventFormatter ?? new Formatters.JsonEventFormatter();
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));

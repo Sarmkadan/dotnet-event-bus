@@ -133,7 +133,7 @@ public class NewCoreFunctionalityTests
             new InMemoryEventMessageRepository(),
             new InMemorySubscriptionRepository(),
             dlqRepository,
-            new DeadLetterService(dlqRepository, null!, null),
+            new DeadLetterService(dlqRepository, (IEventBus?)null, null),
             new DotnetEventBus.Formatters.JsonEventFormatter(),
             _serviceProvider,
             options);
