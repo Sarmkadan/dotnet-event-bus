@@ -44,16 +44,23 @@ public sealed class MetricsCollector
         Interlocked.Increment(ref _totalEventsPublished);
 
         var metrics = _metrics.GetOrAdd(eventType, _ => new EventMetrics { EventType = eventType });
-        metrics.PublishCount++;
-        metrics.TotalDurationMs += durationMs;
-        metrics.LastPublishedAt = DateTime.UtcNow;
-        metrics.AverageDurationMs = (double)metrics.TotalDurationMs / metrics.PublishCount;
+        // EventMetrics is shared by every caller recording the same event type. The
+        // read-modify-write increments below are not atomic by themselves, so concurrent
+        // callers race and lose updates (e.g. PublishCount ends up lower than the actual
+        // number of calls). Serialize updates under the metrics instance's own lock.
+        lock (metrics)
+        {
+            metrics.PublishCount++;
+            metrics.TotalDurationMs += durationMs;
+            metrics.LastPublishedAt = DateTime.UtcNow;
+            metrics.AverageDurationMs = (double)metrics.TotalDurationMs / metrics.PublishCount;
 
-        if (durationMs > metrics.MaxDurationMs)
-            metrics.MaxDurationMs = durationMs;
+            if (durationMs > metrics.MaxDurationMs)
+                metrics.MaxDurationMs = durationMs;
 
-        if (metrics.MinDurationMs == 0 || durationMs < metrics.MinDurationMs)
-            metrics.MinDurationMs = durationMs;
+            if (metrics.MinDurationMs == 0 || durationMs < metrics.MinDurationMs)
+                metrics.MinDurationMs = durationMs;
+        }
 
         // Keep a bounded sample window for percentile calculations.
         var samples = _durationSamples.GetOrAdd(eventType, _ => new ConcurrentQueue<long>());
@@ -72,9 +79,12 @@ public sealed class MetricsCollector
         Interlocked.Increment(ref _totalEventsFailed);
 
         var metrics = _metrics.GetOrAdd(eventType, _ => new EventMetrics { EventType = eventType });
-        metrics.FailureCount++;
-        metrics.LastFailureAt = DateTime.UtcNow;
-        metrics.LastError = exception.Message;
+        lock (metrics)
+        {
+            metrics.FailureCount++;
+            metrics.LastFailureAt = DateTime.UtcNow;
+            metrics.LastError = exception.Message;
+        }
 
         RecordHandlerFailure(handlerName, eventType);
 
@@ -93,13 +103,16 @@ public sealed class MetricsCollector
             EventType = eventType
         });
 
-        metrics.ExecutionCount++;
-        metrics.TotalDurationMs += durationMs;
-        metrics.AverageDurationMs = (double)metrics.TotalDurationMs / metrics.ExecutionCount;
-
-        if (!success)
+        lock (metrics)
         {
-            metrics.FailureCount++;
+            metrics.ExecutionCount++;
+            metrics.TotalDurationMs += durationMs;
+            metrics.AverageDurationMs = (double)metrics.TotalDurationMs / metrics.ExecutionCount;
+
+            if (!success)
+            {
+                metrics.FailureCount++;
+            }
         }
 
         _logger?.LogDebug("Handler executed: {HandlerName} for {EventType}, Duration: {DurationMs}ms, Success: {Success}",
@@ -264,7 +277,10 @@ public sealed class MetricsCollector
             EventType = eventType
         });
 
-        metrics.FailureCount++;
+        lock (metrics)
+        {
+            metrics.FailureCount++;
+        }
     }
 }
 

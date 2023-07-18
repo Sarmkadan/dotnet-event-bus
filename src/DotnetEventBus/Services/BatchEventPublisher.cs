@@ -92,6 +92,8 @@ public sealed class BatchEventPublisher
             return false;
         }
 
+        EventBatch? batchToFlush = null;
+
         lock (_lock)
         {
             _buffer.Add(envelope);
@@ -102,13 +104,20 @@ public sealed class BatchEventPublisher
 
             if (shouldFlush && _buffer.Count > 0)
             {
-                var batch = new EventBatch { Events = new List<EventEnvelope>(_buffer) };
+                batchToFlush = new EventBatch { Events = new List<EventEnvelope>(_buffer) };
                 _buffer.Clear();
                 _lastFlushTime = DateTime.UtcNow;
-
-                // Flush outside lock
-                _ = Task.Run(async () => await FlushBatchAsync(batch));
             }
+        }
+
+        if (batchToFlush is not null)
+        {
+            // Flushed inline (outside the lock) rather than fire-and-forget: a detached
+            // Task.Run left callers with no way to observe completion or failure, so
+            // AddEventAsync could return before the flush handler ran (or ever finished),
+            // and any exception it threw became an unobserved task exception instead of
+            // propagating to the caller.
+            await FlushBatchAsync(batchToFlush);
         }
 
         return true;

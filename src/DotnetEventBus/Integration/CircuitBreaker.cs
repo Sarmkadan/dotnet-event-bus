@@ -137,7 +137,11 @@ public sealed class CircuitBreaker
             _failureCount++;
             _lastFailureTime = DateTime.UtcNow;
 
-            if (_failureCount >= _failureThreshold)
+            // A half-open probe exists to test recovery with a single request; if it fails,
+            // the service is still down and the circuit must reopen immediately rather than
+            // waiting for _failureCount to climb back up to _failureThreshold (which would
+            // let further requests through to a service already known to be failing).
+            if (_state == CircuitBreakerState.HalfOpen || _failureCount >= _failureThreshold)
             {
                 _state = CircuitBreakerState.Open;
             }
