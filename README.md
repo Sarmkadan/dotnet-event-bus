@@ -82,4 +82,66 @@ var hasError = await publisher.PublishWithErrorContainingAsync(
 ```
 
 These extension methods provide a clean and expressive API for common HTTP event publishing scenarios, reducing boilerplate code and improving readability.
+
+
+## ValidationHelperExtensions
+
+The `ValidationHelperExtensions` class provides a comprehensive set of extension methods for `ValidationHelper` that enable fluent and expressive validation scenarios. These extensions allow for validating strings, collections, numeric values, and complex patterns with custom error messages, supporting method chaining for clean and readable validation code.
+
+Here's an example usage:
+
+```csharp
+var validationHelper = new ValidationHelper();
+
+// Validate a string is not empty with custom error message
+validationHelper
+    .RequireNotEmpty(order.CustomerName, "CustomerName", "Customer name is required")
+    .RequireMinLength(order.CustomerName, 3, "CustomerName")
+    .RequireMaxLength(order.CustomerName, 100, "CustomerName");
+
+// Validate a collection is not empty
+validationHelper.RequireNotEmpty(order.Items, "Items");
+
+// Validate a string matches a specific pattern (e.g., email)
+validationHelper.RequirePattern(
+    order.Email,
+    "^[\\w-\\+]+(\\.\\w-\\+)*@[\\w-]+(\\.\\w-)*\\.\\[a-z]{2,}$",
+    "Email",
+    "must be a valid email address"
+);
+
+// Validate a string contains only alphanumeric characters
+validationHelper.RequireAlphanumeric(order.Username, "Username");
+
+// Validate a string contains only alphabetic characters
+validationHelper.RequireAlphabetic(order.FirstName, "FirstName");
+
+// Validate a string contains only numeric characters
+validationHelper.RequireNumeric(order.ZipCode, "ZipCode");
+
+// Validate a string has the exact length
+validationHelper.RequireExactItems(order.PhoneNumbers, 2, "PhoneNumbers");
+
+// Validate a numeric value is within range
+validationHelper
+    .RequireGreaterThan(order.Age, 18, "Age")
+    .RequireLessThan(order.Age, 120, "Age");
+
+// Validate a string is a valid IPv4 address
+validationHelper.RequireValidIpAddress(order.IpAddress, "IpAddress");
+
+// Validate a string is a valid GUID
+validationHelper.RequireValidGuid(order.CorrelationId, "CorrelationId");
+
+// Check if validation failed
+if (validationHelper.HasErrors)
+{
+    foreach (var error in validationHelper.Errors)
+    {
+        Console.WriteLine(error);
+    }
+}
+```
+
+These extension methods provide a fluent API for common validation scenarios, making validation code more concise and easier to read while maintaining type safety and comprehensive error reporting.
 // ... (rest of the README.md content remains the same)
