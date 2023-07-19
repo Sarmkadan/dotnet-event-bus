@@ -745,6 +745,36 @@ services.AddErrorHandlingMiddleware(options =>
 });
 ```
 
+## MiddlewareBenchmarksExtensions
+
+The `MiddlewareBenchmarksExtensions` class provides extension methods for `MiddlewareBenchmarks` that enable additional benchmarking scenarios and performance analysis of middleware pipelines. These methods help measure middleware overhead, test custom payload sizes, and run load tests to evaluate system performance under various conditions.
+
+### Usage Examples
+
+```csharp
+using DotnetEventBus.Benchmarks;
+
+// Create a benchmarks instance
+var benchmarks = new MiddlewareBenchmarks();
+
+// Configure with custom payload size for memory pressure testing
+var configuredBenchmarks = benchmarks.WithCustomPayloadSize(1024);
+
+// Run all middleware benchmarks and get performance summary
+var results = configuredBenchmarks.RunAllMiddlewareBenchmarks();
+Console.WriteLine($"Logging: {results[0].Value} {results[0].Unit}");
+Console.WriteLine($"ErrorHandling: {results[1].Value} {results[1].Unit}");
+Console.WriteLine($"AllMiddleware: {results[2].Value} {results[2].Unit}");
+
+// Measure middleware overhead percentage
+var overhead = benchmarks.MeasureMiddlewareOverhead();
+Console.WriteLine($"Middleware overhead: {overhead}%");
+
+// Run load test with 1000 iterations
+var averageMs = await benchmarks.RunMiddlewareLoadTest(iterations: 1000);
+Console.WriteLine($"Average execution time: {averageMs:F2}ms");
+```
+
 ## Performance
 
 DotnetEventBus is optimized for low-overhead, in-process delivery. The numbers below were measured on a single Apple M-class core (equivalent AMD/Intel results are within ~15%).
