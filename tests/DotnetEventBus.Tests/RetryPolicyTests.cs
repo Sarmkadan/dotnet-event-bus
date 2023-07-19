@@ -7,8 +7,15 @@ using System.Diagnostics;
 
 namespace DotnetEventBus.Tests;
 
+/// <summary>
+/// Contains unit tests for the <see cref="RetryPolicy"/> class.
+/// Tests retry behavior, configuration options, and exception handling.
+/// </summary>
 public sealed class RetryPolicyTests
 {
+    /// <summary>
+    /// Tests that ExecuteAsync returns the result immediately without retrying when the operation succeeds on the first attempt.
+    /// </summary>
     [Fact]
     public async Task ExecuteAsync_WithSuccessfulOperation_ShouldReturnResultWithoutRetry()
     {
@@ -28,6 +35,9 @@ public sealed class RetryPolicyTests
         executionCount.Should().Be(1);
     }
 
+        /// <summary>
+        /// Tests that ExecuteAsync retries the operation and succeeds when the failure is transient.
+        /// </summary>
     [Fact]
     public async Task ExecuteAsync_WithTransientFailureThenSuccess_ShouldRetryAndSucceed()
     {
@@ -74,6 +84,9 @@ public sealed class RetryPolicyTests
         executionCount.Should().Be(3); // 1 initial + 2 retries
     }
 
+        /// <summary>
+        /// Tests that ExecuteAsync uses exponential backoff with increasing delays between retry attempts.
+        /// </summary>
     [Fact]
     public async Task ExecuteAsync_WithExponentialBackoff_ShouldIncreaseDelayPerAttempt()
     {
@@ -107,6 +120,9 @@ public sealed class RetryPolicyTests
         stopwatch.ElapsedMilliseconds.Should().BeGreaterThanOrEqualTo(60);
     }
 
+        /// <summary>
+        /// Tests that ExecuteAsync caps the delay at the maximum specified value when using exponential backoff.
+        /// </summary>
     [Fact]
     public async Task ExecuteAsync_WithMaxDelay_ShouldCapDelayAtMaximum()
     {
@@ -132,6 +148,9 @@ public sealed class RetryPolicyTests
         // Should not take unreasonably long due to max delay cap
     }
 
+        /// <summary>
+        /// Tests that ExecuteAsync only retries exceptions that match the retryable exception filter.
+        /// </summary>
     [Fact]
     public async Task ExecuteAsync_WithRetryableExceptionFilter_ShouldRetryOnlyRetryableExceptions()
     {
@@ -155,6 +174,9 @@ public sealed class RetryPolicyTests
         executionCount.Should().Be(1); // No retries for non-retryable exception
     }
 
+        /// <summary>
+        /// Tests that ExecuteAsync retries when the exception matches the retryable exception filter.
+        /// </summary>
     [Fact]
     public async Task ExecuteAsync_WithRetryableExceptionFilter_ShouldRetryRetryableExceptions()
     {
@@ -180,6 +202,9 @@ public sealed class RetryPolicyTests
         executionCount.Should().Be(3); // Initial attempt plus two retries
     }
 
+        /// <summary>
+        /// Tests that ExecuteAsync produces consistent delays when jitter is disabled.
+        /// </summary>
     [Fact]
     public async Task ExecuteAsync_WithJitterDisabled_DelaysShouldBeConsistent()
     {
@@ -204,6 +229,9 @@ public sealed class RetryPolicyTests
         executionCount.Should().Be(3);
     }
 
+        /// <summary>
+        /// Tests that WithMaxRetries throws ArgumentException when provided with a negative value.
+        /// </summary>
     [Fact]
     public void WithMaxRetries_WithNegativeValue_ShouldThrowArgumentException()
     {
@@ -215,6 +243,9 @@ public sealed class RetryPolicyTests
             .Should().Throw<ArgumentException>();
     }
 
+        /// <summary>
+        /// Tests that WithInitialDelay throws ArgumentException when provided with a negative TimeSpan value.
+        /// </summary>
     [Fact]
     public void WithInitialDelay_WithNegativeValue_ShouldThrowArgumentException()
     {
@@ -226,6 +257,9 @@ public sealed class RetryPolicyTests
             .Should().Throw<ArgumentException>();
     }
 
+        /// <summary>
+        /// Tests that WithBackoffMultiplier throws ArgumentException when provided with a value less than or equal to 1.0.
+        /// </summary>
     [Fact]
     public void WithBackoffMultiplier_WithValueLessThanOrEqualToOne_ShouldThrowArgumentException()
     {
@@ -239,6 +273,9 @@ public sealed class RetryPolicyTests
             .Should().Throw<ArgumentException>();
     }
 
+        /// <summary>
+        /// Tests that WithMaxDelay throws ArgumentException when provided with a non-positive TimeSpan value.
+        /// </summary>
     [Fact]
     public void WithMaxDelay_WithNonPositiveValue_ShouldThrowArgumentException()
     {
@@ -252,6 +289,9 @@ public sealed class RetryPolicyTests
             .Should().Throw<ArgumentException>();
     }
 
+        /// <summary>
+        /// Tests that ExecuteAsync successfully completes when the void operation succeeds.
+        /// </summary>
     [Fact]
     public async Task ExecuteAsync_VoidOperation_WithSuccess_ShouldCompleteSuccessfully()
     {
@@ -270,6 +310,9 @@ public sealed class RetryPolicyTests
         wasExecuted.Should().BeTrue();
     }
 
+        /// <summary>
+        /// Tests that ExecuteAsync retries and throws when a void operation fails.
+        /// </summary>
     [Fact]
     public async Task ExecuteAsync_VoidOperation_WithFailure_ShouldRetryAndThrow()
     {
