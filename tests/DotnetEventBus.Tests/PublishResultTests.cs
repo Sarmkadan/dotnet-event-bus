@@ -9,10 +9,16 @@ using FluentAssertions;
 using Xunit;
 using DotnetEventBus.Models;
 
-namespace DotnetEventBus.Tests;
-
+/// <summary>
+/// Contains unit tests for the <see cref="PublishResult"/> model.
+/// </summary>
 public sealed class PublishResultTests
 {
+    /// <summary>
+    /// Verifies that <see cref="PublishResult.AddSuccessfulHandler(string)"/> increments the
+    /// <see cref="PublishResult.HandlersInvoked"/> count and appends the handler names to the
+    /// <see cref="PublishResult.SuccessfulHandlers"/> collection in the order they were added.
+    /// </summary>
     [Fact]
     public void AddSuccessfulHandler_ShouldIncrementHandlersInvokedAndAppendToList()
     {
@@ -29,6 +35,12 @@ public sealed class PublishResultTests
         result.FailedHandlers.Should().Be(0);
     }
 
+    /// <summary>
+    /// Verifies that <see cref="PublishResult.AddFailedHandler(string, Exception)"/> increments the
+    /// failed handler count, records each failed handler name, and captures the first exception
+    /// (including its message) as the result's <see cref="PublishResult.Exception"/> and
+    /// <see cref="PublishResult.ErrorMessage"/>.
+    /// </summary>
     [Fact]
     public void AddFailedHandler_ShouldIncrementFailedCountAndCaptureFirstException()
     {
@@ -48,6 +60,12 @@ public sealed class PublishResultTests
         result.ErrorMessage.Should().Be(firstEx.Message);
     }
 
+    /// <summary>
+    /// Verifies that <see cref="PublishResult.CreateFailed(string, Exception)"/> creates a result
+    /// marked as unsuccessful, populates the <see cref="PublishResult.Exception"/> and
+    /// <see cref="PublishResult.ErrorMessage"/> properties with the supplied exception, and
+    /// preserves the supplied message identifier.
+    /// </summary>
     [Fact]
     public void CreateFailed_ShouldPopulateExceptionAndMarkAsUnsuccessful()
     {
@@ -64,6 +82,11 @@ public sealed class PublishResultTests
         result.MessageId.Should().Be("msg-003");
     }
 
+    /// <summary>
+    /// Verifies that <see cref="PublishResult.GetSummary()"/> returns a string containing the
+    /// message identifier, a success indicator, and the number of successful handlers when the
+    /// result represents a successful publish operation.
+    /// </summary>
     [Fact]
     public void GetSummary_ShouldIncludeMessageIdAndSuccessIndicator()
     {
