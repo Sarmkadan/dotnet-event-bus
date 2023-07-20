@@ -9,16 +9,30 @@ using Microsoft.Extensions.Logging;
 
 namespace DotnetEventBus.Tests;
 
+/// <summary>
+/// Unit tests for <see cref="BatchEventPublisher"/> class that verify batch event publishing functionality.
+/// Tests cover event addition, batch flushing, error handling, and constructor validation.
+/// </summary>
 public sealed class BatchEventPublisherTests
 {
+	/// <summary>
+	/// Mock logger for testing <see cref="BatchEventPublisher"/> behavior.
+	/// </summary>
     private readonly Mock<ILogger<BatchEventPublisher>> _mockLogger;
 
+	/// <summary>
+	/// Initializes a new instance of the <see cref="BatchEventPublisherTests"/> class.
+	/// Sets up the mock logger used for all test cases.
+	/// </summary>
     public BatchEventPublisherTests()
     {
         _mockLogger = new Mock<ILogger<BatchEventPublisher>>();
     }
 
     [Fact]
+	/// <summary>
+	/// Tests that <see cref="BatchEventPublisher.AddEventAsync"/> successfully adds a valid event envelope to the batch.
+	/// </summary>
     public async Task AddEventAsync_WithValidEnvelope_ShouldAddToBatch()
     {
         // Arrange
@@ -33,6 +47,9 @@ public sealed class BatchEventPublisherTests
     }
 
     [Fact]
+	/// <summary>
+	/// Tests that <see cref="BatchEventPublisher.AddEventAsync"/> returns false when adding an invalid event envelope (empty event type).
+	/// </summary>
     public async Task AddEventAsync_WithInvalidEnvelope_ShouldReturnFalse()
     {
         // Arrange
@@ -47,6 +64,9 @@ public sealed class BatchEventPublisherTests
     }
 
     [Fact]
+	/// <summary>
+	/// Tests that <see cref="BatchEventPublisher.AddEventAsync"/> throws <see cref="ArgumentNullException"/> when null envelope is provided.
+	/// </summary>
     public async Task AddEventAsync_WithNullEnvelope_ShouldThrowArgumentNullException()
     {
         // Arrange
@@ -58,6 +78,9 @@ public sealed class BatchEventPublisherTests
     }
 
     [Fact]
+	/// <summary>
+	/// Tests that the flush handler is invoked when the batch reaches its configured size.
+	/// </summary>
     public async Task SetFlushHandler_ShouldBeInvokedWhenBatchIsFull()
     {
         // Arrange
@@ -83,6 +106,9 @@ public sealed class BatchEventPublisherTests
     }
 
     [Fact]
+	/// <summary>
+	/// Tests that <see cref="BatchEventPublisher.SetFlushHandler"/> throws <see cref="ArgumentNullException"/> when null handler is provided.
+	/// </summary>
     public async Task SetFlushHandler_WithNullHandler_ShouldThrowArgumentNullException()
     {
         // Arrange
@@ -94,6 +120,9 @@ public sealed class BatchEventPublisherTests
     }
 
     [Fact]
+	/// <summary>
+	/// Tests that <see cref="BatchEventPublisher.SetFlushHandlerWithResult"/> invokes the per-event handler for each event in the batch.
+	/// </summary>
     public async Task SetFlushHandlerWithResult_ShouldInvokePerEventHandler()
     {
         // Arrange
@@ -123,6 +152,9 @@ public sealed class BatchEventPublisherTests
     }
 
     [Fact]
+	/// <summary>
+	/// Tests that <see cref="BatchEventPublisher.SetFlushHandlerWithResult"/> processes all events even when some events fail processing.
+	/// </summary>
     public async Task SetFlushHandlerWithResult_WithErrorIsolation_ShouldProcessAllEventsEvenWithFailures()
     {
         // Arrange
@@ -156,6 +188,9 @@ public sealed class BatchEventPublisherTests
     }
 
     [Fact]
+	/// <summary>
+	/// Tests that <see cref="BatchEventPublisher.SetFlushHandlerWithResult"/> throws <see cref="ArgumentNullException"/> when null handler is provided.
+	/// </summary>
     public async Task SetFlushHandlerWithResult_WithNullHandler_ShouldThrowArgumentNullException()
     {
         // Arrange
@@ -167,6 +202,9 @@ public sealed class BatchEventPublisherTests
     }
 
     [Fact]
+	/// <summary>
+	/// Tests that <see cref="BatchEventPublisher.AddEventAsync"/> flushes multiple batches when adding more events than the batch size.
+	/// </summary>
     public async Task AddEventAsync_WithMultipleBatches_ShouldFlushEachBatch()
     {
         // Arrange
@@ -191,6 +229,9 @@ public sealed class BatchEventPublisherTests
     }
 
     [Fact]
+	/// <summary>
+	/// Tests that the <see cref="BatchEventPublisher"/> constructor throws <see cref="ArgumentException"/> when invalid batch size (0 or negative) is provided.
+	/// </summary>
     public void Constructor_WithInvalidBatchSize_ShouldThrowArgumentException()
     {
         // Act & Assert
@@ -202,6 +243,9 @@ public sealed class BatchEventPublisherTests
     }
 
     [Fact]
+	/// <summary>
+	/// Tests that the <see cref="BatchEventPublisher"/> constructor throws <see cref="ArgumentNullException"/> when null logger is provided.
+	/// </summary>
     public void Constructor_WithNullLogger_ShouldThrowArgumentNullException()
     {
         // Act & Assert
@@ -210,6 +254,9 @@ public sealed class BatchEventPublisherTests
     }
 
     [Fact]
+	/// <summary>
+	/// Tests that <see cref="BatchEventPublisher.FlushAsync"/> does not throw when no flush handler is set.
+	/// </summary>
     public async Task FlushAsync_WithoutHandler_ShouldNotThrow()
     {
         // Arrange
