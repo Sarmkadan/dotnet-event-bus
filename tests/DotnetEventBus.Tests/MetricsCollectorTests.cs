@@ -6,8 +6,18 @@ using DotnetEventBus.Advanced;
 
 namespace DotnetEventBus.Tests;
 
+/// <summary>
+/// Unit tests for the <see cref="MetricsCollector"/> class that verify event bus metrics collection functionality.
+/// Tests cover event publishing metrics, handler execution tracking, failure recording,
+/// and various metric calculations and aggregations.
+/// </summary>
 public sealed class MetricsCollectorTests
 {
+    /// <summary>
+    /// Tests that recording event publications correctly increments the publish count for event types.
+    /// Verifies that the <see cref="MetricsCollector.RecordEventPublished(string,int)"/> method
+    /// properly tracks how many times each event type has been published.
+    /// </summary>
     [Fact]
     public void RecordEventPublished_ShouldIncrementPublishCount()
     {
@@ -25,6 +35,11 @@ public sealed class MetricsCollectorTests
         eventMetrics!.PublishCount.Should().Be(2);
     }
 
+    /// <summary>
+    /// Tests that recording event publications correctly calculates the average duration for event types.
+    /// Verifies that the <see cref="MetricsCollector.RecordEventPublished(string,int)"/> method
+    /// properly computes the average duration across all published events of a specific type.
+    /// </summary>
     [Fact]
     public void RecordEventPublished_ShouldCalculateAverageDuration()
     {
@@ -41,6 +56,11 @@ public sealed class MetricsCollectorTests
         metrics!.AverageDurationMs.Should().Be(200.0);
     }
 
+    /// <summary>
+    /// Tests that recording event publications correctly tracks minimum and maximum durations for event types.
+    /// Verifies that the <see cref="MetricsCollector.RecordEventPublished(string,int)"/> method
+    /// properly maintains the minimum and maximum duration values across all published events.
+    /// </summary>
     [Fact]
     public void RecordEventPublished_ShouldTrackMinMaxDuration()
     {
@@ -58,6 +78,11 @@ public sealed class MetricsCollectorTests
         metrics.MaxDurationMs.Should().Be(200);
     }
 
+    /// <summary>
+    /// Tests that recording event failures correctly increments the failure count for event types.
+    /// Verifies that the <see cref="MetricsCollector.RecordEventFailed(string,string,Exception)"/> method
+    /// properly tracks how many times each event type has failed during processing.
+    /// </summary>
     [Fact]
     public void RecordEventFailed_ShouldIncrementFailureCount()
     {
@@ -74,6 +99,11 @@ public sealed class MetricsCollectorTests
         metrics!.FailureCount.Should().Be(2);
     }
 
+    /// <summary>
+    /// Tests that recording event failures correctly captures and stores error messages.
+    /// Verifies that the <see cref="MetricsCollector.RecordEventFailed(string,string,Exception)"/> method
+    /// properly stores the exception message in the event metrics for later retrieval.
+    /// </summary>
     [Fact]
     public void RecordEventFailed_ShouldCaptureErrorMessage()
     {
@@ -89,6 +119,11 @@ public sealed class MetricsCollectorTests
         metrics!.LastError.Should().Contain("Database connection failed");
     }
 
+    /// <summary>
+    /// Tests that recording handler executions correctly tracks handler-specific metrics.
+    /// Verifies that the <see cref="MetricsCollector.RecordHandlerExecution(string,string,int,bool)"/> method
+    /// properly tracks execution counts, success rates, and failure counts for specific handler-event combinations.
+    /// </summary>
     [Fact]
     public void RecordHandlerExecution_ShouldTrackHandlerMetrics()
     {
@@ -108,6 +143,11 @@ public sealed class MetricsCollectorTests
         handlerMetrics.FailureCount.Should().Be(1);
     }
 
+    /// <summary>
+    /// Tests that retrieving all event metrics returns all tracked event types.
+    /// Verifies that the <see cref="MetricsCollector.GetAllEventMetrics()"/> method
+    /// returns a complete collection of metrics for all event types that have been published.
+    /// </summary>
     [Fact]
     public void GetAllEventMetrics_ShouldReturnAllTrackedEvents()
     {
@@ -125,6 +165,11 @@ public sealed class MetricsCollectorTests
         allMetrics.Select(m => m.EventType).Should().Contain(new[] { "Event1", "Event2", "Event3" });
     }
 
+    /// <summary>
+    /// Tests that retrieving all handler metrics returns all tracked handler-event combinations.
+    /// Verifies that the <see cref="MetricsCollector.GetAllHandlerMetrics()"/> method
+    /// returns a complete collection of metrics for all handler-event combinations that have been executed.
+    /// </summary>
     [Fact]
     public void GetAllHandlerMetrics_ShouldReturnAllTrackedHandlers()
     {
@@ -141,6 +186,11 @@ public sealed class MetricsCollectorTests
         allMetrics.Should().HaveCount(3);
     }
 
+    /// <summary>
+    /// Tests that calculating success rate correctly computes the percentage of successful executions.
+    /// Verifies that the <see cref="MetricsCollector.GetSuccessRate(string,string)"/> method
+    /// properly calculates the success rate as a percentage based on execution counts.
+    /// </summary>
     [Fact]
     public void GetSuccessRate_ShouldCalculatePercentageCorrectly()
     {
@@ -157,6 +207,11 @@ public sealed class MetricsCollectorTests
         successRate.Should().BeApproximately(66.67, 0.01);
     }
 
+    /// <summary>
+    /// Tests that calculating success rate returns zero when no executions have been recorded.
+    /// Verifies that the <see cref="MetricsCollector.GetSuccessRate(string,string)"/> method
+    /// returns 0 when querying for a handler-event combination that has no recorded executions.
+    /// </summary>
     [Fact]
     public void GetSuccessRate_WithNoExecutions_ShouldReturnZero()
     {
@@ -170,6 +225,11 @@ public sealed class MetricsCollectorTests
         successRate.Should().Be(0);
     }
 
+    /// <summary>
+    /// Tests that calculating average duration correctly computes the average for handler-event combinations.
+    /// Verifies that the <see cref="MetricsCollector.GetAverageDuration(string,string)"/> method
+    /// properly calculates the average duration across all executions for a specific handler-event combination.
+    /// </summary>
     [Fact]
     public void GetAverageDuration_ShouldCalculateAverageForHandler()
     {
@@ -186,6 +246,11 @@ public sealed class MetricsCollectorTests
         averageDuration.Should().Be(200.0);
     }
 
+    /// <summary>
+    /// Tests that resetting the metrics collector clears all recorded metrics.
+    /// Verifies that the <see cref="MetricsCollector.Reset()"/> method
+    /// completely clears all event and handler metrics from the collector.
+    /// </summary>
     [Fact]
     public void Reset_ShouldClearAllMetrics()
     {
@@ -202,6 +267,11 @@ public sealed class MetricsCollectorTests
         collector.GetAllHandlerMetrics().Should().BeEmpty();
     }
 
+    /// <summary>
+    /// Tests that recording event publications for multiple event types tracks them independently.
+    /// Verifies that the <see cref="MetricsCollector.RecordEventPublished(string,int)"/> method
+    /// correctly maintains separate metrics for different event types without interference.
+    /// </summary>
     [Fact]
     public void RecordEventPublished_WithMultipleEvents_ShouldTrackIndependently()
     {
@@ -224,6 +294,11 @@ public sealed class MetricsCollectorTests
         event1Metrics.AverageDurationMs.Should().NotBe(event2Metrics.AverageDurationMs);
     }
 
+    /// <summary>
+    /// Tests that recording event failures updates the last failure timestamp correctly.
+    /// Verifies that the <see cref="MetricsCollector.RecordEventFailed(string,string,Exception)"/> method
+    /// properly updates the <see cref="EventMetrics.LastFailureAt"/> timestamp for event types.
+    /// </summary>
     [Fact]
     public void GetLastFailureTime_ShouldUpdateOnFailure()
     {
@@ -242,6 +317,11 @@ public sealed class MetricsCollectorTests
         metrics.LastFailureAt.Should().BeOnOrBefore(afterTime);
     }
 
+    /// <summary>
+    /// Tests that recording event publications updates the last published timestamp correctly.
+    /// Verifies that the <see cref="MetricsCollector.RecordEventPublished(string,int)"/> method
+    /// properly updates the <see cref="EventMetrics.LastPublishedAt"/> timestamp for event types.
+    /// </summary>
     [Fact]
     public void GetLastPublishedTime_ShouldUpdateOnPublish()
     {
