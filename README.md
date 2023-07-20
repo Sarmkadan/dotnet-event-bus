@@ -144,4 +144,36 @@ if (validationHelper.HasErrors)
 ```
 
 These extension methods provide a fluent API for common validation scenarios, making validation code more concise and easier to read while maintaining type safety and comprehensive error reporting.
-// ... (rest of the README.md content remains the same)
+
+## DeadLetterBenchmarks
+
+The `DeadLetterBenchmarks` class provides performance benchmarks for dead letter queue operations, measuring throughput and latency for error handling and retry scenarios. It evaluates the overhead of publishing failed events, querying pending dead letter entries, reprocessing failed messages, and collecting dead letter statistics.
+
+Here's an example usage:
+
+```csharp
+// Setup the benchmark infrastructure
+var benchmarks = new DeadLetterBenchmarks();
+benchmarks.GlobalSetup();
+
+// Benchmark: Publish event that fails and gets sent to dead letter queue
+await benchmarks.Publish_To_DeadLetter();
+
+// Benchmark: Get pending dead letter entries
+var pendingEntries = await benchmarks.Get_Pending_DeadLetter_Entries();
+
+// Benchmark: Reprocess 10 dead letter entries
+await benchmarks.Reprocess_10_DeadLetter_Entries();
+
+// Benchmark: Get dead letter statistics
+var statistics = await benchmarks.Get_DeadLetter_Statistics();
+
+// Benchmark: Publish event with retry policy
+await benchmarks.Publish_With_Retry_Policy();
+
+// Benchmark: Memory allocation for dead letter operations
+await benchmarks.DeadLetter_Memory_Allocation();
+
+// Cleanup
+benchmarks.GlobalCleanup();
+```
