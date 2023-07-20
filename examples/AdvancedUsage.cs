@@ -5,6 +5,12 @@ using DotnetEventBus.Configuration;
 using DotnetEventBus.Services;
 using Microsoft.Extensions.DependencyInjection;
 
+/// <summary>
+/// Represents an event that is published when a new order is successfully placed in the system.
+/// Contains the unique identifier of the order and the total monetary amount of the order.
+/// </summary>
+/// <param name="OrderId">The unique identifier assigned to the order.</param>
+/// <param name="Amount">The total monetary amount of the order in the system's currency.</param>
 public record OrderPlacedEvent(string OrderId, decimal Amount);
 
 public class AdvancedUsageExample
