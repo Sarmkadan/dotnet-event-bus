@@ -11,8 +11,15 @@ using DotnetEventBus.Models;
 
 namespace DotnetEventBus.Tests;
 
+/// <summary>
+/// Contains unit tests for verifying the behavior and edge cases of <see cref="EventMessage"/> model operations.
+/// </summary>
 public sealed class EventMessageModelTests
 {
+    /// <summary>
+    /// Tests that <see cref="EventMessage.CreateRetry"/> creates a new message with incremented processing attempts
+    /// while preserving all headers and other properties from the original message.
+    /// </summary>
     [Fact]
     public void CreateRetry_ShouldIncrementProcessingAttemptsAndPreserveHeaders()
     {
@@ -35,6 +42,10 @@ public sealed class EventMessageModelTests
         retry.GetHeader("x-region").Should().Be("eu-west");
     }
 
+    /// <summary>
+    /// Tests that <see cref="EventMessage.AddHeader"/> stores a header value and
+    /// <see cref="EventMessage.GetHeader"/> can retrieve it correctly.
+    /// </summary>
     [Fact]
     public void AddHeader_ThenGetHeader_ShouldReturnStoredValue()
     {
@@ -48,6 +59,10 @@ public sealed class EventMessageModelTests
         msg.GetHeader("trace-id").Should().Be("t-001");
     }
 
+    /// <summary>
+    /// Tests that <see cref="EventMessage.GetHeader"/> returns null when querying for a header
+    /// that was never added to the message.
+    /// </summary>
     [Fact]
     public void GetHeader_WithUnknownKey_ShouldReturnNull()
     {
