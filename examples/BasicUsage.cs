@@ -5,6 +5,11 @@ using DotnetEventBus.Services;
 using DotnetEventBus.Handlers;
 
 // Define a simple event
+/// <summary>
+/// Represents an event that is published when a new user registers in the system.
+/// </summary>
+/// <param name="Username">The username of the newly registered user.</param>
+/// <param name="Email">The email address of the newly registered user.</param>
 public record UserRegisteredEvent(string Username, string Email);
 
 public class BasicUsageExample
