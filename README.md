@@ -177,3 +177,38 @@ await benchmarks.DeadLetter_Memory_Allocation();
 // Cleanup
 benchmarks.GlobalCleanup();
 ```
+
+## RequestReplyBenchmarks
+
+The `RequestReplyBenchmarks` class provides performance benchmarks for the request-reply pattern, measuring round-trip latency and throughput for synchronous request-response scenarios. It evaluates the overhead of various request-reply patterns including single requests, sequential batches, parallel requests, timeout handling, and large payload performance.
+
+Here's an example usage:
+
+```csharp
+// Setup the benchmark infrastructure
+var benchmarks = new RequestReplyBenchmarks();
+benchmarks.GlobalSetup();
+
+// Benchmark: Single request-reply round-trip
+// Measures baseline latency for the most common request-response operation
+await benchmarks.Request_Reply_Single();
+
+// Benchmark: Sequential request-reply (10 requests)
+// Measures throughput for batch request scenarios
+await benchmarks.Request_Reply_10_Sequential();
+
+// Benchmark: Parallel request-reply (10 concurrent requests)
+// Measures maximum throughput for concurrent request scenarios
+var parallelResults = await benchmarks.Request_Reply_10_Parallel();
+
+// Benchmark: Request-reply with timeout
+// Measures overhead of timeout handling in request-response pattern
+await benchmarks.Request_Reply_With_Timeout();
+
+// Benchmark: Request-reply with large payload
+// Measures performance impact of larger event sizes
+await benchmarks.Request_Reply_Large_Payload();
+
+// Cleanup
+benchmarks.GlobalCleanup();
+```
