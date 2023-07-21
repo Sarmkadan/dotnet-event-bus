@@ -38,4 +38,6 @@ benchmarks.GlobalCleanup();
 ```
 
 This example demonstrates how to run various benchmarks using the `EventBusBenchmarks` class, providing insights into the performance characteristics of the DotnetEventBus event bus.
+
+``` 
 ```
