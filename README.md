@@ -1,43 +1,30 @@
 // ... (rest of the README.md content remains the same)
 
-## EventBusBenchmarks
+## MiddlewareBenchmarks
 
-The `EventBusBenchmarks` class provides performance benchmarks for the DotnetEventBus event bus, measuring throughput, latency, and memory allocations for critical operations. It evaluates the performance of various event publishing scenarios, including single event publishing, batch publishing, parallel handler execution, and error handling.
+The `MiddlewareBenchmarks` class measures performance characteristics of middleware components in the event bus pipeline, including logging, error handling, and pipeline construction overhead. It evaluates both individual middleware components and their cumulative impact on event processing.
 
-Here's an example usage:
-
+Example usage:
 ```csharp
-var benchmarks = new EventBusBenchmarks();
+var benchmarks = new MiddlewareBenchmarks();
 benchmarks.GlobalSetup();
 
-// Benchmark: Single event publish with one handler
-await benchmarks.Publish_Single_Event();
+// Benchmark: Event publishing with logging middleware
+await benchmarks.Publish_With_Logging_Middleware();
 
-// Benchmark: Publish 100 events sequentially
-await benchmarks.Publish_100_Events();
+// Benchmark: Event publishing with error handling middleware
+await benchmarks.Publish_With_ErrorHandling_Middleware();
 
-// Benchmark: Publish 1000 events sequentially
-await benchmarks.Publish_1000_Events();
+// Benchmark: Event publishing with all middleware enabled
+await benchmarks.Publish_With_All_Middleware();
 
-// Benchmark: Parallel handler execution with 8 concurrent handlers
-await benchmarks.Publish_With_Parallel_Handlers();
+// Benchmark: Pipeline construction overhead
+benchmarks.Create_Middleware_Pipeline();
 
-// Benchmark: Sequential vs Parallel comparison
-await benchmarks.Publish_Sequential_vs_Parallel();
-
-// Benchmark: Handler with exception handling
-await benchmarks.Publish_With_Retry();
-
-// Benchmark: Subscription management overhead
-benchmarks.Subscribe_And_Unsubscribe();
-
-// Benchmark: Memory allocation for event publishing
-await benchmarks.Publish_Memory_Allocation_Test();
+// Benchmark: Handler invocation with middleware chain
+await benchmarks.Handler_Invocation_With_Middleware();
 
 benchmarks.GlobalCleanup();
 ```
 
-This example demonstrates how to run various benchmarks using the `EventBusBenchmarks` class, providing insights into the performance characteristics of the DotnetEventBus event bus.
-
 ``` 
-```
