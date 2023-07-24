@@ -53,4 +53,38 @@ var serviceProvider = services.BuildServiceProvider();
 var eventBus = serviceProvider.GetService<IEventBus>();
 ```
 
+## EventHandlerBase
+
+The `EventHandlerBase<TEvent>` class is an abstract base class that provides common functionality for implementing event handlers with built-in logging support. It implements the `IEventHandler<TEvent>` interface and provides virtual methods for type introspection (`GetEventType()`), handler naming (`GetHandlerName()`), and lifecycle hooks for before/after handling and error handling.
+
+Example usage:
+```csharp
+public class OrderCreatedEvent : IEvent
+{
+    public int OrderId { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+public class OrderCreatedHandler : EventHandlerBase<OrderCreatedEvent>
+{
+    public OrderCreatedHandler(ILogger<OrderCreatedHandler> logger) : base(logger)
+    {
+    }
+
+    public override async Task Handle(OrderCreatedEvent @event, CancellationToken cancellationToken = default)
+    {
+        // Your handler logic here
+        Logger?.LogInformation("Processing order {OrderId}", @event.OrderId);
+        
+        // Example: Save to database, send notifications, etc.
+        await Task.Delay(100, cancellationToken);
+    }
+}
+
+// Registration in DI container
+services.AddTransient<IEventHandler<OrderCreatedEvent>, OrderCreatedHandler>();
+
+// Usage with event bus
+var orderCreatedEvent = new OrderCreatedEvent { OrderId = 123 };
+await eventBus.PublishAsync(orderCreatedEvent);
 ```
