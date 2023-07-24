@@ -1,30 +1,27 @@
 // ... (rest of the README.md content remains the same)
 
-## MiddlewareBenchmarks
+## EventBusBuilder
 
-The `MiddlewareBenchmarks` class measures performance characteristics of middleware components in the event bus pipeline, including logging, error handling, and pipeline construction overhead. It evaluates both individual middleware components and their cumulative impact on event processing.
+The `EventBusBuilder` class is a fluent builder for configuring and creating the event bus. It allows you to customize various settings, such as event message repositories, subscription repositories, dead letter repositories, and distributed event bus settings.
 
 Example usage:
 ```csharp
-var benchmarks = new MiddlewareBenchmarks();
-benchmarks.GlobalSetup();
+var services = new ServiceCollection();
+var eventBusBuilder = services.AddEventBusBuilder()
+    .WithOptions(options => options.DefaultHandlerTimeout = TimeSpan.FromSeconds(30))
+    .WithMessageRepository(new InMemoryEventMessageRepository())
+    .WithSubscriptionRepository(new InMemorySubscriptionRepository())
+    .WithDeadLetterRepository(new InMemoryDeadLetterRepository())
+    .WithMaxRetries(5)
+    .WithParallelHandling(true)
+    .WithMaxConcurrentHandlers(10)
+    .WithDeadLetterQueue(true)
+    .WithThrowOnHandlerFailure(true)
+    .AsDistributed("rabbitmq", "amqp://guest:guest@localhost:5672")
+    .Build();
 
-// Benchmark: Event publishing with logging middleware
-await benchmarks.Publish_With_Logging_Middleware();
-
-// Benchmark: Event publishing with error handling middleware
-await benchmarks.Publish_With_ErrorHandling_Middleware();
-
-// Benchmark: Event publishing with all middleware enabled
-await benchmarks.Publish_With_All_Middleware();
-
-// Benchmark: Pipeline construction overhead
-benchmarks.Create_Middleware_Pipeline();
-
-// Benchmark: Handler invocation with middleware chain
-await benchmarks.Handler_Invocation_With_Middleware();
-
-benchmarks.GlobalCleanup();
+var serviceProvider = services.BuildServiceProvider();
+var eventBus = serviceProvider.GetService<IEventBus>();
 ```
 
-``` 
+```
