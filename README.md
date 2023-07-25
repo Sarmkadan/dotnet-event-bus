@@ -152,6 +152,53 @@ catch (CircuitBreakerOpenException ex)
 // Manually reset the circuit breaker
 circuitBreaker.Reset();
 
+## EventSourcedAggregate
+
+The `EventSourcedAggregate` class serves as a base class for implementing event-sourced aggregates in your domain model. It enables state reconstruction by replaying historical events and optimizes performance through snapshotting, providing a robust foundation for building event-driven systems with a complete audit trail.
+
+Example usage:
+```csharp
+using DotnetEventBus.Advanced;
+using System;
+using System.Collections.Generic;
+
+// Define your aggregate by inheriting from EventSourcedAggregate
+public class OrderAggregate : EventSourcedAggregate
+{
+    public decimal TotalAmount { get; private set; }
+
+    public OrderAggregate(string id)
+    {
+        // Set the Id property
+        // The Id property is inherited from EventSourcedAggregate
+    }
+
+    // Apply method is called via reflection when loading events
+    private void Apply(OrderCreated e)
+    {
+        TotalAmount = e.Amount;
+    }
+}
+
+// 1. Loading from history
+var order = new OrderAggregate("order-123");
+var events = new List<object> { new OrderCreated("order-123", 99.99m) };
+order.LoadFromHistory(events);
+
+// 2. Committing changes
+// After applying new events, call CommitChanges to clear the internal list
+order.CommitChanges();
+
+// 3. Snapshotting
+// Create a snapshot to optimize future loads
+var snapshot = order.CreateSnapshot();
+
+// Restore from snapshot
+var restoredOrder = new OrderAggregate("order-123");
+restoredOrder.LoadSnapshot(snapshot);
+```
+
+
 ## SagaOrchestrator
 
 The `SagaOrchestrator<TContext>` class implements the Saga pattern for managing distributed transactions across multiple steps. It coordinates a sequence of operations and automatically executes compensating transactions if any step fails, ensuring data consistency even in failure scenarios. The orchestrator tracks each step's status and provides detailed execution results.
@@ -307,6 +354,53 @@ catch (CircuitBreakerOpenException ex)
 
 // Manually reset the circuit breaker
 circuitBreaker.Reset();
+
+## EventSourcedAggregate
+
+The `EventSourcedAggregate` class serves as a base class for implementing event-sourced aggregates in your domain model. It enables state reconstruction by replaying historical events and optimizes performance through snapshotting, providing a robust foundation for building event-driven systems with a complete audit trail.
+
+Example usage:
+```csharp
+using DotnetEventBus.Advanced;
+using System;
+using System.Collections.Generic;
+
+// Define your aggregate by inheriting from EventSourcedAggregate
+public class OrderAggregate : EventSourcedAggregate
+{
+    public decimal TotalAmount { get; private set; }
+
+    public OrderAggregate(string id)
+    {
+        // Set the Id property
+        // The Id property is inherited from EventSourcedAggregate
+    }
+
+    // Apply method is called via reflection when loading events
+    private void Apply(OrderCreated e)
+    {
+        TotalAmount = e.Amount;
+    }
+}
+
+// 1. Loading from history
+var order = new OrderAggregate("order-123");
+var events = new List<object> { new OrderCreated("order-123", 99.99m) };
+order.LoadFromHistory(events);
+
+// 2. Committing changes
+// After applying new events, call CommitChanges to clear the internal list
+order.CommitChanges();
+
+// 3. Snapshotting
+// Create a snapshot to optimize future loads
+var snapshot = order.CreateSnapshot();
+
+// Restore from snapshot
+var restoredOrder = new OrderAggregate("order-123");
+restoredOrder.LoadSnapshot(snapshot);
+```
+
 
 ## SagaOrchestrator
 
