@@ -151,6 +151,81 @@ catch (CircuitBreakerOpenException ex)
 
 // Manually reset the circuit breaker
 circuitBreaker.Reset();
+
+## SagaOrchestrator
+
+The `SagaOrchestrator<TContext>` class implements the Saga pattern for managing distributed transactions across multiple steps. It coordinates a sequence of operations and automatically executes compensating transactions if any step fails, ensuring data consistency even in failure scenarios. The orchestrator tracks each step's status and provides detailed execution results.
+
+Example usage:
+```csharp
+using DotnetEventBus.Advanced;
+using System;
+using System.Threading.Tasks;
+
+// Define a context class to hold saga data
+public class OrderSagaContext
+{
+    public int OrderId { get; set; }
+    public decimal TotalAmount { get; set; }
+    public string CustomerEmail { get; set; } = string.Empty;
+    public bool PaymentProcessed { get; set; }
+    public bool InventoryReserved { get; set; }
+    public bool OrderConfirmed { get; set; }
+}
+
+// Create and execute a saga
+var sagaId = Guid.NewGuid().ToString();
+var orchestrator = new SagaOrchestrator<OrderSagaContext>(sagaId)
+    .AddStep("ProcessPayment", async ctx =>
+    {
+        Console.WriteLine($"Processing payment for order {ctx.OrderId}");
+        await Task.Delay(100); // Simulate payment processing
+        ctx.PaymentProcessed = true;
+    }, async ctx =>
+    {
+        Console.WriteLine($"Refunding payment for order {ctx.OrderId}");
+        await Task.Delay(100); // Simulate payment refund
+        ctx.PaymentProcessed = false;
+    })
+    .AddStep("ReserveInventory", async ctx =>
+    {
+        Console.WriteLine($"Reserving inventory for order {ctx.OrderId}");
+        await Task.Delay(100); // Simulate inventory reservation
+        ctx.InventoryReserved = true;
+    }, async ctx =>
+    {
+        Console.WriteLine($"Releasing inventory for order {ctx.OrderId}");
+        await Task.Delay(100); // Simulate inventory release
+        ctx.InventoryReserved = false;
+    })
+    .AddStep("ConfirmOrder", async ctx =>
+    {
+        Console.WriteLine($"Confirming order {ctx.OrderId}");
+        await Task.Delay(100); // Simulate order confirmation
+        ctx.OrderConfirmed = true;
+    });
+
+// Execute the saga
+var context = new OrderSagaContext
+{
+    OrderId = 123,
+    TotalAmount = 99.99m,
+    CustomerEmail = "customer@example.com"
+};
+
+var result = await orchestrator.ExecuteAsync(context);
+
+if (result.Success)
+{
+    Console.WriteLine($"Saga completed successfully! Order {context.OrderId} processed");
+    Console.WriteLine($"Steps executed: {string.Join(", ", orchestrator.GetStepStatus().Select(s => s.Name))}");
+}
+else
+{
+    Console.WriteLine($"Saga failed at step: {result.FailedStep}");
+    Console.WriteLine($"Error: {result.Error}");
+}
+```
 ```
 
 ## CommandLineInterface
@@ -232,4 +307,79 @@ catch (CircuitBreakerOpenException ex)
 
 // Manually reset the circuit breaker
 circuitBreaker.Reset();
+
+## SagaOrchestrator
+
+The `SagaOrchestrator<TContext>` class implements the Saga pattern for managing distributed transactions across multiple steps. It coordinates a sequence of operations and automatically executes compensating transactions if any step fails, ensuring data consistency even in failure scenarios. The orchestrator tracks each step's status and provides detailed execution results.
+
+Example usage:
+```csharp
+using DotnetEventBus.Advanced;
+using System;
+using System.Threading.Tasks;
+
+// Define a context class to hold saga data
+public class OrderSagaContext
+{
+    public int OrderId { get; set; }
+    public decimal TotalAmount { get; set; }
+    public string CustomerEmail { get; set; } = string.Empty;
+    public bool PaymentProcessed { get; set; }
+    public bool InventoryReserved { get; set; }
+    public bool OrderConfirmed { get; set; }
+}
+
+// Create and execute a saga
+var sagaId = Guid.NewGuid().ToString();
+var orchestrator = new SagaOrchestrator<OrderSagaContext>(sagaId)
+    .AddStep("ProcessPayment", async ctx =>
+    {
+        Console.WriteLine($"Processing payment for order {ctx.OrderId}");
+        await Task.Delay(100); // Simulate payment processing
+        ctx.PaymentProcessed = true;
+    }, async ctx =>
+    {
+        Console.WriteLine($"Refunding payment for order {ctx.OrderId}");
+        await Task.Delay(100); // Simulate payment refund
+        ctx.PaymentProcessed = false;
+    })
+    .AddStep("ReserveInventory", async ctx =>
+    {
+        Console.WriteLine($"Reserving inventory for order {ctx.OrderId}");
+        await Task.Delay(100); // Simulate inventory reservation
+        ctx.InventoryReserved = true;
+    }, async ctx =>
+    {
+        Console.WriteLine($"Releasing inventory for order {ctx.OrderId}");
+        await Task.Delay(100); // Simulate inventory release
+        ctx.InventoryReserved = false;
+    })
+    .AddStep("ConfirmOrder", async ctx =>
+    {
+        Console.WriteLine($"Confirming order {ctx.OrderId}");
+        await Task.Delay(100); // Simulate order confirmation
+        ctx.OrderConfirmed = true;
+    });
+
+// Execute the saga
+var context = new OrderSagaContext
+{
+    OrderId = 123,
+    TotalAmount = 99.99m,
+    CustomerEmail = "customer@example.com"
+};
+
+var result = await orchestrator.ExecuteAsync(context);
+
+if (result.Success)
+{
+    Console.WriteLine($"Saga completed successfully! Order {context.OrderId} processed");
+    Console.WriteLine($"Steps executed: {string.Join(", ", orchestrator.GetStepStatus().Select(s => s.Name))}");
+}
+else
+{
+    Console.WriteLine($"Saga failed at step: {result.FailedStep}");
+    Console.WriteLine($"Error: {result.Error}");
+}
+```
 ```
