@@ -100,3 +100,55 @@ webhookHandler.UpdateSubscription(subscription.Id!, s =>
 // Unsubscribe when no longer needed
 webhookHandler.Unsubscribe(subscription.Id!);
 ```
+
+## CircuitBreaker
+
+The `CircuitBreaker` class implements the circuit breaker pattern to prevent cascading failures in distributed systems. It monitors operations for failures and, when a configurable threshold is exceeded, stops forwarding requests to failing services for a specified timeout period, allowing them to recover. The circuit breaker automatically transitions through three states: Closed (normal operation), Open (service unavailable), and HalfOpen (testing recovery).
+
+
+
+Use `CircuitBreaker` to wrap operations that may fail temporarily due to external dependencies like databases, APIs, or message brokers.
+
+Example usage:
+```csharp
+using DotnetEventBus.Integration;
+using System;
+using System.Threading.Tasks;
+
+// Create a circuit breaker that opens after 5 failures
+var circuitBreaker = new CircuitBreaker(failureThreshold: 5, timeout: TimeSpan.FromSeconds(30));
+
+// Execute an operation with circuit breaker protection
+try
+{
+    var result = await circuitBreaker.ExecuteAsync(async () =>
+    {
+        // Simulate an operation that may fail
+        await Task.Delay(100);
+        return "Success";
+    });
+    Console.WriteLine($"Operation succeeded: {result}");
+}
+catch (CircuitBreakerOpenException ex)
+{
+    Console.WriteLine($"Service unavailable: {ex.Message}");
+}
+
+// Execute a void operation with circuit breaker protection
+try
+{
+    await circuitBreaker.ExecuteAsync(async () =>
+    {
+        // Simulate an operation that may fail
+        await Task.Delay(100);
+    });
+    Console.WriteLine("Operation completed successfully");
+}
+catch (CircuitBreakerOpenException ex)
+{
+    Console.WriteLine($"Service unavailable: {ex.Message}");
+}
+
+// Manually reset the circuit breaker
+circuitBreaker.Reset();
+```
