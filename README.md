@@ -152,3 +152,84 @@ catch (CircuitBreakerOpenException ex)
 // Manually reset the circuit breaker
 circuitBreaker.Reset();
 ```
+
+## CommandLineInterface
+
+The `CommandLineInterface` class provides a command-line interface for interacting with the event bus. It allows system operators to execute commands for publishing, subscribing, querying, and managing events without writing code. The CLI supports registering custom commands, executing commands with arguments, and retrieving help text for available commands.
+
+Example usage:
+```csharp
+using DotnetEventBus.Cli;
+using System;
+using System.Threading.Tasks;
+
+// Create a CLI instance
+var cli = new CommandLineInterface();
+
+// Register a custom command
+cli.RegisterCommand(new MyCustomCommand());
+
+// Execute a command
+var result = await cli.ExecuteAsync("publish", new[] { "OrderCreated", "--data", "{\"OrderId\": 123}" });
+
+if (result.Success)
+{
+    Console.WriteLine(result.Message);
+}
+else
+{
+    Console.WriteLine($"Error: {result.Message}");
+}
+
+// Get help text for a specific command
+var helpText = cli.GetCommandHelp("publish");
+Console.WriteLine(helpText);
+
+// Get all available commands
+var allCommands = cli.GetAllCommands();
+foreach (var command in allCommands)
+{
+    Console.WriteLine($"{command.Name}: {command.Description}");
+}
+```
+using DotnetEventBus.Integration;
+using System;
+using System.Threading.Tasks;
+
+// Create a circuit breaker that opens after 5 failures
+var circuitBreaker = new CircuitBreaker(failureThreshold: 5, timeout: TimeSpan.FromSeconds(30));
+
+// Execute an operation with circuit breaker protection
+try
+{
+    var result = await circuitBreaker.ExecuteAsync(async () =>
+    {
+        // Simulate an operation that may fail
+        await Task.Delay(100);
+        return "Success";
+    });
+    Console.WriteLine($"Operation succeeded: {result}");
+}
+catch (CircuitBreakerOpenException ex)
+{
+    Console.WriteLine($"Service unavailable: {ex.Message}");
+}
+
+// Execute a void operation with circuit breaker protection
+try
+{
+    await circuitBreaker.ExecuteAsync(async () =>
+    {
+        // Simulate an operation that may fail
+        await Task.Delay(100);
+    });
+    Console.WriteLine("Operation completed successfully");
+}
+catch (CircuitBreakerOpenException ex)
+{
+    Console.WriteLine($"Service unavailable: {ex.Message}");
+}
+
+// Manually reset the circuit breaker
+circuitBreaker.Reset();
+```
