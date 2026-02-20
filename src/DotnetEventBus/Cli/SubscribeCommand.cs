@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -15,7 +17,7 @@ namespace DotnetEventBus.Cli;
 /// CLI command for managing event subscriptions.
 /// Allows creating, listing, and removing subscriptions.
 /// </summary>
-public class SubscribeCommand : ICommand
+public sealed class SubscribeCommand : ICommand
 {
     public string Name => "subscribe";
     public string Description => "Manage event subscriptions";

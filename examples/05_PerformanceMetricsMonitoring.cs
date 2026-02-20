@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -16,7 +18,7 @@ namespace DotnetEventBus.Examples;
 /// </summary>
 public static class PerformanceMetricsMonitoringExample
 {
-    public class DataProcessingEvent
+    public sealed class DataProcessingEvent
     {
         public string ProcessId { get; set; }
         public int DataSize { get; set; }
@@ -24,7 +26,7 @@ public static class PerformanceMetricsMonitoringExample
     }
 
     // Fast handler
-    public class FastProcessorHandler : EventHandlerBase<DataProcessingEvent>
+    public sealed class FastProcessorHandler : EventHandlerBase<DataProcessingEvent>
     {
         public override async Task Handle(DataProcessingEvent @event, CancellationToken cancellationToken = default)
         {
@@ -33,7 +35,7 @@ public static class PerformanceMetricsMonitoringExample
     }
 
     // Medium handler
-    public class MediumProcessorHandler : EventHandlerBase<DataProcessingEvent>
+    public sealed class MediumProcessorHandler : EventHandlerBase<DataProcessingEvent>
     {
         public override async Task Handle(DataProcessingEvent @event, CancellationToken cancellationToken = default)
         {
@@ -42,7 +44,7 @@ public static class PerformanceMetricsMonitoringExample
     }
 
     // Slow handler
-    public class SlowProcessorHandler : EventHandlerBase<DataProcessingEvent>
+    public sealed class SlowProcessorHandler : EventHandlerBase<DataProcessingEvent>
     {
         public override async Task Handle(DataProcessingEvent @event, CancellationToken cancellationToken = default)
         {
@@ -109,7 +111,7 @@ public static class PerformanceMetricsMonitoringExample
         Console.WriteLine("--- Handler Metrics ---\n");
         var handlerMetrics = metricsCollector.GetHandlerMetrics("FastProcessorHandler");
 
-        if (handlerMetrics != null)
+        if (handlerMetrics is not null)
         {
             Console.WriteLine("FastProcessorHandler:");
             Console.WriteLine($"  Execution Count: {handlerMetrics.ExecutionCount}");

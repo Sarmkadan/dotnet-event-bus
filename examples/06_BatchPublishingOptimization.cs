@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -16,7 +18,7 @@ namespace DotnetEventBus.Examples;
 /// </summary>
 public static class BatchPublishingOptimizationExample
 {
-    public class LogEntryEvent
+    public sealed class LogEntryEvent
     {
         public string LogId { get; set; }
         public string Level { get; set; }
@@ -24,14 +26,14 @@ public static class BatchPublishingOptimizationExample
         public DateTime Timestamp { get; set; }
     }
 
-    public class AnalyticsEvent
+    public sealed class AnalyticsEvent
     {
         public string EventType { get; set; }
         public string UserId { get; set; }
         public Dictionary<string, object> Properties { get; set; }
     }
 
-    public class LogAggregatorHandler : EventHandlerBase<LogEntryEvent>
+    public sealed class LogAggregatorHandler : EventHandlerBase<LogEntryEvent>
     {
         private static int _processedCount = 0;
 
@@ -44,7 +46,7 @@ public static class BatchPublishingOptimizationExample
         public static int GetProcessedCount() => _processedCount;
     }
 
-    public class AnalyticsProcessorHandler : EventHandlerBase<AnalyticsEvent>
+    public sealed class AnalyticsProcessorHandler : EventHandlerBase<AnalyticsEvent>
     {
         private static int _processedCount = 0;
 

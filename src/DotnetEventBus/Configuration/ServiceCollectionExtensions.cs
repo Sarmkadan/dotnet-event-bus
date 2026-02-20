@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -21,7 +23,7 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         Action<EventBusOptions>? configureOptions = null)
     {
-        if (services == null)
+        if (services is null)
             throw new ArgumentNullException(nameof(services));
 
         var options = new EventBusOptions();
@@ -50,13 +52,13 @@ public static class ServiceCollectionExtensions
         IDeadLetterRepository deadLetterRepository,
         Action<EventBusOptions>? configureOptions = null)
     {
-        if (services == null)
+        if (services is null)
             throw new ArgumentNullException(nameof(services));
-        if (messageRepository == null)
+        if (messageRepository is null)
             throw new ArgumentNullException(nameof(messageRepository));
-        if (subscriptionRepository == null)
+        if (subscriptionRepository is null)
             throw new ArgumentNullException(nameof(subscriptionRepository));
-        if (deadLetterRepository == null)
+        if (deadLetterRepository is null)
             throw new ArgumentNullException(nameof(deadLetterRepository));
 
         var options = new EventBusOptions();

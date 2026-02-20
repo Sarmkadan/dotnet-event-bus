@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -13,7 +15,7 @@ namespace DotnetEventBus.Cli;
 /// CLI command for viewing system statistics and health.
 /// Displays metrics about event processing and system status.
 /// </summary>
-public class StatsCommand : ICommand
+public sealed class StatsCommand : ICommand
 {
     public string Name => "stats";
     public string Description => "Display event bus statistics and metrics";

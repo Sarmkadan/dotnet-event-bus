@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -9,7 +11,7 @@ using DotnetEventBus.Models;
 
 namespace DotnetEventBus.Tests;
 
-public class PublishResultTests
+public sealed class PublishResultTests
 {
     [Fact]
     public void AddSuccessfulHandler_ShouldIncrementHandlersInvokedAndAppendToList()

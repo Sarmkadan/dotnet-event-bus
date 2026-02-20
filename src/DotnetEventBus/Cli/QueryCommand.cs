@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -14,7 +16,7 @@ namespace DotnetEventBus.Cli;
 /// CLI command for querying events and their history.
 /// Supports filtering by event type and time range.
 /// </summary>
-public class QueryCommand : ICommand
+public sealed class QueryCommand : ICommand
 {
     public string Name => "query";
     public string Description => "Query events and event history";

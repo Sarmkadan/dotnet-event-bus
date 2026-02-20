@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -16,7 +18,7 @@ namespace DotnetEventBus.Middleware;
 /// Tracks timing, event data, and execution results for observability.
 /// Why: Essential for debugging and monitoring event flow in production systems.
 /// </summary>
-public class EventBusLoggingMiddleware
+public sealed class EventBusLoggingMiddleware
 {
     private readonly ILogger<EventBusLoggingMiddleware> _logger;
     private readonly LogLevel _logLevel;
@@ -47,7 +49,7 @@ public class EventBusLoggingMiddleware
                     "Event published: {EventType} [CorrelationId: {CorrelationId}]",
                     context.EventType, correlationId);
 
-                if (_logEventPayload && context.EventData != null)
+                if (_logEventPayload && context.EventData is not null)
                 {
                     var payload = JsonSerializer.Serialize(context.EventData, new JsonSerializerOptions { WriteIndented = false });
                     _logger.Log(_logLevel, "Event payload: {Payload}", payload);

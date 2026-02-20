@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -18,7 +20,7 @@ namespace DotnetEventBus.Middleware;
 /// Uses a sliding window algorithm to track request rates per event type.
 /// Why: Prevents system overload and ensures fair resource distribution across event types.
 /// </summary>
-public class RateLimitingMiddleware
+public sealed class RateLimitingMiddleware
 {
     private readonly ILogger<RateLimitingMiddleware> _logger;
     private readonly Dictionary<string, RateLimitBucket> _buckets = [];
@@ -124,7 +126,7 @@ public class RateLimitingMiddleware
     }
 }
 
-public class RateLimitExceededException : Exception
+public sealed class RateLimitExceededException : Exception
 {
     public RateLimitExceededException(string message) : base(message) { }
 }

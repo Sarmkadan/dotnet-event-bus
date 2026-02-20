@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -14,7 +16,7 @@ namespace DotnetEventBus.Middleware;
 /// Provides centralized exception handling, recovery, and dead-letter routing.
 /// Why: Prevents cascading failures and ensures failed events are captured for analysis.
 /// </summary>
-public class ErrorHandlingMiddleware
+public sealed class ErrorHandlingMiddleware
 {
     private readonly ILogger<ErrorHandlingMiddleware> _logger;
     private readonly int _maxRetries;
@@ -67,7 +69,7 @@ public class ErrorHandlingMiddleware
             }
 
             // All retries exhausted - invoke custom error handler if provided
-            if (_errorHandler != null && lastException != null)
+            if (_errorHandler is not null && lastException is not null)
             {
                 bool handled = await _errorHandler(context, lastException);
                 if (handled)
@@ -80,7 +82,7 @@ public class ErrorHandlingMiddleware
 
             // Could not recover - rethrow or mark as failed
             context.IsProcessed = false;
-            if (lastException != null)
+            if (lastException is not null)
             {
                 throw new EventProcessingException(
                     $"Event {context.EventType} failed after {_maxRetries} retries",
@@ -93,7 +95,7 @@ public class ErrorHandlingMiddleware
 /// <summary>
 /// Exception thrown when event processing fails after all retry attempts.
 /// </summary>
-public class EventProcessingException : Exception
+public sealed class EventProcessingException : Exception
 {
     public EventProcessingException(string message, Exception? innerException = null)
         : base(message, innerException)

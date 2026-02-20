@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -16,7 +18,7 @@ namespace DotnetEventBus.Formatters;
 /// Automatically extracts properties from event objects.
 /// Why: CSV is a standard format for bulk event export and analysis in external tools.
 /// </summary>
-public class CsvEventFormatter : IEventFormatter
+public sealed class CsvEventFormatter : IEventFormatter
 {
     public string Format => "csv";
     public string ContentType => "text/csv";

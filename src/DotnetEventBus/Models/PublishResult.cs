@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -8,7 +10,7 @@ namespace DotnetEventBus.Models;
 /// <summary>
 /// Represents the result of publishing an event to the event bus.
 /// </summary>
-public class PublishResult
+public sealed class PublishResult
 {
     /// <summary>
     /// The message ID of the published event.
@@ -92,7 +94,7 @@ public class PublishResult
         FailedHandlerNames.Add(handlerName);
         FailedHandlers++;
 
-        if (Exception == null)
+        if (Exception is null)
         {
             Exception = exception;
             ErrorMessage = exception?.Message;
