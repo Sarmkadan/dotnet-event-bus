@@ -106,15 +106,9 @@ public sealed class CircuitBreaker
 
     private void CheckStateTransition()
     {
-        // HalfOpen -> Closed: If sufficient time has passed, try again
-        if (_state == CircuitBreakerState.HalfOpen &&
-            DateTime.UtcNow - _lastFailureTime >= _timeout)
-        {
-            _state = CircuitBreakerState.Closed;
-            _failureCount = 0;
-        }
-
-        // Open -> HalfOpen: If enough time has passed, allow test traffic
+        // Open -> HalfOpen: If enough time has passed, allow a test request through
+        // Note: HalfOpen -> Closed is handled by RecordSuccess() only after
+        // a successful probe, not by timeout
         if (_state == CircuitBreakerState.Open &&
             DateTime.UtcNow - _lastFailureTime >= _timeout)
         {
