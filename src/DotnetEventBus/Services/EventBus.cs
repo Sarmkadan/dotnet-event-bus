@@ -33,7 +33,9 @@ public sealed class EventBus : IEventBus
 
     public EventBus(
         EventBusOptions? options = null,
-        ILogger<EventBus>? logger = null)
+        ILogger<EventBus>? logger = null,
+        IDeadLetterService? deadLetterService = null,
+        IEventFormatter? eventFormatter = null)
     {
         _options = options ?? new EventBusOptions();
         _options.Validate();
@@ -41,6 +43,8 @@ public sealed class EventBus : IEventBus
         _messageRepository = new InMemoryEventMessageRepository();
         _subscriptionRepository = new InMemorySubscriptionRepository();
         _deadLetterRepository = new InMemoryDeadLetterRepository();
+        _deadLetterService = deadLetterService ?? new DeadLetterService(_deadLetterRepository, this, logger);
+        _eventFormatter = eventFormatter ?? new Formatters.JsonEventFormatter();
         _concurrencyLimiter = new SemaphoreSlim(_options.MaxConcurrentHandlers);
     }
 
@@ -401,6 +405,68 @@ public sealed class EventBus : IEventBus
         }
     }
 
+    public async Task<PublishResult> ProcessRawDistributedEventAsync(
+        string eventType,
+        string rawPayload,
+        string? correlationId = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(eventType))
+            throw new ArgumentException("Event type cannot be empty", nameof(eventType));
+        if (string.IsNullOrWhiteSpace(rawPayload))
+            throw new ArgumentException("Raw payload cannot be empty", nameof(rawPayload));
+
+        Type? eventActualType = Type.GetType(eventType);
+        if (eventActualType is null)
+        {
+            _logger?.LogWarning("Unknown event type {EventType}. Sending to dead letter queue.", eventType);
+            await _deadLetterService.AddDeadLetterEntryAsync(
+                eventType,
+                rawPayload,
+                new InvalidOperationException($"Unknown event type: {eventType}"),
+                correlationId,
+                "ProcessRawDistributedEventAsync",
+                cancellationToken);
+            return PublishResult.CreateFailed(correlationId, new InvalidOperationException($"Unknown event type: {eventType}"));
+        }
+
+        try
+        {
+            object? deserializedEvent = _eventFormatter.Deserialize(rawPayload, eventActualType);
+
+            if (deserializedEvent is null)
+            {
+                _logger?.LogError("Failed to deserialize event of type {EventType}. Sending to dead letter queue.", eventType);
+                await _deadLetterService.AddDeadLetterEntryAsync(
+                    eventType,
+                    rawPayload,
+                    new InvalidOperationException($"Deserialized event is null for type: {eventType}"),
+                    correlationId,
+                    "ProcessRawDistributedEventAsync",
+                    cancellationToken);
+                return PublishResult.CreateFailed(correlationId, new InvalidOperationException($"Deserialized event is null for type: {eventType}"));
+            }
+
+            return await PublishAsync(deserializedEvent, eventActualType, correlationId, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(
+                ex,
+                "Failed to deserialize distributed event of type {EventType}. Sending to dead letter queue.",
+                eventType);
+
+            await _deadLetterService.AddDeadLetterEntryAsync(
+                eventType,
+                rawPayload,
+                ex,
+                correlationId,
+                "ProcessRawDistributedEventAsync",
+                cancellationToken);
+
+            return PublishResult.CreateFailed(correlationId, ex);
+        }
+    }
     private class SubscriptionDisposable : IDisposable
     {
         private readonly EventBus _eventBus;

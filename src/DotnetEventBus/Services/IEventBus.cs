@@ -94,4 +94,14 @@ public interface IEventBus
     /// Gets the current event bus options.
     /// </summary>
     Configuration.EventBusOptions GetOptions();
+
+    /// <summary>
+    /// Processes a raw distributed event payload, attempting deserialization and then publishing.
+    /// If deserialization fails, the raw event is sent to the dead letter queue.
+    /// </summary>
+    Task<PublishResult> ProcessRawDistributedEventAsync(
+        string eventType,
+        string rawPayload,
+        string? correlationId = null,
+        CancellationToken cancellationToken = default);
 }
