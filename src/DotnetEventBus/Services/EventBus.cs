@@ -160,6 +160,34 @@ public sealed class EventBus : IEventBus
         if (request is null)
             throw new ArgumentNullException(nameof(request));
 
+        var requestType = typeof(TRequest);
+        TimeSpan effectiveTimeout = _options.RequestTimeout;
+
+        // 1. Check method parameter timeout
+        if (timeout.HasValue)
+        {
+            effectiveTimeout = timeout.Value;
+        }
+        else
+        {
+            // 2. Check RequestTimeoutAttribute on TRequest
+            var requestTimeoutAttribute = requestType.GetCustomAttribute<RequestTimeoutAttribute>();
+            if (requestTimeoutAttribute is not null)
+            {
+                effectiveTimeout = TimeSpan.FromMilliseconds(requestTimeoutAttribute.TimeoutMilliseconds);
+            }
+            // 3. Fallback to _options.RequestTimeout (already set as initial effectiveTimeout)
+        }
+
+        if (_options.IsDistributed == false || _options.DistributedTransportType == null)
+        {
+            throw new NotImplementedException(
+                "Request/reply pattern requires distributed transport configuration. " +
+                $"Configured timeout for this request: {effectiveTimeout.TotalSeconds} seconds.");
+        }
+
+        // The actual request/reply implementation would go here, utilizing effectiveTimeout
+        // For now, we keep the NotImplementedException as the distributed transport itself is not implemented.
         throw new NotImplementedException("Request/reply pattern requires distributed transport configuration");
     }
 
