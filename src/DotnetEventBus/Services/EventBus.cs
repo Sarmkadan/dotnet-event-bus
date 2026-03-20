@@ -35,7 +35,8 @@ public sealed class EventBus : IEventBus
         EventBusOptions? options = null,
         ILogger<EventBus>? logger = null,
         IDeadLetterService? deadLetterService = null,
-        IEventFormatter? eventFormatter = null)
+        IEventFormatter? eventFormatter = null,
+        IServiceProvider? serviceProvider = null)
     {
         _options = options ?? new EventBusOptions();
         _options.Validate();
@@ -45,6 +46,7 @@ public sealed class EventBus : IEventBus
         _deadLetterRepository = new InMemoryDeadLetterRepository();
         _deadLetterService = deadLetterService ?? new DeadLetterService(_deadLetterRepository, this, logger);
         _eventFormatter = eventFormatter ?? new Formatters.JsonEventFormatter();
+        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _concurrencyLimiter = new SemaphoreSlim(_options.MaxConcurrentHandlers);
     }
 
@@ -52,6 +54,9 @@ public sealed class EventBus : IEventBus
         IEventMessageRepository messageRepository,
         ISubscriptionRepository subscriptionRepository,
         IDeadLetterRepository deadLetterRepository,
+        IDeadLetterService deadLetterService,
+        IEventFormatter eventFormatter,
+        IServiceProvider serviceProvider, // Add IServiceProvider
         EventBusOptions? options = null,
         ILogger<EventBus>? logger = null)
     {
@@ -61,6 +66,9 @@ public sealed class EventBus : IEventBus
         _messageRepository = messageRepository ?? throw new ArgumentNullException(nameof(messageRepository));
         _subscriptionRepository = subscriptionRepository ?? throw new ArgumentNullException(nameof(subscriptionRepository));
         _deadLetterRepository = deadLetterRepository ?? throw new ArgumentNullException(nameof(deadLetterRepository));
+        _deadLetterService = deadLetterService ?? throw new ArgumentNullException(nameof(deadLetterService));
+        _eventFormatter = eventFormatter ?? throw new ArgumentNullException(nameof(eventFormatter));
+        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider)); // Assign serviceProvider
         _concurrencyLimiter = new SemaphoreSlim(_options.MaxConcurrentHandlers);
     }
 
@@ -154,14 +162,40 @@ public sealed class EventBus : IEventBus
 
             var result = new PublishResult(message.MessageId);
 
-            if (_options.AllowParallelHandling)
+            // Construct the EventContext for the middleware pipeline
+            var eventContext = new Middleware.EventContext(@event, eventType, correlationId, message, cancellationToken);
+
+            // Create the terminal delegate (actual handler invocation logic)
+            EventMiddlewareDelegate terminalDelegate = async ctx =>
             {
-                await InvokeHandlersInParallel(applicableSubscriptions, @event, message, result, cancellationToken);
-            }
-            else
+                if (_options.AllowParallelHandling)
+                {
+                    await InvokeHandlersInParallel(applicableSubscriptions, ctx.Event, ctx.EventMessage, result, ctx.CancellationToken);
+                }
+                else
+                {
+                    await InvokeHandlersSequentially(applicableSubscriptions, ctx.Event, ctx.EventMessage, result, ctx.CancellationToken);
+                }
+            };
+
+            // Build the middleware pipeline
+            EventMiddlewareDelegate pipeline = terminalDelegate;
+            foreach (var middlewareType in _options.MiddlewareTypes.Reverse()) // Reverse to build from inside out
             {
-                await InvokeHandlersSequentially(applicableSubscriptions, @event, message, result, cancellationToken);
+                var middlewareInstance = _serviceProvider.GetRequiredService(middlewareType) as Middleware.IEventBusMiddleware;
+                if (middlewareInstance is null)
+                {
+                    _logger?.LogError("Middleware type {MiddlewareType} could not be resolved or is not an IEventBusMiddleware.", middlewareType.FullName);
+                    throw new InvalidOperationException($"Middleware type {middlewareType.FullName} is not registered or does not implement IEventBusMiddleware.");
+                }
+
+                var currentNext = pipeline;
+                pipeline = async ctx => await middlewareInstance.InvokeAsync(ctx, currentNext);
             }
+
+            // Execute the pipeline
+            await pipeline(eventContext);
+
             result.ElapsedTime = DateTime.UtcNow.Subtract(startTime);
             result.Success = result.FailedHandlers == 0;
 
