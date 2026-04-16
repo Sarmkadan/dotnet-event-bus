@@ -1,0 +1,164 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'DotnetEventBus.sln'
+      - '.github/workflows/build.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'DotnetEventBus.sln'
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  BUILD_CONFIG: 'Release'
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore dependencies
+      run: dotnet restore DotnetEventBus.sln
+
+    - name: Build solution
+      run: dotnet build DotnetEventBus.sln -c ${{ env.BUILD_CONFIG }} --no-restore --nologo
+
+    - name: Run unit tests
+      run: dotnet test DotnetEventBus.sln -c ${{ env.BUILD_CONFIG }} --no-build --nologo --logger "console;verbosity=normal"
+
+    - name: Generate coverage report
+      run: dotnet test DotnetEventBus.sln -c ${{ env.BUILD_CONFIG }} --no-build --nologo --collect:"XPlat Code Coverage" --results-directory=./coverage
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        directory: ./coverage
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+  code-quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore dependencies
+      run: dotnet restore DotnetEventBus.sln
+
+    - name: Check code formatting
+      run: dotnet format DotnetEventBus.sln --verify-no-changes --verbosity diagnostic
+
+    - name: Build with code style enforcement
+      run: dotnet build DotnetEventBus.sln -c ${{ env.BUILD_CONFIG }} --no-restore /p:EnforceCodeStyleInBuild=true
+
+  package:
+    name: Create NuGet Package
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [build, code-quality]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore dependencies
+      run: dotnet restore DotnetEventBus.sln
+
+    - name: Build solution
+      run: dotnet build DotnetEventBus.sln -c ${{ env.BUILD_CONFIG }} --no-restore
+
+    - name: Pack NuGet package
+      run: dotnet pack src/DotnetEventBus/DotnetEventBus.csproj -c ${{ env.BUILD_CONFIG }} --no-build -o ./artifacts
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: nuget-package
+        path: ./artifacts/**/*.nupkg
+
+  docker:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [build, code-quality]
+    if: github.event_name == 'push'
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        push: false
+        tags: dotnet-event-bus:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  security:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Install security analyzer
+      run: dotnet tool install -g SecurityCodeScan
+
+    - name: Run security scan
+      run: dotnet build DotnetEventBus.sln -c ${{ env.BUILD_CONFIG }} /p:TreatWarningsAsErrors=true
+
+    - name: Check for dependencies with vulnerabilities
+      run: dotnet list DotnetEventBus.sln package --vulnerable
+      continue-on-error: true
