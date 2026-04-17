@@ -1,0 +1,21 @@
+version: '3.8'
+services:
+  dev:
+    build: .
+    dockerfile: Dockerfile
+    target: development
+    container_name: dotnet-event-bus-dev
+    volumes:
+      - .:/src
+      - nuget-cache:/root/.nuget
+    working_dir: /src
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - DOTNET_USE_POLLING_FILE_WATCHER=true
+    networks:
+      - eventbus-network
+    stdin_open: true
+    tty: true
