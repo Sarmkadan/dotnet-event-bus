@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -17,7 +19,7 @@ namespace DotnetEventBus.Services;
 /// Collects events and flushes them according to size or time triggers.
 /// Why: Reduces per-event overhead and improves system throughput significantly.
 /// </summary>
-public class BatchEventPublisher
+public sealed class BatchEventPublisher
 {
     private readonly ILogger<BatchEventPublisher> _logger;
     private readonly List<EventEnvelope> _buffer = [];
@@ -116,7 +118,7 @@ public class BatchEventPublisher
             }
         }
 
-        if (batch != null)
+        if (batch is not null)
         {
             await FlushBatchAsync(batch);
         }
@@ -151,7 +153,7 @@ public class BatchEventPublisher
 
     private async Task FlushBatchAsync(EventBatch batch)
     {
-        if (_flushHandler == null)
+        if (_flushHandler is null)
         {
             _logger.LogWarning("No flush handler configured for batch publisher");
             return;
@@ -174,7 +176,7 @@ public class BatchEventPublisher
 /// <summary>
 /// Statistics about batch publisher state.
 /// </summary>
-public class BatchPublisherStats
+public sealed class BatchPublisherStats
 {
     public int BufferedEventCount { get; set; }
     public int BufferedEventSize { get; set; }

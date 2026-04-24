@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -15,7 +17,7 @@ namespace DotnetEventBus.Advanced;
 /// Coordinates compensating transactions on failure for guaranteed consistency.
 /// Why: Critical for maintaining data consistency across microservices.
 /// </summary>
-public class SagaOrchestrator<TContext> where TContext : class
+public sealed class SagaOrchestrator<TContext> where TContext : class
 {
     private readonly List<SagaStep<TContext>> _steps = [];
     private readonly string _sagaId;
@@ -102,7 +104,7 @@ public class SagaOrchestrator<TContext> where TContext : class
         // Execute compensations in reverse order
         foreach (var step in completedSteps.AsEnumerable().Reverse())
         {
-            if (step.CompensationAction != null)
+            if (step.CompensationAction is not null)
             {
                 try
                 {
@@ -128,7 +130,7 @@ public class SagaOrchestrator<TContext> where TContext : class
     }
 }
 
-public class SagaStep<T> where T : class
+public sealed class SagaStep<T> where T : class
 {
     public required string Name { get; set; }
     public required Func<T, Task> Action { get; set; }
@@ -148,7 +150,7 @@ public enum SagaStepStatus
     CompensationFailed
 }
 
-public class SagaExecutionResult
+public sealed class SagaExecutionResult
 {
     public string? SagaId { get; set; }
     public bool Success { get; set; }

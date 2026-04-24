@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -13,7 +15,7 @@ namespace DotnetEventBus;
 /// <summary>
 /// Fluent builder for configuring and creating the event bus.
 /// </summary>
-public class EventBusBuilder
+public sealed class EventBusBuilder
 {
     private EventBusOptions _options = new();
     private IEventMessageRepository? _messageRepository;
@@ -34,7 +36,7 @@ public class EventBusBuilder
     /// </summary>
     public EventBusBuilder WithOptions(Action<EventBusOptions> configureOptions)
     {
-        if (configureOptions == null)
+        if (configureOptions is null)
             throw new ArgumentNullException(nameof(configureOptions));
 
         configureOptions(_options);
@@ -152,7 +154,7 @@ public class EventBusBuilder
     {
         _options.Validate();
 
-        if (_messageRepository != null || _subscriptionRepository != null || _deadLetterRepository != null)
+        if (_messageRepository is not null || _subscriptionRepository is not null || _deadLetterRepository is not null)
         {
             _messageRepository ??= new InMemoryEventMessageRepository();
             _subscriptionRepository ??= new InMemorySubscriptionRepository();
@@ -211,7 +213,7 @@ public static class EventBusBuilderExtensions
     /// </summary>
     public static EventBusBuilder AddEventBusBuilder(this IServiceCollection services)
     {
-        if (services == null)
+        if (services is null)
             throw new ArgumentNullException(nameof(services));
 
         return new EventBusBuilder(services);

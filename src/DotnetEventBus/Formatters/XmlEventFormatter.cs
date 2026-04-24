@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -16,7 +18,7 @@ namespace DotnetEventBus.Formatters;
 /// Supports both serialization and deserialization with proper formatting.
 /// Why: XML is required for integration with legacy enterprise systems.
 /// </summary>
-public class XmlEventFormatter : IEventFormatter
+public sealed class XmlEventFormatter : IEventFormatter
 {
     public string Format => "xml";
     public string ContentType => "application/xml";

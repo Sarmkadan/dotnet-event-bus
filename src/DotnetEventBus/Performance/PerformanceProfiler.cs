@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -15,7 +17,7 @@ namespace DotnetEventBus.Performance;
 /// Helps identify bottlenecks and optimize event processing.
 /// Why: Data-driven optimization requires accurate performance measurements.
 /// </summary>
-public class PerformanceProfiler
+public sealed class PerformanceProfiler
 {
     private readonly Dictionary<string, List<long>> _timings = [];
     private readonly Stopwatch _sessionStopwatch = Stopwatch.StartNew();
@@ -108,7 +110,7 @@ public class PerformanceProfiler
     /// </summary>
     public IEnumerable<OperationStats> GetAllStats()
     {
-        return _timings.Keys.Select(op => GetStats(op)).Where(s => s != null)!;
+        return _timings.Keys.Select(op => GetStats(op)).Where(s => s is not null)!;
     }
 
     /// <summary>
@@ -209,7 +211,7 @@ public class PerformanceProfiler
     }
 }
 
-public class OperationStats
+public sealed class OperationStats
 {
     public string? OperationName { get; set; }
     public int ExecutionCount { get; set; }
@@ -222,7 +224,7 @@ public class OperationStats
     public double P99TimeMs { get; set; }
 }
 
-public class ProfilingSessionSummary
+public sealed class ProfilingSessionSummary
 {
     public TimeSpan SessionDuration { get; set; }
     public int OperationCount { get; set; }

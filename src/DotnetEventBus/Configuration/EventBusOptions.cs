@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -8,7 +10,7 @@ namespace DotnetEventBus.Configuration;
 /// <summary>
 /// Configuration options for the event bus.
 /// </summary>
-public class EventBusOptions
+public sealed class EventBusOptions
 {
     /// <summary>
     /// Default timeout for synchronous handler execution.

@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -61,7 +63,7 @@ public interface ISubscriptionRepository : IRepository<Subscription>
 /// <summary>
 /// In-memory implementation of the subscription repository.
 /// </summary>
-public class InMemorySubscriptionRepository : InMemoryRepository<Subscription>, ISubscriptionRepository
+public sealed class InMemorySubscriptionRepository : InMemoryRepository<Subscription>, ISubscriptionRepository
 {
     public async Task<IEnumerable<Subscription>> GetByEventTypeAsync(string eventType, CancellationToken cancellationToken = default)
     {

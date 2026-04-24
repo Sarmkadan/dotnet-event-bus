@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -15,7 +17,7 @@ namespace DotnetEventBus.Utilities;
 /// Provides fluent validation API for event bus parameters and configurations.
 /// Why: Centralized validation ensures consistent error messages and validation rules.
 /// </summary>
-public class ValidationHelper
+public sealed class ValidationHelper
 {
     private readonly List<string> _errors = [];
 
@@ -37,7 +39,7 @@ public class ValidationHelper
     /// </summary>
     public ValidationHelper RequireNotNull<T>(T? value, string fieldName) where T : class
     {
-        if (value == null)
+        if (value is null)
         {
             _errors.Add($"{fieldName} is required and cannot be null");
         }
@@ -63,7 +65,7 @@ public class ValidationHelper
     /// </summary>
     public ValidationHelper RequireLength(string? value, int minLength, int maxLength, string fieldName)
     {
-        if (value != null)
+        if (value is not null)
         {
             if (value.Length < minLength || value.Length > maxLength)
             {
@@ -183,7 +185,7 @@ public class ValidationHelper
 /// <summary>
 /// Exception thrown when validation fails.
 /// </summary>
-public class ValidationException : Exception
+public sealed class ValidationException : Exception
 {
     public ValidationException(string message) : base(message) { }
 }

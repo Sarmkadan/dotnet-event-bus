@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -15,7 +17,7 @@ namespace DotnetEventBus.Integration;
 /// Supports exponential backoff, jitter, and custom retry conditions.
 /// Why: Handles transient failures gracefully without losing events.
 /// </summary>
-public class RetryPolicy
+public sealed class RetryPolicy
 {
     private int _maxRetries = 3;
     private TimeSpan _initialDelay = TimeSpan.FromSeconds(1);
@@ -180,7 +182,7 @@ public class RetryPolicy
     private bool IsRetryable(Exception ex)
     {
         // Use custom filter if provided
-        if (_retryableExceptionFilter != null)
+        if (_retryableExceptionFilter is not null)
         {
             return _retryableExceptionFilter(ex);
         }

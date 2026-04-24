@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -14,7 +16,7 @@ namespace DotnetEventBus.Configuration;
 /// Allows events to be routed to different handlers based on content or metadata.
 /// Why: Enables sophisticated event routing without handler modifications.
 /// </summary>
-public class EventRoutingConfiguration
+public sealed class EventRoutingConfiguration
 {
     private readonly Dictionary<string, List<RoutingRule>> _routes = [];
 
@@ -57,11 +59,11 @@ public class EventRoutingConfiguration
             return true; // No routes defined, deliver to all
 
         var targetRoute = routes.FirstOrDefault(r => r.TargetHandler == handlerName);
-        if (targetRoute == null)
+        if (targetRoute is null)
             return false;
 
         // Check route conditions
-        if (targetRoute.Condition != null && metadata != null)
+        if (targetRoute.Condition is not null && metadata is not null)
         {
             return targetRoute.Condition(metadata);
         }
@@ -89,7 +91,7 @@ public class EventRoutingConfiguration
 /// <summary>
 /// Represents a routing rule for event delivery.
 /// </summary>
-public class RoutingRule
+public sealed class RoutingRule
 {
     /// <summary>
     /// The target handler name.
@@ -115,7 +117,7 @@ public class RoutingRule
 /// <summary>
 /// Fluent builder for event routing configuration.
 /// </summary>
-public class EventRoutingBuilder
+public sealed class EventRoutingBuilder
 {
     private readonly EventRoutingConfiguration _configuration = new();
 

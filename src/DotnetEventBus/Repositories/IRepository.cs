@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -64,7 +66,7 @@ public interface IRepository<T> where T : class
 /// <summary>
 /// Result of a paginated query.
 /// </summary>
-public class PaginatedResult<T> where T : class
+public sealed class PaginatedResult<T> where T : class
 {
     public List<T> Items { get; set; } = new();
     public int PageNumber { get; set; }

@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -50,10 +52,10 @@ public static class ReflectionHelper
         var bindingFlags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase;
         var methods = type.GetMethods(bindingFlags).Where(m => m.Name.Equals(methodName, StringComparison.OrdinalIgnoreCase));
 
-        if (returnType != null)
+        if (returnType is not null)
             methods = methods.Where(m => m.ReturnType == returnType);
 
-        if (parameterTypes != null)
+        if (parameterTypes is not null)
             methods = methods.Where(m =>
             {
                 var parameters = m.GetParameters();
@@ -137,7 +139,7 @@ public static class ReflectionHelper
         var parameterTypes = parameters.Select(p => p?.GetType() ?? typeof(object)).ToArray();
         var method = obj.GetType().GetMethod(methodName, BindingFlags.Public | BindingFlags.Instance, null, parameterTypes, null);
 
-        if (method == null)
+        if (method is null)
             throw new MethodAccessException($"Method {methodName} not found on type {obj.GetType().Name}");
 
         return method.Invoke(obj, parameters);

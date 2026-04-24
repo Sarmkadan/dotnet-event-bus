@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -14,7 +16,7 @@ namespace DotnetEventBus.Formatters;
 /// Provides both compact and pretty-printed output options.
 /// Why: JSON is the standard format for distributed event systems and REST APIs.
 /// </summary>
-public class JsonEventFormatter : IEventFormatter
+public sealed class JsonEventFormatter : IEventFormatter
 {
     private readonly JsonSerializerOptions _compactOptions;
     private readonly JsonSerializerOptions _prettyOptions;
@@ -67,7 +69,7 @@ public class JsonEventFormatter : IEventFormatter
 
     public string FormatEvent(object eventData, bool includePrettyPrint = false)
     {
-        if (eventData == null)
+        if (eventData is null)
             return "null";
 
         return Serialize(eventData, includePrettyPrint);
