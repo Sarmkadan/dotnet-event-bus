@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -16,7 +18,7 @@ namespace DotnetEventBus.Examples;
 public static class ECommerceOrderProcessingExample
 {
     // Event definitions
-    public class OrderPlacedEvent
+    public sealed class OrderPlacedEvent
     {
         public string OrderId { get; set; }
         public string CustomerId { get; set; }
@@ -25,14 +27,14 @@ public static class ECommerceOrderProcessingExample
         public DateTime PlacedAt { get; set; }
     }
 
-    public class OrderItem
+    public sealed class OrderItem
     {
         public string ProductId { get; set; }
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
     }
 
-    public class PaymentProcessedEvent
+    public sealed class PaymentProcessedEvent
     {
         public string OrderId { get; set; }
         public string TransactionId { get; set; }
@@ -40,7 +42,7 @@ public static class ECommerceOrderProcessingExample
         public decimal Amount { get; set; }
     }
 
-    public class ShipmentCreatedEvent
+    public sealed class ShipmentCreatedEvent
     {
         public string OrderId { get; set; }
         public string ShipmentId { get; set; }
@@ -48,7 +50,7 @@ public static class ECommerceOrderProcessingExample
     }
 
     // Handler 1: High priority - Validate and reserve inventory
-    public class InventoryReservationHandler : EventHandlerBase<OrderPlacedEvent>
+    public sealed class InventoryReservationHandler : EventHandlerBase<OrderPlacedEvent>
     {
         public override async Task Handle(OrderPlacedEvent @event, CancellationToken cancellationToken = default)
         {
@@ -65,7 +67,7 @@ public static class ECommerceOrderProcessingExample
     }
 
     // Handler 2: Process payment
-    public class PaymentProcessingHandler : EventHandlerBase<OrderPlacedEvent>
+    public sealed class PaymentProcessingHandler : EventHandlerBase<OrderPlacedEvent>
     {
         private readonly IEventBus _eventBus;
 
@@ -96,7 +98,7 @@ public static class ECommerceOrderProcessingExample
     }
 
     // Handler 3: Create shipment (triggered by payment event)
-    public class ShipmentCreationHandler : EventHandlerBase<PaymentProcessedEvent>
+    public sealed class ShipmentCreationHandler : EventHandlerBase<PaymentProcessedEvent>
     {
         private readonly IEventBus _eventBus;
 
@@ -124,7 +126,7 @@ public static class ECommerceOrderProcessingExample
     }
 
     // Handler 4: Send customer notifications (low priority)
-    public class CustomerNotificationHandler : EventHandlerBase<OrderPlacedEvent>
+    public sealed class CustomerNotificationHandler : EventHandlerBase<OrderPlacedEvent>
     {
         public override async Task Handle(OrderPlacedEvent @event, CancellationToken cancellationToken = default)
         {
@@ -135,7 +137,7 @@ public static class ECommerceOrderProcessingExample
     }
 
     // Handler 5: Shipment notification
-    public class ShipmentNotificationHandler : EventHandlerBase<ShipmentCreatedEvent>
+    public sealed class ShipmentNotificationHandler : EventHandlerBase<ShipmentCreatedEvent>
     {
         public override async Task Handle(ShipmentCreatedEvent @event, CancellationToken cancellationToken = default)
         {

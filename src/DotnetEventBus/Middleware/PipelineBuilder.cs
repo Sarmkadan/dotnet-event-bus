@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -12,7 +14,7 @@ namespace DotnetEventBus.Middleware;
 /// Builds and manages the middleware pipeline for event processing.
 /// Uses a chain-of-responsibility pattern to compose middleware components.
 /// </summary>
-public class PipelineBuilder
+public sealed class PipelineBuilder
 {
     private readonly List<Func<EventBusMiddleware, EventBusMiddleware>> _middlewares = [];
 
@@ -67,7 +69,7 @@ public delegate Task EventBusMiddleware(EventContext context);
 /// Context passed through the middleware pipeline.
 /// Contains the event data and metadata for processing.
 /// </summary>
-public class EventContext
+public sealed class EventContext
 {
     public required string EventType { get; set; }
     public required object EventData { get; set; }

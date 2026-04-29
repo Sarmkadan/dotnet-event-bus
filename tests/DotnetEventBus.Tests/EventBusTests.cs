@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -15,7 +17,7 @@ namespace DotnetEventBus.Tests;
 /// <summary>
 /// Test event class for testing purposes.
 /// </summary>
-public class TestEvent
+public sealed class TestEvent
 {
     public string Data { get; set; } = string.Empty;
     public int Value { get; set; }
@@ -24,7 +26,7 @@ public class TestEvent
 /// <summary>
 /// Test handler implementation.
 /// </summary>
-public class TestEventHandler : EventHandlerBase<TestEvent>
+public sealed class TestEventHandler : EventHandlerBase<TestEvent>
 {
     public int CallCount { get; set; }
 
@@ -38,7 +40,7 @@ public class TestEventHandler : EventHandlerBase<TestEvent>
 /// <summary>
 /// Unit tests for the event bus.
 /// </summary>
-public class EventBusTests
+public sealed class EventBusTests
 {
     private readonly ServiceCollection _services;
     private readonly IEventBus _eventBus;

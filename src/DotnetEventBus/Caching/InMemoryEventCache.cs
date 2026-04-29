@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -16,7 +18,7 @@ namespace DotnetEventBus.Caching;
 /// Uses concurrent dictionary for thread-safe access and automatic expiration.
 /// Why: Provides fast, local caching without external dependencies for single-instance deployments.
 /// </summary>
-public class InMemoryEventCache : IEventCache
+public sealed class InMemoryEventCache : IEventCache
 {
     private readonly ConcurrentDictionary<string, CacheEntry> _cache = [];
     private readonly object _statsLock = new();

@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -15,7 +17,7 @@ namespace DotnetEventBus.Examples;
 /// </summary>
 public static class SubscriptionManagementExample
 {
-    public class UserActionEvent
+    public sealed class UserActionEvent
     {
         public string UserId { get; set; }
         public string Action { get; set; }

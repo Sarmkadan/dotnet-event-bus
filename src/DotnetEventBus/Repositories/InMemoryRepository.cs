@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -9,7 +11,7 @@ namespace DotnetEventBus.Repositories;
 /// In-memory repository implementation using a thread-safe dictionary.
 /// Suitable for testing and single-process deployments.
 /// </summary>
-public class InMemoryRepository<T> : IRepository<T> where T : class
+public sealed class InMemoryRepository<T> : IRepository<T> where T : class
 {
     private readonly Dictionary<string, T> _store = new();
     private readonly ReaderWriterLockSlim _lock = new();
@@ -54,7 +56,7 @@ public class InMemoryRepository<T> : IRepository<T> where T : class
     /// </summary>
     public async Task<T> AddAsync(T entity, CancellationToken cancellationToken = default)
     {
-        if (entity == null)
+        if (entity is null)
             throw new ArgumentNullException(nameof(entity));
 
         var id = GetEntityId(entity);
@@ -81,7 +83,7 @@ public class InMemoryRepository<T> : IRepository<T> where T : class
     /// </summary>
     public async Task<T> UpdateAsync(T entity, CancellationToken cancellationToken = default)
     {
-        if (entity == null)
+        if (entity is null)
             throw new ArgumentNullException(nameof(entity));
 
         var id = GetEntityId(entity);
@@ -127,7 +129,7 @@ public class InMemoryRepository<T> : IRepository<T> where T : class
     /// </summary>
     public async Task<bool> DeleteAsync(T entity, CancellationToken cancellationToken = default)
     {
-        if (entity == null)
+        if (entity is null)
             throw new ArgumentNullException(nameof(entity));
 
         var id = GetEntityId(entity);

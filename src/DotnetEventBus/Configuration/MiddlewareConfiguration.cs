@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -11,7 +13,7 @@ namespace DotnetEventBus.Configuration;
 /// Configuration options for middleware components.
 /// Centralizes all middleware settings in one place.
 /// </summary>
-public class MiddlewareConfiguration
+public sealed class MiddlewareConfiguration
 {
     /// <summary>
     /// Logging configuration.
@@ -37,7 +39,7 @@ public class MiddlewareConfiguration
 /// <summary>
 /// Logging middleware configuration.
 /// </summary>
-public class LoggingOptions
+public sealed class LoggingOptions
 {
     /// <summary>
     /// Whether to log event payloads.
@@ -68,7 +70,7 @@ public class LoggingOptions
 /// <summary>
 /// Error handling middleware configuration.
 /// </summary>
-public class ErrorHandlingOptions
+public sealed class ErrorHandlingOptions
 {
     /// <summary>
     /// Maximum number of retry attempts.
@@ -104,7 +106,7 @@ public class ErrorHandlingOptions
 /// <summary>
 /// Rate limiting middleware configuration.
 /// </summary>
-public class RateLimitingOptions
+public sealed class RateLimitingOptions
 {
     /// <summary>
     /// Whether to enable rate limiting.
@@ -135,7 +137,7 @@ public class RateLimitingOptions
 /// <summary>
 /// Caching configuration.
 /// </summary>
-public class CachingOptions
+public sealed class CachingOptions
 {
     /// <summary>
     /// Whether to enable caching.

@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -13,7 +15,7 @@ namespace DotnetEventBus.Models;
 /// Used for serialization, transmission, and audit trail.
 /// Why: Decouples event payload from infrastructure concerns.
 /// </summary>
-public class EventEnvelope
+public sealed class EventEnvelope
 {
     /// <summary>
     /// Unique identifier for this event.
@@ -154,14 +156,14 @@ public class EventEnvelope
     /// </summary>
     public bool IsValid()
     {
-        return !string.IsNullOrEmpty(EventType) && Payload != null;
+        return !string.IsNullOrEmpty(EventType) && Payload is not null;
     }
 }
 
 /// <summary>
 /// Represents the result of event processing.
 /// </summary>
-public class EventProcessingResult
+public sealed class EventProcessingResult
 {
     public bool Success { get; set; }
     public string? EventId { get; set; }
@@ -175,7 +177,7 @@ public class EventProcessingResult
 /// <summary>
 /// Batch of events to be processed together.
 /// </summary>
-public class EventBatch
+public sealed class EventBatch
 {
     public string? BatchId { get; set; } = Guid.NewGuid().ToString();
     public List<EventEnvelope> Events { get; set; } = [];

@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -8,7 +10,7 @@ namespace DotnetEventBus.Models;
 /// <summary>
 /// Represents a subscription between an event type and its handlers.
 /// </summary>
-public class Subscription
+public sealed class Subscription
 {
     /// <summary>
     /// Unique identifier for this subscription.

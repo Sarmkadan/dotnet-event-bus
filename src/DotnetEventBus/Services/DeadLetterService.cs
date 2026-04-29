@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -58,7 +60,7 @@ public interface IDeadLetterService
 /// <summary>
 /// Statistics about the dead letter queue.
 /// </summary>
-public class DeadLetterStatistics
+public sealed class DeadLetterStatistics
 {
     public int TotalEntries { get; set; }
     public int PendingEntries { get; set; }
@@ -73,7 +75,7 @@ public class DeadLetterStatistics
 /// <summary>
 /// Default implementation of the dead letter service.
 /// </summary>
-public class DeadLetterService : IDeadLetterService
+public sealed class DeadLetterService : IDeadLetterService
 {
     private readonly IDeadLetterRepository _repository;
     private readonly IEventBus? _eventBus;
@@ -116,13 +118,13 @@ public class DeadLetterService : IDeadLetterService
             throw new ArgumentException("Entry ID cannot be empty", nameof(entryId));
 
         var entry = await _repository.GetByIdAsync(entryId, cancellationToken);
-        if (entry == null)
+        if (entry is null)
         {
             _logger?.LogWarning("Dead letter entry {EntryId} not found", entryId);
             return false;
         }
 
-        if (_eventBus == null)
+        if (_eventBus is null)
         {
             _logger?.LogError("Event bus not available for reprocessing dead letter entry {EntryId}", entryId);
             entry.MarkAsReprocessFailed("Event bus not available");
@@ -167,7 +169,7 @@ public class DeadLetterService : IDeadLetterService
             throw new ArgumentException("Entry ID cannot be empty", nameof(entryId));
 
         var entry = await _repository.GetByIdAsync(entryId, cancellationToken);
-        if (entry == null)
+        if (entry is null)
             throw new InvalidOperationException($"Dead letter entry '{entryId}' not found");
 
         entry.MarkAsReviewed(reason);

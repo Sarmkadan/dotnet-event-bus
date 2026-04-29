@@ -1,3 +1,5 @@
+#nullable enable
+
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -49,7 +51,7 @@ public interface IEventMessageRepository : IRepository<EventMessage>
 /// <summary>
 /// In-memory implementation of the event message repository.
 /// </summary>
-public class InMemoryEventMessageRepository : InMemoryRepository<EventMessage>, IEventMessageRepository
+public sealed class InMemoryEventMessageRepository : InMemoryRepository<EventMessage>, IEventMessageRepository
 {
     public async Task<IEnumerable<EventMessage>> GetByEventTypeAsync(string eventType, CancellationToken cancellationToken = default)
     {

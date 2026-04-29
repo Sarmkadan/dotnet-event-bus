@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Threading.Tasks;
 using DotnetEventBus;
@@ -6,7 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 // Example 1: Basic v2.0 Features - Event Replay and Audit Logging
 namespace DotnetEventBus.Examples.V2BasicUsage
 {
-    public class OrderCreatedEvent : IEvent
+    public sealed class OrderCreatedEvent : IEvent
     {
         public string EventId { get; } = Guid.NewGuid().ToString();
         public DateTime Timestamp { get; } = DateTime.UtcNow;
@@ -18,7 +20,7 @@ namespace DotnetEventBus.Examples.V2BasicUsage
         public string ProductName { get; set; }
     }
 
-    public class PaymentProcessedEvent : IEvent
+    public sealed class PaymentProcessedEvent : IEvent
     {
         public string EventId { get; } = Guid.NewGuid().ToString();
         public DateTime Timestamp { get; } = DateTime.UtcNow;
@@ -29,7 +31,7 @@ namespace DotnetEventBus.Examples.V2BasicUsage
         public bool IsSuccessful { get; set; }
     }
 
-    public class OrderCreatedHandler : EventHandlerBase<OrderCreatedEvent>
+    public sealed class OrderCreatedHandler : EventHandlerBase<OrderCreatedEvent>
     {
         public override async Task Handle(OrderCreatedEvent @event, CancellationToken cancellationToken = default)
         {
@@ -39,7 +41,7 @@ namespace DotnetEventBus.Examples.V2BasicUsage
         }
     }
 
-    public class PaymentProcessedHandler : EventHandlerBase<PaymentProcessedEvent>
+    public sealed class PaymentProcessedHandler : EventHandlerBase<PaymentProcessedEvent>
     {
         public override async Task Handle(PaymentProcessedEvent @event, CancellationToken cancellationToken = default)
         {
