@@ -178,6 +178,80 @@ public sealed class SubscriptionManagerTests
 }
 
 /// <summary>
+/// Unit tests for dead letter queue exception handling.
+/// </summary>
+public sealed class DeadLetterExceptionHandlingTests
+{
+    private readonly IDeadLetterRepository _repository = new InMemoryDeadLetterRepository();
+    private readonly IDeadLetterService _service;
+
+    public DeadLetterExceptionHandlingTests()
+    {
+        var services = new ServiceCollection();
+        services.AddEventBus();
+        var provider = services.BuildServiceProvider();
+        var eventBus = provider.GetRequiredService<IEventBus>();
+        _service = new DeadLetterService(_repository, eventBus);
+    }
+
+    [Fact]
+    public async Task DeadLetterEntry_ShouldCaptureFullExceptionDetails()
+    {
+        // Arrange - Create an exception with a specific stack trace
+        var originalException = new InvalidOperationException("Test operation failed");
+
+        var msg = new EventMessage("TestEvent", "test payload");
+
+        // Act - Create a dead letter entry with the exception
+        var entry = new DeadLetterEntry(msg, "TestHandler", originalException, 3);
+        await _repository.AddAsync(entry);
+
+        // Assert - Verify that the exception details are captured
+        Assert.NotNull(entry.ExceptionMessage);
+        Assert.NotNull(entry.ExceptionStackTrace);
+        Assert.Contains("InvalidOperationException", entry.ExceptionStackTrace);
+        Assert.Contains("Test operation failed", entry.ExceptionStackTrace);
+        Assert.Contains("TestHandler", entry.FailedHandlerName);
+    }
+
+    [Fact]
+    public async Task DeadLetterEntry_WithInnerException_ShouldCaptureFullStackTrace()
+    {
+        // Arrange - Create an exception with an inner exception
+        var innerException = new ArgumentNullException("param1", "Inner error");
+        var outerException = new InvalidOperationException("Outer error", innerException);
+
+        var msg = new EventMessage("TestEvent", "test payload");
+
+        // Act - Create a dead letter entry with the exception chain
+        var entry = new DeadLetterEntry(msg, "TestHandler", outerException, 3);
+        await _repository.AddAsync(entry);
+
+        // Assert - Verify that both exceptions are captured in the stack trace
+        Assert.NotNull(entry.ExceptionStackTrace);
+        Assert.Contains("InvalidOperationException", entry.ExceptionStackTrace);
+        Assert.Contains("ArgumentNullException", entry.ExceptionStackTrace);
+        Assert.Contains("Outer error", entry.ExceptionStackTrace);
+        Assert.Contains("Inner error", entry.ExceptionStackTrace);
+    }
+
+    [Fact]
+    public async Task DeadLetterEntry_WithNullException_ShouldHandleGracefully()
+    {
+        // Arrange
+        var msg = new EventMessage("TestEvent", "test payload");
+
+        // Act - Create a dead letter entry with null exception
+        var entry = new DeadLetterEntry(msg, "TestHandler", null, 3);
+        await _repository.AddAsync(entry);
+
+        // Assert - Verify graceful handling
+        Assert.Equal("Unknown exception", entry.ExceptionMessage);
+        Assert.Null(entry.ExceptionStackTrace);
+    }
+}
+
+/// <summary>
 /// Unit tests for HandlerInvoker.
 /// </summary>
 public sealed class HandlerInvokerTests
