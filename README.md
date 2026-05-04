@@ -465,3 +465,42 @@ Console.WriteLine($"P95 latency: {latencyStats?.P95Ms}ms");
 metricsCollector.Reset();
 ```
 
+## RequestResponseBus
+
+The `RequestResponseBus` class implements the request-response pattern on top of an asynchronous event bus. It allows handlers to return responses to specific requests and clients to wait for these replies synchronously with configurable timeouts.
+
+Example usage:
+```csharp
+using DotnetEventBus.Advanced;
+using System;
+using System.Threading.Tasks;
+
+// Create the bus, optionally providing a publisher function to link with your transport
+var bus = new RequestResponseBus(async (eventType, message) =>
+{
+    Console.WriteLine($"Publishing request {message.RequestId} to {eventType}");
+    await Task.CompletedTask;
+});
+
+// Send a request and wait for a response
+try
+{
+    var request = new MyRequest { Data = "Hello" };
+    var response = await bus.RequestAsync<MyRequest, MyResponse>("MyEvent", request);
+    Console.WriteLine($"Received response: {response?.Payload}");
+}
+catch (TimeoutException)
+{
+    Console.WriteLine("Request timed out");
+}
+
+// In a handler, use RequestResponseHandler to process requests and send responses
+public class MyRequestHandler : RequestResponseHandler<MyRequest, MyResponse>
+{
+    public override async Task<MyResponse> HandleAsync(MyRequest request)
+    {
+        await Task.Delay(100);
+        return new MyResponse { Payload = "World" };
+    }
+}
+```
