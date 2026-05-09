@@ -49,7 +49,7 @@ public static class CollectionExtensions
     /// <summary>
     /// Safely returns the first element or a default value if the collection is empty.
     /// </summary>
-    public static T? FirstOrDefault<T>(this IEnumerable<T>? source, T? defaultValue = default) =>
+    public static T? FirstOrDefaultValue<T>(this IEnumerable<T>? source, T? defaultValue = default) where T : class =>
         source?.FirstOrDefault() ?? defaultValue;
 
     /// <summary>

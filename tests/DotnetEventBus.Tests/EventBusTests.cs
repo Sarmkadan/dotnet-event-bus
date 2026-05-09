@@ -198,7 +198,7 @@ public class EventBusTests
                 await Task.CompletedTask;
             },
             handlerName: "LowPriority",
-            priority: (int)EventBusConstants.HandlerPriority.Low
+            priority: (int)HandlerPriority.Low
         );
 
         _eventBus.Subscribe<TestEvent>(
@@ -208,7 +208,7 @@ public class EventBusTests
                 await Task.CompletedTask;
             },
             handlerName: "HighPriority",
-            priority: (int)EventBusConstants.HandlerPriority.High
+            priority: (int)HandlerPriority.High
         );
 
         // Act

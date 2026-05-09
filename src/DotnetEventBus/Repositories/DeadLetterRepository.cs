@@ -56,8 +56,6 @@ public interface IDeadLetterRepository : IRepository<DeadLetterEntry>
 /// </summary>
 public class InMemoryDeadLetterRepository : InMemoryRepository<DeadLetterEntry>, IDeadLetterRepository
 {
-    private readonly object _queryLock = new();
-
     public async Task<IEnumerable<DeadLetterEntry>> GetPendingAsync(CancellationToken cancellationToken = default)
     {
         return await GetByStatusAsync(DeadLetterStatus.Pending, cancellationToken);
@@ -68,11 +66,8 @@ public class InMemoryDeadLetterRepository : InMemoryRepository<DeadLetterEntry>,
         if (string.IsNullOrWhiteSpace(handlerName))
             throw new ArgumentException("Handler name cannot be empty", nameof(handlerName));
 
-        lock (_queryLock)
-        {
-            var entries = await GetAllAsync(cancellationToken);
-            return entries.Where(e => e.FailedHandlerName == handlerName).ToList();
-        }
+        var entries = await GetAllAsync(cancellationToken);
+        return entries.Where(e => e.FailedHandlerName == handlerName).ToList();
     }
 
     public async Task<IEnumerable<DeadLetterEntry>> GetByEventTypeAsync(string eventType, CancellationToken cancellationToken = default)
@@ -80,20 +75,14 @@ public class InMemoryDeadLetterRepository : InMemoryRepository<DeadLetterEntry>,
         if (string.IsNullOrWhiteSpace(eventType))
             throw new ArgumentException("Event type cannot be empty", nameof(eventType));
 
-        lock (_queryLock)
-        {
-            var entries = await GetAllAsync(cancellationToken);
-            return entries.Where(e => e.Message.EventType == eventType).ToList();
-        }
+        var entries = await GetAllAsync(cancellationToken);
+        return entries.Where(e => e.Message.EventType == eventType).ToList();
     }
 
     public async Task<IEnumerable<DeadLetterEntry>> GetByStatusAsync(DeadLetterStatus status, CancellationToken cancellationToken = default)
     {
-        lock (_queryLock)
-        {
-            var entries = await GetAllAsync(cancellationToken);
-            return entries.Where(e => e.Status == status).ToList();
-        }
+        var entries = await GetAllAsync(cancellationToken);
+        return entries.Where(e => e.Status == status).ToList();
     }
 
     public async Task<IEnumerable<DeadLetterEntry>> GetByTimeRangeAsync(
@@ -104,13 +93,10 @@ public class InMemoryDeadLetterRepository : InMemoryRepository<DeadLetterEntry>,
         if (endUtc < startUtc)
             throw new ArgumentException("End time must be after start time");
 
-        lock (_queryLock)
-        {
-            var entries = await GetAllAsync(cancellationToken);
-            return entries
-                .Where(e => e.CreatedAtUtc >= startUtc && e.CreatedAtUtc <= endUtc)
-                .ToList();
-        }
+        var entries = await GetAllAsync(cancellationToken);
+        return entries
+            .Where(e => e.CreatedAtUtc >= startUtc && e.CreatedAtUtc <= endUtc)
+            .ToList();
     }
 
     public async Task<int> CountByStatusAsync(DeadLetterStatus status, CancellationToken cancellationToken = default)

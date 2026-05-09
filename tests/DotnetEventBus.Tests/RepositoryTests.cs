@@ -106,14 +106,17 @@ public class InMemoryRepositoryTests
         // Act
         var page1 = await repository.GetPagedAsync(1, 2);
         var page2 = await repository.GetPagedAsync(2, 2);
+        var page3 = await repository.GetPagedAsync(3, 2);
 
         // Assert
         Assert.Equal(2, page1.Items.Count);
         Assert.Equal(2, page2.Items.Count);
+        Assert.Equal(1, page3.Items.Count);
         Assert.Equal(5, page1.TotalCount);
         Assert.Equal(3, page1.TotalPages);
         Assert.True(page1.HasNextPage);
-        Assert.False(page2.HasNextPage);
+        Assert.True(page2.HasNextPage);
+        Assert.False(page3.HasNextPage);
     }
 
     [Fact]

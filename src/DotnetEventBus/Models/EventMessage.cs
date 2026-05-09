@@ -11,6 +11,11 @@ namespace DotnetEventBus.Models;
 public class EventMessage
 {
     /// <summary>
+    /// Unique identifier for this message (alias for MessageId, required by repository infrastructure).
+    /// </summary>
+    public string Id => MessageId;
+
+    /// <summary>
     /// Unique identifier for this message.
     /// </summary>
     public string MessageId { get; set; }
