@@ -33,7 +33,7 @@ jobs:
         fetch-depth: 0
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v5
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
@@ -67,7 +67,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v5
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
@@ -92,7 +92,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v5
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
@@ -149,7 +149,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v5
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
