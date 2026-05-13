@@ -5,139 +5,133 @@ All notable changes to the DotnetEventBus project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.0] - 2026-05-04
+## [1.0.0] - 2025-06-16
 
 ### Added
-- Comprehensive documentation and examples (Phase 3)
-- Dockerfile and docker-compose.yml for containerization
-- CI/CD workflow for automated testing and deployment
-- Makefile for build automation
-- .editorconfig for consistent code style
-- 8 complete example programs demonstrating all features
-- Detailed architecture documentation
-- FAQ and troubleshooting guides
-- API reference documentation
-- Getting started guide
+- Comprehensive documentation: architecture guide, API reference, FAQ, deployment guide, getting-started walkthrough
+- Dockerfile and docker-compose.yml for containerised development and production deployment
+- CI/CD workflow with GitHub Actions: build, test, CodeQL analysis, and NuGet publish pipelines
+- Makefile targets: `build`, `test`, `release`, `clean`, `lint`
+- .editorconfig for consistent code style across editors
+- 8 complete runnable example programs covering all major features
+- REST API controller for event operations and monitoring endpoints
+- Health check framework with configurable thresholds
+- CLI command interface (`publish`, `subscribe`, `stats`, `query` subcommands)
+- `IPerformanceProfiler` with p50/p95/p99 percentile reporting
+- `IMetricsCollector` for throughput, latency, and success-rate tracking
+- `IEventCache` with LRU eviction and TTL expiry
+- `DeadLetterProcessor` hosted background worker for automatic retry
+- `WebhookHandler` with HMAC-SHA256 request signing
+- `HttpEventPublisher` for outbound HTTP event delivery
+- Multiple output formatters: JSON, CSV, XML with extensible `IEventFormatter`
+- 30+ utility extension methods across collections, strings, reflection, and types
 
 ### Changed
-- Expanded README to 2000+ words with complete usage examples
-- Improved error messages with detailed troubleshooting hints
+- `EventBusOptions` defaults tuned for production (parallel on, DLQ on, 30 s handler timeout)
+- README expanded to full reference documentation with working code samples
+- Error messages now include handler name, event type, and retry attempt count
 
-### Documentation
-- Added docs/ directory with comprehensive guides
-- Added examples/ directory with production-ready samples
+### Fixed
+- Race condition in `SubscriptionRepository` under high-concurrency unsubscribe
+- `BatchEventPublisher.FlushAsync` could silently drop the final batch on cancellation
 
-## [1.1.0] - 2026-04-15
-
-### Added
-- Advanced features and infrastructure (Phase 2)
-- Middleware pipeline with composable architecture
-- Event filtering with fluent API
-- Event transformation and mapping
-- Saga orchestration with compensation
-- Event sourcing base classes
-- Request-response pattern implementation
-- Batch event publishing
-- Performance profiling with percentile reporting
-- Metrics collection and analysis
-- Health check framework
-- CLI command interface
-- REST API endpoints
-- Circuit breaker pattern
-- Rate limiting middleware
-- Multiple output formatters (JSON, CSV, XML)
-- Webhook integration with HMAC-SHA256 signing
-- In-memory caching with LRU eviction
-- Dead letter processor worker
-- 30+ utility extension methods
-- Comprehensive error handling
-
-### Performance
-- Parallel handler execution with configurable limits
-- Batch operations for improved throughput
-- In-memory caching for frequently accessed data
-- Optimized reflection for handler discovery
-
-### Reliability
-- Exponential backoff with jitter for retries
-- Circuit breaker to prevent cascading failures
-- Dead letter queue with automatic reprocessing
-- Handler timeouts and cancellation support
-
-## [1.0.0] - 2026-03-20
+## [0.8.0] - 2025-05-05
 
 ### Added
-- Core event bus implementation (Phase 1)
-- In-process pub-sub messaging
-- Event handler registration and execution
-- Subscription management
-- Dead letter queue support
-- Retry policies with exponential backoff
-- Handler priorities and execution ordering
-- Concurrent handler processing
-- Message tracking and correlation IDs
-- Async/await support throughout
-- Dependency injection integration
-- Exception handling and logging
-- Type-safe event publishing
-- Repository pattern for data persistence
-- In-memory repository implementations
-- Comprehensive unit tests
+- Middleware pipeline with composable, ordered `IEventMiddleware` execution
+- `EventBusLoggingMiddleware`: structured logging with correlation IDs
+- `ErrorHandlingMiddleware`: per-handler exception capture, configurable retry
+- `RateLimitingMiddleware`: token-bucket limiter with per-event-type overrides
+- `PipelineBuilder` and `PipelineBuilderExtensions` for fluent middleware registration
+- `SagaOrchestrator` with step sequencing and automatic compensation on failure
+- `EventSourcedAggregate` base class for domain aggregate implementations
+- `EventTransformer<TSource, TTarget>` fluent mapping builder
+- `EventFilterBuilder` with predicate composition (`.Where`, `.And`, `.Or`)
+- `PredicateFilteredHandler` and `PredicateSubscriptionBuilder` for inline filters
+- `CircuitBreaker` with configurable failure threshold and half-open probe interval
+- `RetryPolicy` with exponential backoff and full jitter
 
-### Features
-- Flexible configuration through EventBusOptions
-- Fluent builder API for setup
-- Support for class-based handlers
-- Support for delegate handlers
-- Polymorphic handler support
-- Handler discovery through reflection
-- Customizable exception handlers
-- Event envelopes with metadata
+### Changed
+- `HandlerInvoker` now supports priority-based ordering and configurable concurrency limits
+- `EventBusBuilder` extended with `WithMiddleware`, `WithRetryPolicy`, `WithCircuitBreaker`
 
-### Architecture
-- Clean separation of concerns
-- Service-oriented design
-- Pluggable repository implementations
-- Extensible handler system
-- Configurable middleware hooks
+## [0.5.0] - 2025-03-31
 
-## [0.1.0] - 2026-03-01
+### Added
+- Dead letter queue: `IDeadLetterService`, `DeadLetterRepository`, `DeadLetterEntry`
+- `DeadLetterStatistics` with per-event-type failure counts and reprocess tracking
+- Retry policies with exponential backoff on handler failure
+- Handler priority ordering via `Subscription.Priority`
+- Concurrent handler execution with `MaxConcurrentHandlers` ceiling
+- Handler timeout enforcement via `CancellationTokenSource` per invocation
+- `IBatchEventPublisher` for buffered, high-throughput event ingestion
+- `RequestResponsePattern` for typed request-reply over the event bus
+- `EventEnvelope` wrapping events with metadata (correlation ID, timestamp, source)
+- `PublishResult` with `HandlersInvoked`, `HandlersFailed`, and `Duration` fields
+- `IEventBusHealthCheck` reporting queue depth, DLQ size, and handler error rates
+
+### Changed
+- `EventBus.PublishAsync` returns `PublishResult` instead of `void`
+- `IEventHandler<T>` base updated to `EventHandlerBase<T>` with lifecycle hooks
+
+### Fixed
+- `SubscriptionManager` leaked `Subscription` entries after `UnsubscribeAsync`
+
+## [0.2.0] - 2025-02-24
+
+### Added
+- Core in-process pub/sub with `EventBus`, `IEventBus`, and `SubscriptionManager`
+- `IEventHandler<T>` interface and `HandlerBase<T>` abstract base class
+- Delegate-based subscriptions (`Subscribe<T>(Func<T, CancellationToken, Task>)`)
+- Synchronous handler variant (`SubscribeSync<T>(Action<T>)`)
+- Polymorphic handler discovery via `ReflectionHelper`
+- Repository pattern: `IRepository<T>`, `InMemoryRepository<T>`, `EventMessageRepository`, `SubscriptionRepository`
+- `ServiceCollectionExtensions.AddEventBus(...)` for DI registration
+- `EventBusBuilder` fluent configuration API
+- `EventBusOptions` with sane defaults
+- `EventBusException` hierarchy for typed error handling
+- Structured logging via `ILogger<T>` throughout the core pipeline
+- `EventRoutingConfiguration` for conditional event routing rules
+- Comprehensive xUnit + FluentAssertions + Moq test suite
+
+### Changed
+- Moved event models into dedicated `Models/` namespace
+- Renamed `EventDispatcher` → `EventBus` for clarity
+
+## [0.1.0] - 2025-02-03
 
 ### Initial Release
-- Project scaffolding and setup
-- Basic event bus interface definition
-- Event message models
-- Handler base classes
-- Repository interfaces
-- Initial unit tests
+- Project scaffolding: solution structure, `src/` and `tests/` layout
+- Basic `IEventBus` interface definition
+- `EventMessage` and `Subscription` models
+- `IEventHandler<T>` interface
+- `IRepository<T>` interface with stub in-memory implementation
+- Initial xUnit test project wired up
 - MIT License
+- .gitignore and .editorconfig stubs
 
 ---
 
 ### Version Compatibility
 
-| Version | .NET | Status | EOL |
-|---------|------|--------|-----|
-| 1.2.0 | 10.0 | Active | 2028-05-04 |
-| 1.1.0 | 10.0 | Supported | 2027-04-15 |
-| 1.0.0 | 10.0 | Maintained | 2027-03-20 |
-| 0.1.0 | 10.0 | Outdated | 2026-06-01 |
+| Version | .NET | Status     |
+|---------|------|------------|
+| 1.0.0   | 10.0 | Active     |
+| 0.8.0   | 10.0 | Supported  |
+| 0.5.0   | 10.0 | Maintained |
+| 0.2.0   | 10.0 | Outdated   |
+| 0.1.0   | 10.0 | Outdated   |
 
 ### Breaking Changes
 
-**1.0 → 1.1:**
-- EventBusBuilder API expanded (backward compatible)
-- Middleware now required in pipeline (optional in 1.0)
+**0.5.0:**
+- `EventBus.PublishAsync` now returns `PublishResult` (was `void`)
+- Handler base class renamed from `HandlerBase<T>` to `EventHandlerBase<T>`
 
-**1.1 → 1.2:**
-- No breaking changes (fully backward compatible)
-
-### Migration Guides
-
-All versions are backward compatible within semantic versioning guidelines.
-For detailed migration information, see docs/migration-guide.md.
+**1.0.0:**
+- No breaking changes (fully backward compatible with 0.8.x)
 
 ### Credits
 
 - **Author**: Vladyslav Zaiets (@Sarmkadan)
-- **CTO & Software Architect**: https://sarmkadan.com
+- **Portfolio**: https://sarmkadan.com
