@@ -44,6 +44,9 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 
 WORKDIR /app
 
+# Install curl for healthcheck
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
 # Create non-root user
 RUN useradd -m -u 1001 dotnetapp && chown -R dotnetapp:dotnetapp /app
 
@@ -99,6 +102,9 @@ ENTRYPOINT ["/bin/bash"]
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS production
 
 WORKDIR /app
+
+# Install curl for healthcheck
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 # Copy published output from builder
 COPY --from=builder /app/publish ./
