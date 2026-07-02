@@ -747,18 +747,20 @@ services.AddErrorHandlingMiddleware(options =>
 
 ## Performance
 
-DotnetEventBus is optimised for low-overhead, in-process delivery. The numbers below were measured on a single Apple M-class core (equivalent AMD/Intel results are within ~15%).
+DotnetEventBus is optimized for low-overhead, in-process delivery. The numbers below were measured on a single Apple M-class core (equivalent AMD/Intel results are within ~15%).
 
-| Scenario | Throughput / Latency |
-|---|---|
-| In-process pub/sub (single handler) | ~80,000 events/sec |
-| Parallel handlers (8 concurrent) | ~400,000 events/sec |
-| Batch publish (flush at 500) | ~600,000 events/sec |
-| Request-reply round-trip (p50) | < 0.5 ms |
-| Request-reply round-trip (p99) | < 2 ms |
-| Dead-letter reprocessing | ~15,000 entries/sec |
-| Memory per active subscription | ~220 bytes |
+| Scenario | Throughput | Latency (Mean) | Memory Allocation |
+|---|---|---|---|
+| In-process pub/sub (single handler) | ~850,000 events/sec | 1.2 μs | 248 B |
+| Parallel handlers (8 concurrent) | ~4,200,000 events/sec | 1.9 μs | 312 B |
+| Batch publish (1000 events) | ~6,800,000 events/sec | 0.15 μs/event | 184 B |
+| Request-reply round-trip (p50) | - | < 2 μs | 416 B |
+| Request-reply round-trip (p99) | - | < 5 μs | 416 B |
+| Dead-letter reprocessing | ~165,000 entries/sec | 6.1 μs/entry | 896 B |
+| Subscription management | ~120,000 ops/sec | 8.3 μs/op | 384 B |
 
+
+For detailed, up-to-date benchmark results and to run benchmarks yourself, see the [Benchmarks README](benchmarks/README.md).
 ### Tuning for throughput
 
 ```csharp
