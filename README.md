@@ -1371,6 +1371,65 @@ Console.WriteLine($"Retry message ID: {retryMessage.MessageId}");
 Console.WriteLine($"Retry attempts: {retryMessage.ProcessingAttempts}");
 ```
 
+## DeadLetterProcessor
+
+The `DeadLetterProcessor` is a worker component that processes items in the dead letter queue (DLQ). It provides methods to enqueue failed event processing attempts, retrieve statistics about DLQ items, and remove items from the queue. The processor tracks retry attempts, errors, and status information for each dead letter item.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Workers;
+using System;
+using System.Threading.Tasks;
+
+// Create a dead letter processor
+var processor = new DeadLetterProcessor("order-processing-dlq");
+
+// Enqueue a failed event processing attempt
+var failedEvent = new DeadLetterItem
+{
+    Id = Guid.NewGuid().ToString(),
+    EventType = "OrderCreated",
+    EventData = new { OrderId = 123, Amount = 99.99m },
+    ErrorMessage = "Database timeout",
+    StackTrace = "...",
+    CreatedAt = DateTime.UtcNow,
+    LastRetryAt = null,
+    RetryCount = 0,
+    Status = DeadLetterStatus.Pending
+};
+
+processor.Enqueue(failedEvent);
+
+// Get statistics about the dead letter queue
+var stats = processor.GetStats();
+Console.WriteLine($"Total items: {stats.TotalItems}");
+Console.WriteLine($"Pending items: {stats.PendingItems}");
+Console.WriteLine($"Retrying items: {stats.RetryingItems}");
+Console.WriteLine($"Failed items: {stats.FailedItems}");
+Console.WriteLine($"Successful items: {stats.SuccessfulItems}");
+
+// Get all items in the queue
+var allItems = processor.GetAllItems();
+foreach (var item in allItems)
+{
+    Console.WriteLine($"Item {item.Id}: {item.EventType} - {item.Status}");
+}
+
+// Remove an item after processing
+bool removed = processor.RemoveItem("item-id-123");
+Console.WriteLine(removed ? "Item removed successfully" : "Item not found");
+
+// Access item properties directly
+var itemToProcess = allItems.FirstOrDefault();
+if (itemToProcess != null)
+{
+    Console.WriteLine($"Processing item: {itemToProcess.EventType}");
+    Console.WriteLine($"Error: {itemToProcess.ErrorMessage}");
+    Console.WriteLine($"Retry count: {itemToProcess.RetryCount}");
+}
+```
+
 ## EventEnvelope
 
 The `EventEnvelope` class wraps an event with metadata and context information, providing a standardized container for event serialization, transmission, and audit trail. It decouples the event payload from infrastructure concerns and includes tracking information like correlation IDs, causation IDs, and processing metadata.
