@@ -894,6 +894,88 @@ batchPublisher.SetFlushHandlerWithResult(
 );
 ```
 
+## EventBusApiController
+
+The `EventBusApiController` class provides REST API endpoints for interacting with the event bus. It exposes operations for publishing individual events or batches, retrieving system statistics, and checking health status. The controller wraps results in a standardized `ApiResponse<T>` wrapper that includes success status, data payload, error messages, and timestamps.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Api;
+using DotnetEventBus.Models;
+using Microsoft.Extensions.DependencyInjection;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+
+// Setup DI container with event bus and optional metrics collector
+var services = new ServiceCollection();
+services.AddEventBus(builder => builder
+    .Configure(options => options.MaxRetryAttempts = 3)
+    .AddDeadLetterService()
+    .AddJsonFormatter());
+
+var serviceProvider = services.BuildServiceProvider();
+var eventBus = serviceProvider.GetRequiredService<EventBus>();
+
+// Create controller instance (optionally with metrics)
+var controller = new EventBusApiController(eventBus);
+
+// Publish a single event
+var publishResult = await controller.PublishEventAsync(
+    "OrderCreated",
+    new { OrderId = 123, TotalAmount = 99.99m, CustomerName = "John Doe" }
+);
+
+if (publishResult.IsSuccess)
+{
+    Console.WriteLine($"Event published successfully: {publishResult.Data?.EventId}");
+    Console.WriteLine($"Event type: {publishResult.Data?.EventType}");
+    Console.WriteLine($"Published at: {publishResult.Data?.PublishedAt}");
+}
+else
+{
+    Console.WriteLine($"Publish failed: {publishResult.ErrorMessage}");
+}
+
+// Publish a batch of events
+var batchResult = await controller.PublishBatchAsync(new List<EventEnvelope>
+{
+    EventEnvelope.Create("OrderCreated", new { OrderId = 1, TotalAmount = 10.50m }),
+    EventEnvelope.Create("PaymentProcessed", new { PaymentId = 1, Amount = 10.50m }),
+    EventEnvelope.Create("InventoryUpdated", new { ProductId = 1, Quantity = 5 })
+});
+
+if (batchResult.IsSuccess)
+{
+    Console.WriteLine($"Batch published: {batchResult.Data?.EventCount} events");
+    Console.WriteLine($"Batch ID: {batchResult.Data?.BatchId}");
+}
+else
+{
+    Console.WriteLine($"Batch publish failed: {batchResult.ErrorMessage}");
+}
+
+// Get system statistics
+var statsResponse = controller.GetStats();
+if (statsResponse.IsSuccess)
+{
+    var stats = statsResponse.Data;
+    Console.WriteLine($"Status: {stats?.Status}");
+    Console.WriteLine($"Total events published: {stats?.TotalEventsPublished}");
+    Console.WriteLine($"Total events failed: {stats?.TotalEventsFailed}");
+    Console.WriteLine($"Active subscriptions: {stats?.ActiveSubscriptions}");
+}
+
+// Get health status
+var healthResponse = await controller.GetHealthAsync();
+if (healthResponse.IsSuccess)
+{
+    var healthStatus = healthResponse.Data;
+    Console.WriteLine($"Health status: {healthStatus}");
+}
+```
+
 ## RateLimitingMiddleware
 
 The `RateLimitingMiddleware` class enforces rate limiting on event publishing to prevent system overload and ensure fair resource distribution across event types. It uses a sliding window algorithm to track request rates per event type, allowing you to configure the maximum number of requests allowed within a specified time window.
