@@ -1228,6 +1228,53 @@ var wildcardFilter = FilterBuilder.CreateWildcardFilter<OrderCreatedEvent>(); //
 var emptyFilter = FilterBuilder.CreateEmptyFilter<OrderCreatedEvent>(); // matches no events
 ```
 
+## StringExtensions
+
+The `StringExtensions` class provides a comprehensive set of extension methods for string manipulation and validation commonly used throughout the event bus infrastructure. It includes utilities for converting between different string formats (PascalCase, snake_case, kebab-case), validating event type names, truncating strings, and generating URL-friendly slugs.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Utilities;
+using System;
+
+// Convert between different string formats
+string eventName = "UserCreatedEvent";
+Console.WriteLine(eventName.ToSnakeCase()); // "user_created_event"
+Console.WriteLine(eventName.ToKebabCase()); // "user-created-event"
+Console.WriteLine(eventName.ToPascalCase()); // "UserCreatedEvent" (identity)
+
+// Validate event type names
+string validEventType = "Order.Created.2024";
+Console.WriteLine(validEventType.IsValidEventTypeName()); // true
+
+string invalidEventType = "Order Created!";
+Console.WriteLine(invalidEventType.IsValidEventTypeName()); // false
+
+// Truncate strings for logging or display
+string longMessage = "This is a very long error message that needs to be truncated";
+Console.WriteLine(longMessage.Truncate(20)); // "This is a very long"
+Console.WriteLine(longMessage.Truncate(20, true)); // "This is a very long..."
+
+// Check for null or whitespace
+string? nullOrEmpty = null;
+Console.WriteLine(nullOrEmpty.IsNullOrWhitespace()); // true
+
+string whitespace = "   ";
+Console.WriteLine(whitespace.IsNullOrWhitespace()); // true
+
+// Convert to URL-friendly slugs
+string title = "How to Use the Event Bus in .NET";
+Console.WriteLine(title.ToSlug()); // "how-to-use-the-event-bus-in-net"
+
+// Get event categories
+string eventType = "user.account.created";
+Console.WriteLine(eventType.GetEventCategory()); // "user"
+
+// Repeat strings
+Console.WriteLine("-".Repeat(10)); // "----------"
+```
+
 ## EventRoutingConfiguration
 
 The `EventRoutingConfiguration` class provides flexible event routing capabilities that allow you to conditionally route events to specific handlers based on metadata or event content. This enables sophisticated routing scenarios without modifying handler implementations, such as routing high-value orders to premium handlers, filtering events by tenant, or implementing A/B testing for event handlers.
