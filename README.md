@@ -495,6 +495,62 @@ var wildcardFilter = FilterBuilder.CreateWildcardFilter<OrderCreatedEvent>(); //
 var emptyFilter = FilterBuilder.CreateEmptyFilter<OrderCreatedEvent>(); // matches no events
 ```
 
+## EventEnvelope
+
+The `EventEnvelope` class wraps an event with metadata and context information, providing a standardized container for event serialization, transmission, and audit trail. It decouples the event payload from infrastructure concerns and includes tracking information like correlation IDs, causation IDs, and processing metadata.
+
+Example usage:
+```csharp
+using DotnetEventBus.Models;
+using System;
+using System.Collections.Generic;
+
+// Create a new event envelope
+var orderCreatedEvent = new OrderCreated
+{
+    OrderId = 123,
+    CustomerName = "John Doe",
+    Amount = 99.99m,
+    Items = new List<OrderItem> { new() { ProductId = 1, Quantity = 2, Price = 49.99m } }
+};
+
+var envelope = EventEnvelope.Create("order.created", orderCreatedEvent)
+{
+    Version = 1,
+    CorrelationId = "corr-12345",
+    Source = "order-service",
+    Actor = "user-42",
+    IsCritical = true,
+    Priority = 90,
+    Metadata = new Dictionary<string, object>
+    {
+        { "tenantId", "acme-corp" },
+        { "region", "us-east-1" }
+    }
+};
+
+// Create a causally linked event (e.g., triggered by another event)
+var linkedEvent = EventEnvelope.CreateLinked(
+    "order.payment.processed",
+    new PaymentProcessed { OrderId = 123, Amount = 99.99m, Status = "completed" },
+    causationId: envelope.EventId!,
+    correlationId: envelope.CorrelationId
+);
+
+// Get headers for transmission
+var headers = envelope.GetHeaders();
+foreach (var header in headers)
+{
+    Console.WriteLine($"{header.Key}: {header.Value}");
+}
+
+// Validate the envelope
+if (envelope.IsValid())
+{
+    Console.WriteLine("Event envelope is valid and ready for processing");
+}
+```
+
 ## CommandLineInterface
 
 The `CommandLineInterface` class provides a command-line interface for interacting with the event bus. It allows system operators to execute commands for publishing, subscribing, querying, and managing events without writing code. The CLI supports registering custom commands, executing commands with arguments, and retrieving help text for available commands.
