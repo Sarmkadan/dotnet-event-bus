@@ -1,351 +1,121 @@
 # DotnetEventBus Architecture
 
+This document describes the actual structure of the code in `src/DotnetEventBus` - what the pieces are, how an event flows through them, and why some decisions were made the way they were.
+
 ## Overview
 
-DotnetEventBus is built with a layered, modular architecture designed for performance, testability, and extensibility. This document describes the system design and key components.
+DotnetEventBus is a single-assembly, **in-process** event bus for .NET (`net10.0`). There is no broker and no network transport: publisher and subscribers live in the same process, and delivery is an async method call chain. The library provides:
 
-## Architecture Layers
+- pub/sub with polymorphic dispatch (`PublishAsync`)
+- request/reply over the same bus (`SendAsync` + `SubscribeRequest`)
+- per-handler retry with exponential backoff, and a dead letter queue for handlers that exhaust retries
+- a per-publish middleware pipeline (logging, error handling, rate limiting)
+- pluggable persistence via repository interfaces (in-memory implementations ship in the box)
 
-```
-┌──────────────────────────────────────────┐
-│     Application Layer                    │
-│  (Events, Handlers, Domain Logic)        │
-└───────────────┬──────────────────────────┘
-                │
-┌───────────────▼──────────────────────────┐
-│     Configuration & DI Layer             │
-│  (Setup, Options, Builder Pattern)       │
-└───────────────┬──────────────────────────┘
-                │
-┌───────────────▼──────────────────────────┐
-│     Pipeline Layer (Middleware)          │
-│  (Logging, Error Handling, Rate Limit)   │
-└───────────────┬──────────────────────────┘
-                │
-┌───────────────▼──────────────────────────┐
-│     EventBus Core Service                │
-│  (Publish, Subscribe, Request-Reply)     │
-└───────────────┬──────────────────────────┘
-                │
-┌───────────────▼──────────────────────────┐
-│     Handler Invocation Engine            │
-│  (Priority, Concurrency, Timeouts)       │
-└───────────────┬──────────────────────────┘
-                │
-┌───────────────▼──────────────────────────┐
-│     Data Access Layer                    │
-│  (Repositories, Persistence)             │
-└──────────────────────────────────────────┘
-```
-
-## Core Components
-
-### 1. IEventBus Service
-
-The primary interface for publishing and subscribing to events.
-
-**Responsibilities:**
-- Register event handlers
-- Publish events to interested subscribers
-- Handle request-reply patterns
-- Manage handler lifecycle
-- Coordinate with middleware pipeline
-
-**Key Methods:**
-- `PublishAsync<TEvent>()` - Publish event
-- `RequestAsync<TRequest, TResponse>()` - Request-reply pattern
-- `Subscribe<TEvent>()` - Register async handler
-- `SubscribeSync<TEvent>()` - Register sync handler
-- `UnsubscribeAsync()` - Unregister handler
-
-### 2. Handler Invoker
-
-Responsible for executing registered handlers in the correct order with proper isolation.
-
-**Features:**
-- Priority-based execution order
-- Concurrent handler execution with configurable limits
-- Handler timeout management
-- Exception isolation (one handler's failure doesn't affect others)
-- Return value collection for request-reply
-
-**Execution Flow:**
-1. Sort handlers by priority (descending)
-2. Check handler enabled status
-3. Apply event filters
-4. Execute handler with timeout
-5. Capture result or exception
-6. Continue with next handler
-
-### 3. Middleware Pipeline
-
-Cross-cutting concerns are handled through a composable middleware pipeline.
-
-**Built-in Middleware:**
-- **LoggingMiddleware**: Logs event publish/handle with correlation IDs
-- **ErrorHandlingMiddleware**: Captures exceptions, manages retries, routes to DLQ
-- **RateLimitingMiddleware**: Prevents event bus overload
-
-**Pipeline Composition:**
-```csharp
-Request → Logging → ErrorHandling → RateLimiting → EventBus → RateLimiting → ErrorHandling → Logging → Response
-```
-
-### 4. Repository Layer
-
-Pluggable data access layer for persistence.
-
-**Interfaces:**
-- `IEventMessageRepository` - Store and retrieve events
-- `ISubscriptionRepository` - Manage subscriptions
-- `IDeadLetterRepository` - Handle failed messages
-
-**Default Implementations:**
-- `InMemoryRepository` - In-memory storage (great for testing)
-- Custom implementations can use SQL, MongoDB, Redis, etc.
-
-### 5. Support Services
-
-#### DeadLetterService
-Manages failed events with retry policies and statistics.
-
-#### SubscriptionManager
-Enables/disables handlers and provides subscription statistics.
-
-#### BatchEventPublisher
-Aggregates events for batch publishing (performance optimization).
-
-#### MetricsCollector
-Tracks system metrics: throughput, latency, success rates.
-
-#### PerformanceProfiler
-Detailed performance analysis with percentile reporting.
-
-## Request Lifecycle
-
-### Publishing Flow
+Repository layout:
 
 ```
-Application calls eventBus.PublishAsync(event)
-    ↓
-EventBus resolves event type
-    ↓
-Pipeline: LoggingMiddleware logs publish start
-    ↓
-Pipeline: RateLimitingMiddleware checks quota
-    ↓
-Pipeline: ErrorHandlingMiddleware sets up exception handling
-    ↓
-EventBus retrieves subscriptions for event type
-    ↓
-HandlerInvoker sorts handlers by priority
-    ↓
-For each handler:
-  1. Check if enabled
-  2. Apply filter (if present)
-  3. Create timeout context
-  4. Invoke handler with CancellationToken
-  5. Capture result/exception
-    ↓
-Pipeline: ErrorHandlingMiddleware processes exceptions
-  - If transient: Add to retry queue
-  - If permanent: Send to dead letter queue
-    ↓
-Pipeline: LoggingMiddleware logs publish completion
-    ↓
-Return PublishResult with metrics
+src/DotnetEventBus/        the library (single project)
+tests/DotnetEventBus.Tests xUnit test suite
+benchmarks/                BenchmarkDotNet projects
+examples/                  standalone usage samples
 ```
 
-### Request-Reply Flow
+## Module map
 
-```
-Application calls eventBus.RequestAsync<TRequest, TResponse>(request)
-    ↓
-Create temporary response handler with timeout
-    ↓
-Publish request event
-    ↓
-Wait for response (with timeout)
-    ↓
-Remove temporary handler
-    ↓
-Return response or throw TimeoutException
-```
+The library is one project, organized by namespace/folder:
 
-## Key Design Patterns
+| Folder | What lives there |
+|---|---|
+| `Services/` | The core: `EventBus` (implements `IEventBus`), `DeadLetterService`, `SubscriptionManager`, `HandlerInvoker`, `BatchEventPublisher` |
+| `Models/` | `EventMessage`, `EventEnvelope`, `Subscription`, `PublishResult`, `DeadLetterEntry` |
+| `Handlers/` | `IEventHandler<TEvent>`, `HandlerBase`, predicate-filtered handlers and the `PredicateSubscriptionBuilder` fluent API |
+| `Middleware/` | `IEventBusMiddleware`, `EventMiddlewareContext`, built-ins (`EventBusLoggingMiddleware`, `ErrorHandlingMiddleware`, `RateLimitingMiddleware`), plus a standalone `PipelineBuilder` |
+| `Configuration/` | `EventBusOptions`, `ServiceCollectionExtensions` (DI wiring), `MiddlewareConfiguration`, routing config |
+| `Repositories/` | `IRepository`-style abstractions (`IEventMessageRepository`, `ISubscriptionRepository`, `IDeadLetterRepository`) and their in-memory implementations |
+| `Formatters/` | `IEventFormatter` with JSON (default), XML and CSV implementations plus `EventFormatterFactory` |
+| `Workers/` | `DeadLetterProcessor`, a `BackgroundService` that periodically sweeps the DLQ |
+| `Advanced/` | Opt-in building blocks: `SagaOrchestrator`, `EventSourcedAggregate`, `EventTransformer`, `EventFilter`, `MetricsCollector`, request/response helpers |
+| `Integration/` | `CircuitBreaker`, `RetryPolicy`, `HttpEventPublisher`, `WebhookHandler` (HMAC-SHA256 signed) |
+| `Monitoring/` | `HealthCheck` |
+| `Caching/` | `IEventCache` / `InMemoryEventCache` |
+| `Api/`, `Cli/` | Optional ASP.NET controller surface and a small CLI (publish/subscribe/query/stats commands) |
+| `Utilities/`, `Performance/` | Extension helpers, `ValidationHelper`, `PerformanceProfiler` |
 
-### 1. Repository Pattern
-Data access is abstracted through repository interfaces, allowing different persistence strategies without changing business logic.
+Everything outside `Services/`, `Models/`, `Handlers/`, `Middleware/`, `Configuration/`, `Repositories/`, `Formatters/` is optional; the core bus does not depend on it.
 
-### 2. Middleware Pattern
-Cross-cutting concerns are handled through a composable middleware pipeline instead of spreading logic throughout the codebase.
+## The core: EventBus
 
-### 3. Handler Pattern
-Event handling is abstracted through handler interfaces, supporting both class-based and delegate-based handlers.
+`Services/EventBus.cs` is the heart. Its state:
 
-### 4. Builder Pattern
-Fluent configuration API for setting up the event bus with clear, readable syntax.
+- `Dictionary<string, List<Subscription>> _subscriptions` keyed by event type full name, guarded by a plain lock
+- `Dictionary<string, TaskCompletionSource<object?>> _pendingRequests` for request/reply correlation
+- a `SemaphoreSlim` sized by `EventBusOptions.MaxConcurrentHandlers` that caps parallel handler execution
 
-### 5. Observer Pattern
-Core pub-sub mechanism where handlers are observers listening for events.
+### Publish flow
 
-## Event Filter Architecture
+`PublishAsync<TEvent>(event, correlationId)` does, in order:
 
-Filters allow selective handler execution based on event properties.
+1. Wraps the event in an `EventMessage` (id, type name, serialized payload via `IEventFormatter`, correlation id, timestamp) and persists it through `IEventMessageRepository`.
+2. Resolves applicable subscriptions **polymorphically**: it walks the event type, its base types, and all implemented interfaces, collecting active subscriptions in `Priority` (descending) order and de-duplicating by handler name - so a handler subscribed to `IOrderEvent` fires once for `OrderCreated` even if it also subscribed to the concrete type.
+3. Builds the middleware pipeline for this publish: `EventBusOptions.MiddlewareTypes` is walked in reverse, each type resolved from `IServiceProvider`, and wrapped around a terminal delegate.
+4. The terminal delegate invokes handlers - in parallel (bounded by the semaphore) when `AllowParallelHandling` is true, sequentially otherwise.
+5. Each handler runs through `InvokeHandlerWithRetry`: up to `MaxRetryAttempts` retries with exponential backoff (`RetryDelay` * `RetryDelayMultiplier`^attempt, capped by `MaxRetryDelay`). When retries are exhausted, the failure is written to the dead letter queue via `IDeadLetterService` (if `EnableDeadLetterQueue`).
+6. A `PublishResult` is returned: per-handler success/failure lists, elapsed time, `Success = (FailedHandlers == 0)`. Handler failures do **not** throw at the publisher by default; set `ThrowOnHandlerFailure` to change that.
 
-```csharp
-Event → Filter Evaluates Predicate
-           ↓
-         True? → Execute Handler
-           ↓
-         False → Skip Handler
-```
+### Request/reply flow
 
-Filters are composed with `AND`/`OR` logic for complex conditions.
+`SendAsync<TRequest, TResponse>` publishes the request and parks a `TaskCompletionSource` in `_pendingRequests` keyed by correlation id; the responder registered via `SubscribeRequest<TRequest, TResponse>` produces the response, which completes the TCS. Timeout precedence is explicit: method parameter > `[RequestTimeout]` attribute on the request type > `EventBusOptions.RequestTimeout`. On timeout the caller gets a `TimeoutException` and the pending entry is removed.
 
-## Dead Letter Queue Architecture
+### Subscription surface
 
-Failed events are captured and managed separately.
+All `Subscribe*` methods return `IDisposable`; disposing unregisters the handler. Three shapes are supported: class-based (`IEventHandler<TEvent>`), async delegate, and sync delegate (`SubscribeSync`, wrapped into async). `PredicateSubscriptionBuilder` layers filtered subscriptions on top ("handle `OrderCreated` where `Total > 100`") by wrapping the handler in a `PredicateFilteredHandler`.
 
-```
-Handler Throws Exception
-    ↓
-Is Transient? (Network, Timeout, etc.)
-    ↓
-  Yes → Add to Retry Queue → Exponential Backoff Retry
-    ↓
-  No → Send to Dead Letter Queue
-         ↓
-       DLQ Processor monitors for reprocessing
-         ↓
-       Manual Reprocessing Available
-```
+## Dead letter pipeline
 
-## Concurrency Model
+Three cooperating pieces:
 
-### Thread Safety
-- EventBus is thread-safe for concurrent publishes
-- Subscriptions are protected with locks during registration
-- Handler state is isolated per invocation
+- `IDeadLetterRepository` - storage for `DeadLetterEntry` records (original message, failing handler name, exception details, retry counters, status: Pending/Reviewed/Reprocessed/Archived).
+- `DeadLetterService` - query/reprocess/review/archive/purge operations plus `DeadLetterStatistics`. Reprocessing re-publishes the original payload through the bus.
+- `DeadLetterProcessor` (`BackgroundService`) - optional periodic sweep that retries pending entries automatically.
 
-### Parallelism
-- Multiple handlers can execute concurrently (configurable)
-- Handlers for different events are never blocked by each other
-- Within same event: handlers run concurrently if allowed
+`DeadLetterService` needs the bus to reprocess, and the bus needs the service to record failures - a genuine cycle. It is broken in DI by giving `DeadLetterService` an `IServiceProvider` and resolving `IEventBus` lazily on first reprocess, instead of a constructor dependency. The comments in `ServiceCollectionExtensions` document this; changing it back to a direct constructor dependency deadlocks singleton resolution on first use.
 
-### Cancellation
-Each handler receives a `CancellationToken` for graceful cancellation support.
+## DI composition
 
-## Performance Optimizations
+`AddEventBus()` (in `Configuration/ServiceCollectionExtensions`) registers everything as singletons: options, the three in-memory repositories, `JsonEventFormatter` as the default `IEventFormatter`, `DeadLetterService`, `SubscriptionManager`, `HandlerInvoker`, and `EventBus` itself via factory lambdas. A second overload accepts caller-supplied repository instances for custom persistence.
 
-### 1. In-Memory Caching
-Frequently accessed data (handlers, subscriptions) cached in memory for fast lookup.
+Middleware registered through `options.UseMiddleware<T>()` is resolved from the container at publish time, so the concrete middleware types are auto-registered as transient services by `AddEventBus` (a `TryAddTransient` per type in `MiddlewareTypes`). `AddEventBusMiddleware<T>()` remains available for registering middleware with custom lifetimes or constructor dependencies before calling `AddEventBus`.
 
-### 2. Batch Publishing
-Multiple events can be accumulated and published in a single operation for efficiency.
+`EventBus` also has a "loose" constructor where every dependency except `IServiceProvider` is optional and falls back to private in-memory instances. That exists for tests and no-DI usage; the trade-off (documented in the constructor) is that fallback repositories are per-instance, so dead letters written there are invisible to any separately constructed `DeadLetterService`. When composing manually, pass the same repository instances everywhere.
 
-### 3. Handler Sorting
-Handlers pre-sorted by priority once at registration time, not per publish.
+## Key design decisions and trade-offs
 
-### 4. Lazy Initialization
-Components initialized only when needed (e.g., DLQ processor only if enabled).
+**In-process only.** No broker means no serialization boundary to cross for delivery, no infrastructure, microsecond-level latency - and no durability or cross-process fan-out. `EventBusOptions` has `IsDistributed` / `DistributedTransportType` placeholders, but no transport is implemented; setting them changes nothing today.
 
-### 5. Concurrent Execution
-Handlers execute in parallel for better throughput on multi-core systems.
+**Events are serialized anyway.** Every publish serializes the event into `EventMessage` via `IEventFormatter` even though handlers receive the live object. That costs CPU per publish, but buys three things: an auditable message store, dead letter entries that can be reprocessed after a restart (with a persistent repository), and payloads that are transport-ready if a distributed backend is added later.
 
-## Extensibility Points
+**Per-publish pipeline construction.** The middleware chain is composed on every publish from `MiddlewareTypes`, resolving instances from DI each time. That is an allocation per publish, but it honors transient middleware lifetimes and lets middleware take scoped dependencies; a cached chain would silently freeze the first resolved instances.
 
-### 1. Custom Handlers
-Implement `IEventHandler<TEvent>` for custom handler logic.
+**Dual bookkeeping for subscriptions.** Active dispatch uses the in-memory dictionary (fast, lock-guarded); `ISubscriptionRepository` records subscription metadata for the management/statistics surface (`SubscriptionManager`). The dictionary is the source of truth for delivery - the repository is observational.
 
-### 2. Custom Repositories
-Implement repository interfaces for custom persistence strategies.
+**Failures are data, not exceptions.** `PublishAsync` reports per-handler outcomes in `PublishResult` instead of throwing, because with multiple independent handlers a single exception cannot represent "2 of 5 failed". One handler's failure never prevents the others from running.
 
-### 3. Custom Middleware
-Create middleware components by implementing pipeline interface.
+**Coarse locking.** Subscription reads/writes use one lock. Publishes only hold it while snapshotting the subscription list, not during handler execution, so contention is limited to registration churn. A `ConcurrentDictionary` would not remove the lock anyway: the polymorphic lookup reads several keys (type, base types, interfaces) and needs a consistent view across them.
 
-### 4. Event Filters
-Create complex filters with composition and custom predicates.
+## Extension points
 
-### 5. Event Formatters
-Implement `IEventFormatter` for custom serialization formats.
+- `IEventHandler<TEvent>` / `HandlerBase` - custom handlers
+- `IEventBusMiddleware` - cross-cutting behavior around handler invocation (see the three built-ins for reference implementations)
+- `IEventMessageRepository`, `ISubscriptionRepository`, `IDeadLetterRepository` - swap in SQL/Redis/Mongo persistence; the second `AddEventBus` overload takes them directly
+- `IEventFormatter` - custom wire formats (JSON, XML, CSV provided)
+- `EventFilter` / predicate subscriptions - selective delivery
+- `IEventCache` - caching layer for read paths
 
-## Error Handling Strategy
+## Known limitations
 
-### Handler-Level
-- Handler exceptions are caught and isolated
-- One handler's failure doesn't affect others
-- Exceptions trigger retry logic or DLQ routing
-
-### System-Level
-- Unhandled exceptions in pipeline are logged
-- Circuit breaker prevents cascading failures
-- Rate limiting prevents overload
-
-### Configuration
-- Max retry attempts configurable
-- Retry backoff strategy customizable
-- Dead letter queue can be disabled if not needed
-
-## Testing Architecture
-
-### Unit Testing
-- Handlers tested independently with mocked dependencies
-- Event bus behavior tested with in-memory repositories
-
-### Integration Testing
-- Full event bus with real repositories
-- Handler interaction testing
-- End-to-end scenarios
-
-### Performance Testing
-- Handler execution timing
-- Throughput measurements
-- Memory usage profiling
-
-## Deployment Considerations
-
-### In-Process Only
-- No external message broker required
-- Suitable for monolithic applications
-- Low latency, high throughput
-
-### Distributed (Future)
-- Can be extended with distributed transports
-- Event replication across processes
-- Persistent event store
-
-## Security Considerations
-
-- No authentication/authorization built-in (application responsibility)
-- Events are published in-process only (no network exposure by default)
-- Exception details not exposed to untrusted sources
-- Webhook integration includes HMAC-SHA256 signing
-
-## Monitoring & Observability
-
-### Logging
-- Structured logging with correlation IDs
-- Event-level tracing
-- Handler execution tracking
-
-### Metrics
-- Event publication counts
-- Handler execution times
-- Failure rates
-- Dead letter queue size
-
-### Health Checks
-- Component status verification
-- Resource utilization monitoring
-- Dead letter queue age tracking
-
-## Version Compatibility
-
-- Backward compatible within major version
-- Database schema migrations supported
-- Configuration changes handled gracefully
-
----
-
-For implementation details, see the source code and inline documentation. For deployment guidance, see `deployment.md`.
+- **Not distributed.** The `IsDistributed` options are inert placeholders.
+- **`Middleware/PipelineBuilder` is vestigial.** `EventBus` builds its pipeline directly from `EventBusOptions.MiddlewareTypes`; the standalone `PipelineBuilder` composes a chain around a no-op terminal delegate and is not used by the bus itself. Prefer `options.UseMiddleware<T>()`.
+- **In-memory defaults lose everything on restart** - messages, subscriptions, and dead letters. Persistence requires custom repository implementations.
+- **Request/reply is single-responder.** Multiple `SubscribeRequest` registrations for the same request type race; the first response wins the correlation slot.
+- **No ordering guarantee across handlers in parallel mode.** With `AllowParallelHandling` (the default), handler priority controls start order, not completion order.
