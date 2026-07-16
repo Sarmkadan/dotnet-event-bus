@@ -704,6 +704,56 @@ await middlewarePipeline(eventContext);
 pipelineBuilder.Clear();
 ```
 
+## PipelineBuilderExtensions
+
+The `PipelineBuilderExtensions` class provides extension methods for fluent pipeline configuration, simplifying the registration of common middleware components. It offers methods for adding logging, error handling, rate limiting, and custom middleware, as well as pre-configured pipeline templates for different environments (standard, high-performance, and development).
+
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Configuration;
+using DotnetEventBus.Middleware;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Threading.Tasks;
+
+// Setup DI container
+var services = new ServiceCollection();
+services.AddLogging(builder => builder.AddConsole());
+var serviceProvider = services.BuildServiceProvider();
+var loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
+
+// Create a pipeline builder
+var pipelineBuilder = new PipelineBuilder();
+
+// Add individual middleware components using extension methods
+pipelineBuilder
+    .AddLogging(loggerFactory, LogLevel.Debug, logPayloads: true)
+    .AddErrorHandling(loggerFactory, maxRetries: 3, retryDelay: TimeSpan.FromSeconds(1))
+    .AddRateLimiting(loggerFactory, requestsPerWindow: 5000, timeWindow: TimeSpan.FromSeconds(30));
+
+// Build the pipeline
+var middlewarePipeline = pipelineBuilder.Build();
+
+// Use pre-configured pipeline templates for different environments
+var standardPipelineBuilder = new PipelineBuilder()
+    .CreateStandardPipeline(loggerFactory);
+
+var highPerformancePipelineBuilder = new PipelineBuilder()
+    .CreateHighPerformancePipeline(loggerFactory);
+
+var developmentPipelineBuilder = new PipelineBuilder()
+    .CreateDevelopmentPipeline(loggerFactory);
+
+// Add custom middleware using the UseMiddleware extension
+pipelineBuilder.UseMiddleware(middleware => new CustomMiddleware(middleware));
+
+// Clear all middleware and start fresh
+pipelineBuilder.Clear();
+```
+
 ## EventFilter
 
 The `EventFilter<T>` class provides a fluent filtering API for events, allowing handlers to filter events based on predicates before processing. It reduces unnecessary handler invocations by filtering at the bus level, which is particularly useful when you need to process only specific events that match certain criteria.
