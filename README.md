@@ -1248,6 +1248,64 @@ await subscriptionRepository.DisableHandlerAsync("PaymentHandler");
 await subscriptionRepository.EnableHandlerAsync("PaymentHandler");
 ```
 
+## InMemoryRepository
+
+The `InMemoryRepository<T>` class provides a thread-safe, in-memory repository implementation using a dictionary as the underlying storage. It is designed for testing scenarios, development environments, and single-process deployments where persistence is not required. The repository uses a `ReaderWriterLockSlim` to ensure thread-safe operations and provides all standard CRUD operations with pagination support.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Repositories;
+using System;
+using System.Threading.Tasks;
+
+// Define a simple entity
+public class Product
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string Name { get; set; } = string.Empty;
+    public decimal Price { get; set; }
+}
+
+// Create repository instance
+var repository = new InMemoryRepository<Product>();
+
+// Add entities
+var product1 = await repository.AddAsync(new Product { Name = "Laptop", Price = 999.99m });
+var product2 = await repository.AddAsync(new Product { Name = "Mouse", Price = 29.99m });
+
+// Get all entities
+var allProducts = await repository.GetAllAsync();
+Console.WriteLine($"Total products: {allProducts.Count()}");
+
+// Get by ID
+var foundProduct = await repository.GetByIdAsync(product1.Id);
+Console.WriteLine($"Found: {foundProduct?.Name}");
+
+// Update entity
+foundProduct!.Price = 899.99m;
+await repository.UpdateAsync(foundProduct);
+
+// Check existence
+bool exists = await repository.ExistsAsync(product2.Id);
+Console.WriteLine($"Product 2 exists: {exists}");
+
+// Count entities
+int count = await repository.CountAsync();
+Console.WriteLine($"Total count: {count}");
+
+// Pagination
+var page = await repository.GetPagedAsync(pageNumber: 1, pageSize: 10);
+Console.WriteLine($"Page 1 has {page.Items.Count()} items, total {page.TotalCount}");
+
+// Delete entity
+bool deleted = await repository.DeleteAsync(product2.Id);
+Console.WriteLine($"Product 2 deleted: {deleted}");
+
+// Clear all data
+await repository.ClearAsync();
+```
+
 ## IEventMessageRepository
 
 The `IEventMessageRepository` interface provides data access operations for querying and managing persisted event messages. It supports filtering messages by event type, time range, correlation ID, source, and failure status, as well as bulk cleanup operations for message retention policies. This repository is essential for operational tasks like auditing, debugging, and implementing message retention workflows.
