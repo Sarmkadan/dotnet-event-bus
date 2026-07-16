@@ -1248,6 +1248,61 @@ await subscriptionRepository.DisableHandlerAsync("PaymentHandler");
 await subscriptionRepository.EnableHandlerAsync("PaymentHandler");
 ```
 
+## IEventMessageRepository
+
+The `IEventMessageRepository` interface provides data access operations for querying and managing persisted event messages. It supports filtering messages by event type, time range, correlation ID, source, and failure status, as well as bulk cleanup operations for message retention policies. This repository is essential for operational tasks like auditing, debugging, and implementing message retention workflows.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Models;
+using DotnetEventBus.Repositories;
+using Microsoft.Extensions.DependencyInjection;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
+
+// Setup DI container
+var services = new ServiceCollection();
+services.AddEventBus(builder => builder
+  .Configure(options => options.MaxRetryAttempts = 3)
+  .AddDeadLetterService()
+  .AddJsonFormatter());
+
+var serviceProvider = services.BuildServiceProvider();
+var eventMessageRepository = serviceProvider.GetRequiredService<IEventMessageRepository>();
+
+// Define event types
+public class OrderCreatedEvent { public int OrderId { get; set; } }
+public class PaymentProcessedEvent { public decimal Amount { get; set; } }
+
+// Query messages by event type
+var orderMessages = await eventMessageRepository.GetByEventTypeAsync(typeof(OrderCreatedEvent).FullName!);
+Console.WriteLine($"Found {orderMessages.Count()} OrderCreated messages");
+
+// Query messages by time range (last 24 hours)
+var yesterday = DateTime.UtcNow.AddDays(-1);
+var today = DateTime.UtcNow;
+var recentMessages = await eventMessageRepository.GetByTimeRangeAsync(yesterday, today);
+Console.WriteLine($"Found {recentMessages.Count()} messages from last 24 hours");
+
+// Query messages by correlation ID
+var correlationMessages = await eventMessageRepository.GetByCorrelationIdAsync("corr-12345");
+Console.WriteLine($"Found {correlationMessages.Count()} messages with correlation ID");
+
+// Query messages by source
+var sourceMessages = await eventMessageRepository.GetBySourceAsync("order-service");
+Console.WriteLine($"Found {sourceMessages.Count()} messages from order-service");
+
+// Query failed messages
+var failedMessages = await eventMessageRepository.GetFailedMessagesAsync();
+Console.WriteLine($"Found {failedMessages.Count()} failed messages");
+
+// Delete old messages (older than 30 days)
+int deletedCount = await eventMessageRepository.DeleteOldMessagesAsync(TimeSpan.FromDays(30));
+Console.WriteLine($"Deleted {deletedCount} old messages");
+```
+
 ## IDeadLetterRepository
 
 The `IDeadLetterRepository` interface provides data access operations for querying and managing dead letter queue entries. It extends the base repository functionality with specialized query methods for finding entries by status, handler, event type, time range, and aggregated statistics. This repository is essential for operational tasks like monitoring failed events, analyzing failure patterns, and implementing cleanup workflows.
