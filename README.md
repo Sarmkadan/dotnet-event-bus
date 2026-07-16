@@ -1385,9 +1385,110 @@ var wildcardFilter = FilterBuilder.CreateWildcardFilter<OrderCreatedEvent>(); //
 var emptyFilter = FilterBuilder.CreateEmptyFilter<OrderCreatedEvent>(); // matches no events
 ```
 
-## StringExtensions
+## ReflectionHelper
 
-The `StringExtensions` class provides a comprehensive set of extension methods for string manipulation and validation commonly used throughout the event bus infrastructure. It includes utilities for converting between different string formats (PascalCase, snake_case, kebab-case), validating event type names, truncating strings, and generating URL-friendly slugs.
+The `ReflectionHelper` class provides a set of utility methods for performing reflection operations at runtime. It simplifies common reflection tasks such as finding type implementations, creating instances, inspecting attributes, and invoking methods or properties, making it easier to work with dynamic types and generic patterns in the event bus system.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Utilities;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+
+// Define sample interfaces and classes for demonstration
+public interface IEventHandler<TEvent> where TEvent : class
+{
+    Task Handle(TEvent @event, CancellationToken cancellationToken);
+}
+
+public class OrderCreatedEvent
+{
+    public int OrderId { get; set; }
+    public decimal Amount { get; set; }
+}
+
+public class OrderCreatedHandler : IEventHandler<OrderCreatedEvent>
+{
+    public Task Handle(OrderCreatedEvent @event, CancellationToken cancellationToken)
+    {
+        Console.WriteLine($"Processing order {@event.OrderId} for ${@event.Amount}");
+        return Task.CompletedTask;
+    }
+}
+
+public class CustomerEvent { }
+public class CustomerEventHandler : IEventHandler<CustomerEvent>
+{
+    public Task Handle(CustomerEvent @event, CancellationToken cancellationToken) => Task.CompletedTask;
+}
+
+// Find all implementations of IEventHandler<T> in the current assembly
+var handlerImplementations = ReflectionHelper.FindImplementationsOf(typeof(IEventHandler<>));
+Console.WriteLine($"Found {handlerImplementations.Count()} handler implementations");
+
+// Find implementations of a specific generic interface
+var orderHandlers = ReflectionHelper.FindImplementationsOf<IEventHandler<OrderCreatedEvent>>();
+foreach (var handlerType in orderHandlers)
+{
+    Console.WriteLine($"Handler type: {handlerType.Name}");
+}
+
+// Find implementations in all loaded assemblies
+var allHandlers = ReflectionHelper.FindImplementationsOfInAllAssemblies<IEventHandler<OrderCreatedEvent>>();
+Console.WriteLine($"Found {allHandlers.Count()} implementations across all assemblies");
+
+// Get methods by signature (find all Handle methods in IEventHandler<T>)
+var handleMethods = ReflectionHelper.GetMethodsBySignature(typeof(IEventHandler<>), "Handle");
+foreach (var method in handleMethods)
+{
+    Console.WriteLine($"Method: {method.Name}");
+}
+
+// Try to create an instance of a type
+var handlerInstance = ReflectionHelper.TryCreateInstance<OrderCreatedHandler>();
+Console.WriteLine(handlerInstance != null ? "Successfully created handler instance" : "Failed to create instance");
+
+// Get custom attributes
+var obsoleteAttributes = ReflectionHelper.GetCustomAttributes<ObsoleteAttribute>(typeof(OrderCreatedEvent));
+Console.WriteLine($"Found {obsoleteAttributes.Count()} Obsolete attributes");
+
+// Check if a type has a specific attribute
+bool hasAttribute = ReflectionHelper.HasAttribute<SerializableAttribute>(typeof(OrderCreatedEvent));
+Console.WriteLine($"OrderCreatedEvent has Serializable attribute: {hasAttribute}");
+
+// Work with properties dynamically
+var sampleObject = new OrderCreatedEvent { OrderId = 123, Amount = 99.99m };
+
+// Get property value
+var orderIdValue = ReflectionHelper.GetPropertyValue(sampleObject, "OrderId");
+Console.WriteLine($"OrderId property value: {orderIdValue}");
+
+// Set property value
+ReflectionHelper.SetPropertyValue(sampleObject, "Amount", 149.99m);
+Console.WriteLine($"Updated Amount: {sampleObject.Amount}");
+
+// Get all property values as a dictionary
+var allProperties = ReflectionHelper.GetAllPropertyValues(sampleObject);
+foreach (var kvp in allProperties)
+{
+    Console.WriteLine($"{kvp.Key}: {kvp.Value}");
+}
+
+// Invoke a method dynamically
+var methodInfo = typeof(OrderCreatedHandler).GetMethod("Handle");
+var result = ReflectionHelper.InvokeMethod(handlerInstance, methodInfo, sampleObject, CancellationToken.None);
+Console.WriteLine(result != null ? "Method invoked successfully" : "Method invocation returned null");
+
+// Get generic type arguments
+var genericArgs = ReflectionHelper.GetGenericArguments(typeof(IEventHandler<OrderCreatedEvent>));
+foreach (var arg in genericArgs)
+{
+    Console.WriteLine($"Generic argument: {arg.Name}");
+}
+```
 
 Example usage:
 
