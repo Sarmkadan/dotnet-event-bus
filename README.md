@@ -996,6 +996,50 @@ var wildcardFilter = FilterBuilder.CreateWildcardFilter<OrderCreatedEvent>(); //
 var emptyFilter = FilterBuilder.CreateEmptyFilter<OrderCreatedEvent>(); // matches no events
 ```
 
+## EventRoutingConfiguration
+
+The `EventRoutingConfiguration` class provides flexible event routing capabilities that allow you to conditionally route events to specific handlers based on metadata or event content. This enables sophisticated routing scenarios without modifying handler implementations, such as routing high-value orders to premium handlers, filtering events by tenant, or implementing A/B testing for event handlers.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Configuration;
+using System;
+using System.Collections.Generic;
+
+// Create routing configuration using the fluent builder
+var routingConfig = new EventRoutingBuilder()
+    .RouteEvent("OrderCreated", "StandardOrderHandler")
+    .RouteEventIf("OrderCreated", "PremiumOrderHandler", 
+        metadata => metadata.GetValueOrDefault("OrderAmount") as decimal? > 1000,
+        priority: 10)
+    .RouteByMetadata("OrderUpdated", "TenantASpecificHandler", "TenantId", "tenant-a")
+    .RouteByMetadata("OrderUpdated", "TenantBSpecificHandler", "TenantId", "tenant-b")
+    .Build();
+
+// Check if an event should be routed to a specific handler
+var shouldRoute = routingConfig.ShouldRoute(
+    "OrderCreated",
+    "PremiumOrderHandler",
+    new Dictionary<string, object> { { "OrderAmount", 1500m } }
+);
+Console.WriteLine($"Should route to PremiumOrderHandler: {shouldRoute}"); // true
+
+// Get all configured routes for an event type
+var routes = routingConfig.GetRoutes("OrderCreated");
+foreach (var route in routes)
+{
+    Console.WriteLine($"Route to: {route.TargetHandler}");
+}
+
+// Get all configured event types
+var configuredTypes = routingConfig.GetConfiguredEventTypes();
+Console.WriteLine($"Configured event types: {string.Join(", ", configuredTypes)}");
+
+// Clear all routes when needed
+routingConfig.Clear();
+```
+
 ## ISubscriptionManager
 
 The `ISubscriptionManager` interface provides centralized management and monitoring capabilities for event subscriptions. It allows you to query subscriptions, enable/disable handlers, and retrieve detailed statistics about subscription patterns across your event bus. This service is particularly useful for operational tasks like debugging, monitoring, and dynamic configuration of event handlers.
