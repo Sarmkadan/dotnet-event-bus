@@ -153,6 +153,46 @@ public class MyEventType
 }
 ```
 
+## DeadLetterServiceTests
+
+The `DeadLetterServiceTests` class provides comprehensive unit tests for the `DeadLetterService` dead letter queue functionality. It validates the service's ability to retrieve pending dead letter entries, mark entries as reviewed, retrieve statistics, and archive old entries. These tests ensure proper handling of failed event processing scenarios and provide examples for working with the dead letter queue system.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Services;
+using DotnetEventBus.Models;
+using Microsoft.Extensions.DependencyInjection;
+
+// Create service collection and configure event bus
+var services = new ServiceCollection();
+services.AddEventBus();
+
+// Build service provider
+var provider = services.BuildServiceProvider();
+var eventBus = provider.GetRequiredService<IEventBus>();
+var repository = new InMemoryDeadLetterRepository();
+var deadLetterService = new DeadLetterService(repository, eventBus);
+
+// Add a dead letter entry
+var msg = new EventMessage("OrderCreated", "{ \"orderId\": 123 }");
+var entry = new DeadLetterEntry(msg, "OrderHandler", new InvalidOperationException("Order processing failed"), 3);
+await repository.AddAsync(entry);
+
+// Get pending entries
+var pendingEntries = await deadLetterService.GetPendingEntriesAsync();
+
+// Mark as reviewed
+await deadLetterService.MarkAsReviewedAsync(entry.Id, "Reviewed for reprocessing");
+
+// Get statistics
+var stats = await deadLetterService.GetStatisticsAsync();
+Console.WriteLine($"Total entries: {stats.TotalEntries}, Pending: {stats.PendingEntries}");
+
+// Archive old entries
+await deadLetterService.ArchiveOldEntriesAsync(TimeSpan.FromDays(7));
+```
+
 ## PipelineBuilderTests
 
 The `PipelineBuilderTests` class provides comprehensive unit tests for the `PipelineBuilder` middleware pipeline construction. It verifies middleware registration, execution order, context manipulation, error handling, and pipeline building scenarios. The tests cover both synchronous and asynchronous middleware execution, short-circuiting behavior, exception handling, and proper initialization of event context.
