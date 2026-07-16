@@ -2,6 +2,63 @@
 
 DotnetEventBus is an in-process event bus: pub/sub with polymorphic dispatch, request/reply, per-handler retries with a dead letter queue, and a DI-resolved middleware pipeline - all in a single assembly, no broker. How the pieces fit together (core `EventBus` flow, DLQ pipeline, DI composition, design trade-offs, known limitations) is documented in [docs/architecture.md](docs/architecture.md).
 
+## EventBusOptions
+
+The `EventBusOptions` class provides configuration for the event bus, controlling retry behavior, parallel execution, dead letter queue integration, distributed messaging settings, and middleware pipeline composition. It supports exponential backoff retries, configurable timeouts, concurrency limits, and validation to ensure proper operation.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Configuration;
+using DotnetEventBus.Services;
+using Microsoft.Extensions.DependencyInjection;
+using System;
+
+// Configure event bus options with custom settings
+var options = new EventBusOptions
+{
+    DefaultHandlerTimeout = TimeSpan.FromSeconds(45),
+    MaxRetryAttempts = 5,
+    RetryDelay = TimeSpan.FromMilliseconds(200),
+    RetryDelayMultiplier = 2.5,
+    MaxRetryDelay = TimeSpan.FromSeconds(60),
+    AllowParallelHandling = true,
+    MaxConcurrentHandlers = 8,
+    EnableDeadLetterQueue = true,
+    ThrowOnHandlerFailure = false,
+    IsDistributed = false,
+    RequestTimeout = TimeSpan.FromSeconds(60)
+};
+
+// Add middleware types to the pipeline
+options.MiddlewareTypes.Add(typeof(LoggingMiddleware));
+options.MiddlewareTypes.Add(typeof(ValidationMiddleware));
+
+// Register with DI container
+var services = new ServiceCollection();
+services.AddEventBus(builder => builder
+    .Configure(options)
+    .AddDeadLetterService()
+    .AddJsonFormatter());
+
+var serviceProvider = services.BuildServiceProvider();
+var eventBus = serviceProvider.GetRequiredService<EventBus>();
+
+// Validate configuration before use
+options.Validate();
+
+// Calculate retry delays programmatically
+for (int i = 0; i < options.MaxRetryAttempts; i++)
+{
+    var delay = options.CalculateRetryDelay(i);
+    Console.WriteLine($"Retry {i}: {delay.TotalMilliseconds}ms");
+}
+
+// Clone options for testing different configurations
+var testOptions = options.Clone();
+testOptions.MaxRetryAttempts = 3;
+```
+
 ## EventBus
 
 The `EventBus` class is the core in-process event bus implementation that provides publish-subscribe and request-reply messaging patterns with middleware support, retry policies, and dead letter queue integration. It supports polymorphic event handling (handlers registered for base types or interfaces will receive events of derived types), configurable middleware pipelines, parallel or sequential handler execution, and automatic retry with exponential backoff.
