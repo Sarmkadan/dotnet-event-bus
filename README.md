@@ -29,6 +29,76 @@ bool isJsonSupported = factory.IsFormatSupported("json");
 bool unregistered = factory.Unregister("csv");
 ```
 
+Example usage:
+```csharp
+using DotnetEventBus;
+using DotnetEventBus.Events;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Xunit;
+
+// Create service collection and configure event bus
+var services = new ServiceCollection();
+services.AddLogging(configure => configure.AddConsole());
+services.AddEventBus(options => {
+    options.ApplicationName = "IntegrationTestApp";
+    options.EnableDeadLetterQueue = true;
+    options.MaxConcurrentHandlers = 10;
+    options.RetryPolicy = new ExponentialBackoffRetryPolicy {
+        MaxAttempts = 3,
+        InitialDelay = TimeSpan.FromMilliseconds(100),
+        MaxDelay = TimeSpan.FromSeconds(5)
+    };
+});
+
+var serviceProvider = services.BuildServiceProvider();
+var eventBus = serviceProvider.GetRequiredService<IEventBus>();
+
+// Define event handlers
+public class OrderCreatedHandler : IEventHandler<OrderCreatedEvent>
+{
+    private readonly ILogger<OrderCreatedHandler> _logger;
+    
+    public OrderCreatedHandler(ILogger<OrderCreatedHandler> logger)
+    {
+        _logger = logger;
+    }
+    
+    public async Task Handle(OrderCreatedEvent @event)
+    {
+        _logger.LogInformation("Processing order {OrderId}", @event.OrderId);
+        // Business logic here
+    }
+}
+
+public class PaymentProcessedHandler : IEventHandler<PaymentProcessedEvent>
+{
+    public async Task Handle(PaymentProcessedEvent @event)
+    {
+        // Handle payment processed event
+    }
+}
+
+// Register handlers
+services.AddTransient<OrderCreatedHandler>();
+serviceProvider = services.BuildServiceProvider();
+eventBus = serviceProvider.GetRequiredService<IEventBus>();
+
+// Subscribe handlers
+eventBus.Subscribe<OrderCreatedEvent, OrderCreatedHandler>();
+eventBus.Subscribe<PaymentProcessedEvent, PaymentProcessedHandler>();
+
+// Publish events
+var orderCreatedEvent = new OrderCreatedEvent { OrderId = 123, Amount = 99.99m };
+var paymentProcessedEvent = new PaymentProcessedEvent { PaymentId = 456, Status = "Completed" };
+
+await eventBus.PublishAsync(orderCreatedEvent);
+await eventBus.PublishAsync(paymentProcessedEvent);
+
+// Verify events were processed
+// Use assertions or metrics to verify handler execution
+```
+
 ## XmlEventFormatter
 The `XmlEventFormatter` class is used to format events as XML, supporting both serialization and deserialization. It provides methods to serialize objects to XML strings, deserialize XML strings to objects, and format events with or without metadata. Here's an example of how to use it:
 ```csharp
@@ -86,6 +156,10 @@ public class MyEventType
 ## PipelineBuilderTests
 
 The `PipelineBuilderTests` class provides comprehensive unit tests for the `PipelineBuilder` middleware pipeline construction. It verifies middleware registration, execution order, context manipulation, error handling, and pipeline building scenarios. The tests cover both synchronous and asynchronous middleware execution, short-circuiting behavior, exception handling, and proper initialization of event context.
+
+## EventBusIntegrationTests
+
+The `EventBusIntegrationTests` class provides comprehensive integration tests for the event bus system, validating end-to-end scenarios including event publishing, subscription, handler execution, error handling, retry policies, circuit breakers, metrics collection, and middleware pipelines. These tests ensure the event bus operates correctly under various conditions including parallel publishing, batch processing, priority-based execution, and failure scenarios.
 
 Example usage:
 ```csharp
