@@ -662,3 +662,72 @@ var consistentResult = await consistentRetryPolicy.ExecuteAsync(async () =>
     throw new InvalidOperationException("Will retry with consistent delays");
 });
 ```
+
+## CircuitBreakerTests
+
+The `CircuitBreakerTests` class provides comprehensive unit tests for the `CircuitBreaker` class, validating circuit breaker behavior including state transitions, failure handling, and recovery mechanisms. The tests cover all circuit states (Closed, Open, HalfOpen) and verify proper exception handling.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Integration;
+using Xunit;
+
+// Create a circuit breaker with failure threshold of 5 exceptions
+var breaker = new CircuitBreaker(failureThreshold: 5);
+
+// Execute a successful operation - circuit remains closed
+var result = await breaker.ExecuteAsync(async () => "success");
+Assert.Equal("success", result);
+Assert.Equal(CircuitBreakerState.Closed, breaker.State);
+
+// Execute operations that throw exceptions below threshold - circuit stays closed
+for (int i = 0; i < 3; i++)
+{
+try
+{
+await breaker.ExecuteAsync(async () => throw new TimeoutException("Transient failure"));
+}
+catch { /* expected */ }
+}
+Assert.Equal(CircuitBreakerState.Closed, breaker.State);
+
+// Execute operations that exceed failure threshold - circuit opens
+for (int i = 0; i < 5; i++)
+{
+try
+{
+await breaker.ExecuteAsync(async () => throw new TimeoutException("Failure"));
+}
+catch { /* expected */ }
+}
+Assert.Equal(CircuitBreakerState.Open, breaker.State);
+
+// Attempt to execute when circuit is open - throws CircuitBreakerOpenException
+try
+{
+await breaker.ExecuteAsync(async () => "should not execute");
+Assert.Fail("Should have thrown CircuitBreakerOpenException");
+}
+catch (CircuitBreakerOpenException)
+{
+// Expected exception
+}
+
+// Wait for timeout to expire (10 seconds), then circuit transitions to HalfOpen
+// A successful operation in HalfOpen state closes the circuit again
+await Task.Delay(TimeSpan.FromSeconds(10));
+var recoveryResult = await breaker.ExecuteAsync(async () => "recovery attempt");
+Assert.Equal("recovery attempt", recoveryResult);
+Assert.Equal(CircuitBreakerState.Closed, breaker.State);
+
+// Execute a void operation (no return value)
+var breaker2 = new CircuitBreaker(failureThreshold: 3);
+bool wasExecuted = false;
+await breaker2.ExecuteAsync(async () => 
+{
+wasExecuted = true;
+await Task.CompletedTask;
+});
+Assert.True(wasExecuted);
+```
