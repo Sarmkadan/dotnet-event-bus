@@ -840,6 +840,65 @@ var wildcardFilter = FilterBuilder.CreateWildcardFilter<OrderCreatedEvent>(); //
 var emptyFilter = FilterBuilder.CreateEmptyFilter<OrderCreatedEvent>(); // matches no events
 ```
 
+## ISubscriptionManager
+
+The `ISubscriptionManager` interface provides centralized management and monitoring capabilities for event subscriptions. It allows you to query subscriptions, enable/disable handlers, and retrieve detailed statistics about subscription patterns across your event bus. This service is particularly useful for operational tasks like debugging, monitoring, and dynamic configuration of event handlers.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Services;
+using Microsoft.Extensions.DependencyInjection;
+using System;
+using System.Threading.Tasks;
+
+// Setup DI container
+var services = new ServiceCollection();
+services.AddEventBus(builder => builder
+    .Configure(options => options.MaxRetryAttempts = 3)
+    .AddDeadLetterService()
+    .AddJsonFormatter());
+
+var serviceProvider = services.BuildServiceProvider();
+var subscriptionManager = serviceProvider.GetRequiredService<ISubscriptionManager>();
+
+// Define event types
+public class OrderCreatedEvent { public int OrderId { get; set; } }
+public class PaymentProcessedEvent { public decimal Amount { get; set; } }
+
+// Register handlers (typically done via EventBus.Subscribe())
+// For this example, assume we have these handlers registered:
+// - OrderCreatedHandler
+// - PaymentHandler
+// - NotificationHandler
+
+// Get all subscriptions
+var allSubscriptions = await subscriptionManager.GetAllSubscriptionsAsync();
+foreach (var sub in allSubscriptions)
+{
+    Console.WriteLine($"Subscription: {sub.HandlerName} for {sub.EventType} (Active: {sub.IsActive})");
+}
+
+// Get subscriptions for a specific event type
+var orderSubscriptions = await subscriptionManager.GetSubscriptionsAsync(typeof(OrderCreatedEvent).FullName!);
+Console.WriteLine($"Found {orderSubscriptions.Count()} subscriptions for OrderCreatedEvent");
+
+// Get subscription count
+var count = await subscriptionManager.GetSubscriptionCountAsync(typeof(OrderCreatedEvent).FullName!);
+Console.WriteLine($"Total subscriptions for OrderCreatedEvent: {count}");
+
+// Get statistics
+var stats = await subscriptionManager.GetStatisticsAsync();
+Console.WriteLine($"Total: {stats.TotalSubscriptions}, Active: {stats.ActiveSubscriptions}");
+Console.WriteLine($"Unique event types: {stats.UniqueEventTypes}, Unique handlers: {stats.UniqueHandlers}");
+
+// Disable a problematic handler
+await subscriptionManager.DisableHandlerAsync("ProblematicHandler");
+
+// Enable a handler after investigation
+await subscriptionManager.EnableHandlerAsync("ProblematicHandler");
+```
+
 ## IHandlerInvoker
 
 The `IHandlerInvoker` interface is responsible for invoking event handlers using reflection and type safety. It provides methods for both regular event handling and request/reply pattern invocation, along with type checking capabilities to determine handler compatibility.
