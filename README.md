@@ -1172,6 +1172,67 @@ Console.WriteLine($"Configured event types: {string.Join(", ", configuredTypes)}
 routingConfig.Clear();
 ```
 
+## InMemoryEventCache
+
+The `InMemoryEventCache` class provides a thread-safe, in-memory cache implementation for event bus operations. It stores event data locally using a concurrent dictionary with automatic expiration and LRU eviction, making it ideal for single-instance deployments where external dependencies are undesirable. The cache tracks hits/misses and provides memory usage statistics for monitoring.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Caching;
+using System;
+using System.Threading.Tasks;
+
+// Create a cache instance with default capacity (10,000 items)
+var cache = new InMemoryEventCache(maxCapacity: 10000);
+
+// Define an event type for caching
+public class OrderCreatedEvent
+{
+    public int OrderId { get; set; }
+    public decimal TotalAmount { get; set; }
+    public string CustomerEmail { get; set; } = string.Empty;
+}
+
+// Store an event in cache with 5-minute expiration
+var orderEvent = new OrderCreatedEvent { OrderId = 123, TotalAmount = 99.99m, CustomerEmail = "user@example.com" };
+await cache.SetAsync("order:123", orderEvent, TimeSpan.FromMinutes(5));
+
+// Retrieve cached event
+var cachedOrder = await cache.GetAsync<OrderCreatedEvent>("order:123");
+if (cachedOrder != null)
+{
+    Console.WriteLine($"Retrieved order {cachedOrder.OrderId} from cache");
+}
+
+// Check if key exists
+bool exists = await cache.ExistsAsync("order:123");
+Console.WriteLine($"Key exists: {exists}");
+
+// Get multiple cached items
+var keys = new[] { "order:123", "order:456", "order:789" };
+var cachedOrders = await cache.GetManyAsync<OrderCreatedEvent>(keys);
+foreach (var kvp in cachedOrders)
+{
+    Console.WriteLine($"Cached order {kvp.Value.OrderId}");
+}
+
+// Remove a single item
+await cache.RemoveAsync("order:123");
+
+// Remove multiple items
+await cache.RemoveManyAsync(new[] { "order:456", "order:789" });
+
+// Get cache statistics
+var stats = await cache.GetStatsAsync();
+Console.WriteLine($"Cache stats: {stats.Hits} hits, {stats.Misses} misses, {stats.TotalItems} items");
+
+// Clear the entire cache
+await cache.ClearAsync();
+
+// Cleanup is automatic via background task (expired entries every minute, LRU eviction when full)
+```
+
 ## ISubscriptionRepository
 
 The `ISubscriptionRepository` interface provides data access operations for managing event subscriptions in persistent storage. It extends the base repository functionality with specialized query methods for finding subscriptions by event type, handler name, and activation status. This repository is essential for operational tasks like monitoring subscription patterns, enabling/disabling handlers, and analyzing event routing configurations.
