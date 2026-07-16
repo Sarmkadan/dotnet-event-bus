@@ -663,6 +663,84 @@ var consistentResult = await consistentRetryPolicy.ExecuteAsync(async () =>
 });
 ```
 
+## MetricsCollectorTests
+
+The `MetricsCollectorTests` class provides comprehensive unit tests for the metrics collection functionality within the DotnetEventBus library. It validates metrics tracking for event publishing operations including publish counts, durations, failure tracking, handler execution metrics, success rates, and provides methods to retrieve and reset collected metrics.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Metrics;
+using Microsoft.Extensions.DependencyInjection;
+using Xunit;
+
+// Create service collection and configure event bus with metrics
+var services = new ServiceCollection();
+services.AddEventBus(options => {
+    options.EnableMetricsCollection = true;
+});
+
+var provider = services.BuildServiceProvider();
+var metricsCollector = provider.GetRequiredService<IMetricsCollector>();
+
+// Record successful event publishing with duration
+metricsCollector.RecordEventPublished("OrderCreated", TimeSpan.FromMilliseconds(150));
+metricsCollector.RecordEventPublished("PaymentProcessed", TimeSpan.FromMilliseconds(80));
+metricsCollector.RecordEventPublished("InventoryUpdated", TimeSpan.FromMilliseconds(200));
+
+// Record failed event publishing with error message
+metricsCollector.RecordEventFailed("OrderCreated", new InvalidOperationException("Database timeout"));
+metricsCollector.RecordEventFailed("PaymentProcessed", new InvalidOperationException("Payment gateway unavailable"));
+
+// Record handler execution metrics
+metricsCollector.RecordHandlerExecution("OrderCreatedHandler", TimeSpan.FromMilliseconds(120), true);
+metricsCollector.RecordHandlerExecution("PaymentProcessedHandler", TimeSpan.FromMilliseconds(60), true);
+metricsCollector.RecordHandlerExecution("InventoryUpdatedHandler", TimeSpan.FromMilliseconds(180), false);
+
+// Retrieve all event metrics
+var allEventMetrics = metricsCollector.GetAllEventMetrics();
+foreach (var metric in allEventMetrics)
+{
+    Console.WriteLine($"Event: {metric.EventType}, Published: {metric.PublishCount}, " +
+                     $"Avg Duration: {metric.AverageDuration.TotalMilliseconds}ms, " +
+                     $"Failures: {metric.FailureCount}, Last Failure: {metric.LastFailureTime}");
+}
+
+// Retrieve all handler metrics
+var allHandlerMetrics = metricsCollector.GetAllHandlerMetrics();
+foreach (var metric in allHandlerMetrics)
+{
+    Console.WriteLine($"Handler: {metric.HandlerName}, Executions: {metric.ExecutionCount}, " +
+                     $"Avg Duration: {metric.AverageDuration.TotalMilliseconds}ms, " +
+                     $"Success Rate: {metric.SuccessRate:P}, Last Failure: {metric.LastFailureTime}");
+}
+
+// Calculate success rate for a specific event type
+var orderSuccessRate = metricsCollector.GetSuccessRate("OrderCreated");
+Console.WriteLine($"OrderCreated success rate: {orderSuccessRate:P}");
+
+// Calculate average duration for a specific handler
+var handlerAvgDuration = metricsCollector.GetAverageDuration("OrderCreatedHandler");
+Console.WriteLine($"OrderCreatedHandler average duration: {handlerAvgDuration.TotalMilliseconds}ms");
+
+// Get last failure time for an event type
+var lastFailure = metricsCollector.GetLastFailureTime("PaymentProcessed");
+Console.WriteLine($"Last PaymentProcessed failure: {lastFailure}");
+
+// Get last published time for an event type
+var lastPublished = metricsCollector.GetLastPublishedTime("InventoryUpdated");
+Console.WriteLine($"Last InventoryUpdated publish: {lastPublished}");
+
+// Reset all metrics (useful for testing scenarios)
+metricsCollector.Reset();
+
+// Verify metrics were cleared
+var emptyEventMetrics = metricsCollector.GetAllEventMetrics();
+var emptyHandlerMetrics = metricsCollector.GetAllHandlerMetrics();
+Console.WriteLine($"Event metrics after reset: {emptyEventMetrics.Count}");
+Console.WriteLine($"Handler metrics after reset: {emptyHandlerMetrics.Count}");
+```
+
 ## CircuitBreakerTests
 
 The `CircuitBreakerTests` class provides comprehensive unit tests for the `CircuitBreaker` class, validating circuit breaker behavior including state transitions, failure handling, and recovery mechanisms. The tests cover all circuit states (Closed, Open, HalfOpen) and verify proper exception handling.
