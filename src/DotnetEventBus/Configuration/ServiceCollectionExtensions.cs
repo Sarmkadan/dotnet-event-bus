@@ -6,6 +6,7 @@
 // =====================================================================
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using DotnetEventBus.Formatters;
 using DotnetEventBus.Repositories;
 using DotnetEventBus.Services;
@@ -35,6 +36,7 @@ public static class ServiceCollectionExtensions
         options.Validate();
 
         services.AddSingleton(options);
+        RegisterConfiguredMiddleware(services, options);
         services.AddSingleton<IEventMessageRepository, InMemoryEventMessageRepository>();
         services.AddSingleton<ISubscriptionRepository, InMemorySubscriptionRepository>();
         services.AddSingleton<IDeadLetterRepository, InMemoryDeadLetterRepository>();
@@ -92,6 +94,7 @@ public static class ServiceCollectionExtensions
         options.Validate();
 
         services.AddSingleton(options);
+        RegisterConfiguredMiddleware(services, options);
         services.AddSingleton(messageRepository);
         services.AddSingleton(subscriptionRepository);
         services.AddSingleton(deadLetterRepository);
@@ -118,5 +121,21 @@ public static class ServiceCollectionExtensions
                 sp.GetService<Microsoft.Extensions.Logging.ILogger<Services.EventBus>>()));
 
         return services;
+    }
+
+    /// <summary>
+    /// Makes sure every middleware type configured via <c>options.UseMiddleware&lt;T&gt;()</c> is
+    /// actually resolvable from the container. EventBus resolves these types at publish time
+    /// with <c>GetRequiredService</c>, so a configured-but-unregistered middleware would throw
+    /// on the first publish. TryAdd keeps any registration the caller made explicitly
+    /// (e.g. via <see cref="MiddlewareConfiguration.AddEventBusMiddleware{TMiddleware}"/> with a
+    /// different lifetime) intact.
+    /// </summary>
+    private static void RegisterConfiguredMiddleware(IServiceCollection services, EventBusOptions options)
+    {
+        foreach (var middlewareType in options.MiddlewareTypes)
+        {
+            services.TryAddTransient(middlewareType);
+        }
     }
 }
