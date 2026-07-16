@@ -486,6 +486,54 @@ var dictTransformer = EventTransformerBuilder.CreateDictionaryTransformer<OrderC
 var dict = dictTransformer.Transform(orderEvent);
 ```
 
+## EventMiddlewareContext
+
+The `EventMiddlewareContext` class provides the context for an event as it flows through the middleware pipeline. It contains the event object, its type, correlation ID, the original `EventMessage`, and a `CancellationToken` for cooperative cancellation. This context is passed to each middleware in the pipeline, allowing them to inspect and modify event processing behavior.
+
+Example usage:
+```csharp
+using DotnetEventBus.Middleware;
+using DotnetEventBus.Models;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+
+// Create an event to process
+var orderEvent = new OrderCreatedEvent { OrderId = 123, Amount = 99.99m };
+
+// Create an EventMessage for the event
+var eventMessage = new EventMessage("OrderCreated", 
+    System.Text.Json.JsonSerializer.Serialize(orderEvent));
+
+// Create a cancellation token
+var cts = new CancellationTokenSource();
+var cancellationToken = cts.Token;
+
+// Create the middleware context
+var context = new EventMiddlewareContext(
+    @event: orderEvent,
+    eventType: typeof(OrderCreatedEvent),
+    correlationId: "corr-12345",
+    eventMessage: eventMessage,
+    cancellationToken: cancellationToken
+);
+
+// Access context properties
+Console.WriteLine($"Event Type: {context.EventType.Name}");
+Console.WriteLine($"Correlation ID: {context.CorrelationId}");
+Console.WriteLine($"Event: {context.Event}");
+Console.WriteLine($"EventMessage ID: {context.EventMessage.MessageId}");
+
+// Modify correlation ID if needed
+context.CorrelationId = "updated-correlation-67890";
+
+// Check cancellation token
+if (context.CancellationToken.IsCancellationRequested)
+{
+    Console.WriteLine("Operation was cancelled");
+}
+```
+
 ## PipelineBuilder
 
 The `PipelineBuilder` class constructs the middleware pipeline for the event bus. It allows you to add, remove, and configure middleware components that process events before they reach their handlers. The builder maintains the order of middleware execution and provides methods to build the final pipeline.
