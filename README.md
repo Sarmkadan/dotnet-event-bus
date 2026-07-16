@@ -1,3 +1,7 @@
+## Architecture
+
+DotnetEventBus is an in-process event bus: pub/sub with polymorphic dispatch, request/reply, per-handler retries with a dead letter queue, and a DI-resolved middleware pipeline - all in a single assembly, no broker. How the pieces fit together (core `EventBus` flow, DLQ pipeline, DI composition, design trade-offs, known limitations) is documented in [docs/architecture.md](docs/architecture.md).
+
 ## DeadLetterEntry
 
 The `DeadLetterEntry` class represents a record of a failed event processing attempt within the event bus. It captures the original message, the handler that failed, exception details, and metadata to assist in diagnosing and managing re-processing attempts for failed events.
