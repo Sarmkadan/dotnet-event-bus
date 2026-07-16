@@ -102,6 +102,85 @@ public class Product
 }
 ```
 
+## DateTimeExtensions
+
+The `DateTimeExtensions` class provides a comprehensive set of extension methods for working with DateTime operations. It includes utilities for Unix timestamp conversions, date manipulation, time calculations, and temporal comparisons, making it easier to handle common date and time operations in a fluent and efficient manner.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Utilities;
+using System;
+
+// Current date and time
+var now = DateTime.UtcNow;
+Console.WriteLine($"Current time: {now}");
+
+// Convert to Unix timestamp (seconds)
+var unixTimestamp = now.ToUnixTimestamp();
+Console.WriteLine($"Unix timestamp (seconds): {unixTimestamp}");
+
+// Convert to Unix timestamp (milliseconds)
+var unixTimestampMs = now.ToUnixTimestampMilliseconds();
+Console.WriteLine($"Unix timestamp (milliseconds): {unixTimestampMs}");
+
+// Convert back from Unix timestamp
+var fromTimestamp = DateTimeExtensions.FromUnixTimestamp(unixTimestamp);
+Console.WriteLine($"From Unix timestamp: {fromTimestamp}");
+
+// Convert back from Unix timestamp (milliseconds)
+var fromTimestampMs = DateTimeExtensions.FromUnixTimestampMilliseconds(unixTimestampMs);
+Console.WriteLine($"From Unix timestamp (ms): {fromTimestampMs}");
+
+// Get date only (time set to 00:00:00)
+var dateOnly = now.GetDateOnly();
+Console.WriteLine($"Date only: {dateOnly}");
+
+// Check if today, tomorrow, or yesterday
+Console.WriteLine($"Is today: {now.IsToday()}");
+Console.WriteLine($"Is tomorrow: {now.IsTomorrow()}");
+Console.WriteLine($"Is yesterday: {now.IsYesterday()}");
+
+// Round to nearest 15 minutes
+var rounded = now.Round(TimeSpan.FromMinutes(15));
+Console.WriteLine($"Rounded to 15 minutes: {rounded}");
+
+// Truncate milliseconds
+var truncated = now.TruncateMilliseconds();
+Console.WriteLine($"Truncated milliseconds: {truncated}");
+
+// Start and end of day
+var startOfDay = now.StartOfDay();
+var endOfDay = now.EndOfDay();
+Console.WriteLine($"Start of day: {startOfDay}");
+Console.WriteLine($"End of day: {endOfDay}");
+
+// Start and end of week (Monday to Sunday)
+var startOfWeek = now.StartOfWeek();
+var endOfWeek = now.EndOfWeek();
+Console.WriteLine($"Start of week: {startOfWeek}");
+Console.WriteLine($"End of week: {endOfWeek}");
+
+// Start and end of month
+var startOfMonth = now.StartOfMonth();
+var endOfMonth = now.EndOfMonth();
+Console.WriteLine($"Start of month: {startOfMonth}");
+Console.WriteLine($"End of month: {endOfMonth}");
+
+// Format as ISO 8601
+var iso8601 = now.ToIso8601String();
+Console.WriteLine($"ISO 8601: {iso8601}");
+
+// Check if past or future
+Console.WriteLine($"Is past: {now.IsPast()}");
+Console.WriteLine($"Is future: {now.IsFuture()}");
+
+// Calculate days between two dates
+var pastDate = DateTime.UtcNow.AddDays(-10);
+var daysBetween = pastDate.DaysBetween(now);
+Console.WriteLine($"Days between dates: {daysBetween}");
+```
+
 ## EventBusOptions
 
 The `EventBusOptions` class provides configuration for the event bus, controlling retry behavior, parallel execution, dead letter queue integration, distributed messaging settings, and middleware pipeline composition. It supports exponential backoff retries, configurable timeouts, concurrency limits, and validation to ensure proper operation.
