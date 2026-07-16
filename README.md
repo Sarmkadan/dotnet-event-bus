@@ -717,6 +717,60 @@ var consistentResult = await consistentRetryPolicy.ExecuteAsync(async () =>
 });
 ```
 
+## DeadLetterQueueHandlingExample
+
+The `DeadLetterQueueHandlingExample` class demonstrates error handling, retries, and recovery mechanisms in the DotnetEventBus library. It shows how to configure the event bus to handle failed events, manage dead letter queues, and reprocess failed events.
+
+Example usage:
+
+```csharp
+using DotnetEventBus;
+using DotnetEventBus.Examples;
+using Microsoft.Extensions.DependencyInjection;
+
+// Setup dependency injection with event bus and dead letter queue
+var services = new ServiceCollection();
+services.AddEventBus(options =>
+{
+    options.MaxRetryAttempts = 3;
+    options.RetryDelayMultiplier = 2.0;
+    options.InitialRetryDelayMs = 100;
+    options.EnableDeadLetterQueue = true;
+    options.AllowParallelHandling = false;
+});
+
+var serviceProvider = services.BuildServiceProvider();
+var eventBus = serviceProvider.GetRequiredService<IEventBus>();
+var dlqService = serviceProvider.GetRequiredService<IDeadLetterService>();
+
+// Register handlers
+eventBus.Subscribe<DeadLetterQueueHandlingExample.NotificationEvent>(
+    async (@event, ct) => await new DeadLetterQueueHandlingExample.NotificationHandler().Handle(@event, ct),
+    handlerName: "NotificationHandler"
+);
+
+// Publish events
+await eventBus.PublishAsync(new DeadLetterQueueHandlingExample.PaymentProcessingEvent
+{
+    OrderId = "ORD-001",
+    Amount = 99.99m,
+    PaymentMethod = "Credit Card"
+});
+
+// Check dead letter queue
+var deadLetterEntries = await dlqService.GetPendingEntriesAsync();
+
+// Reprocess failed events
+foreach (var entry in deadLetterEntries.Take(2))
+{
+    await dlqService.ReprocessEntryAsync(entry.Id);
+}
+
+// Get statistics
+var stats = await dlqService.GetStatisticsAsync();
+Console.WriteLine($"Pending entries: {stats.PendingEntries}");
+```
+
 ## EventFilteringExample
 
 The `EventFilteringExample` class demonstrates selective event handler execution based on event properties using fluent filter APIs. It shows how to create filtered subscriptions that only process events matching specific criteria, enabling targeted event handling for different business scenarios.
