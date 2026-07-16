@@ -541,6 +541,76 @@ var wildcardFilter = FilterBuilder.CreateWildcardFilter<OrderCreatedEvent>(); //
 var emptyFilter = FilterBuilder.CreateEmptyFilter<OrderCreatedEvent>(); // matches no events
 ```
 
+## EventMessage
+
+The `EventMessage` class represents the fundamental unit of communication in the event bus. It encapsulates event data with metadata such as unique identifiers, timestamps, correlation IDs, and headers, enabling reliable event processing, retry mechanisms, and distributed tracing across the system.
+
+Example usage:
+```csharp
+using DotnetEventBus.Models;
+using System;
+using System.Collections.Generic;
+
+// Create a new event message for an order creation event
+var orderCreatedEvent = new OrderCreated
+{
+    OrderId = 123,
+    CustomerName = "John Doe",
+    Amount = 99.99m,
+    Items = new List<OrderItem> { new() { ProductId = 1, Quantity = 2, Price = 49.99m } }
+};
+
+// Serialize the payload (typically JSON)
+var payload = System.Text.Json.JsonSerializer.Serialize(orderCreatedEvent);
+
+// Create the event message
+var eventMessage = new EventMessage(
+    "OrderCreated",
+    payload
+)
+{
+    CorrelationId = "corr-12345",
+    Source = "order-service",
+    Scope = MessageScope.Distributed
+};
+
+// Add custom headers for additional context
+// Headers are useful for passing metadata like tenant information, user IDs, etc.
+eventMessage.AddHeader("tenantId", "acme-corp");
+eventMessage.AddHeader("userId", "user-42");
+eventMessage.AddHeader("environment", "production");
+
+// Validate the message before publishing
+try
+{
+    eventMessage.Validate();
+    Console.WriteLine("Event message is valid and ready for publishing");
+}
+catch (ArgumentException ex)
+{
+    Console.WriteLine($"Validation failed: {ex.Message}");
+}
+
+// Access message properties
+Console.WriteLine($"Message ID: {eventMessage.MessageId}");
+Console.WriteLine($"Event Type: {eventMessage.EventType}");
+Console.WriteLine($"Created At: {eventMessage.CreatedAtUtc}");
+Console.WriteLine($"Correlation ID: {eventMessage.CorrelationId}");
+Console.WriteLine($"Source: {eventMessage.Source}");
+Console.WriteLine($"Scope: {eventMessage.Scope}");
+Console.WriteLine($"Processing Attempts: {eventMessage.ProcessingAttempts}");
+
+// Retrieve a header value
+var tenantId = eventMessage.GetHeader("tenantId");
+Console.WriteLine($"Tenant ID: {tenantId}");
+
+// Create a retry message when processing fails
+// This creates a new message with a new MessageId but preserves correlation, source, and headers
+var retryMessage = eventMessage.CreateRetry();
+Console.WriteLine($"Retry message ID: {retryMessage.MessageId}");
+Console.WriteLine($"Retry attempts: {retryMessage.ProcessingAttempts}");
+```
+
 ## EventEnvelope
 
 The `EventEnvelope` class wraps an event with metadata and context information, providing a standardized container for event serialization, transmission, and audit trail. It decouples the event payload from infrastructure concerns and includes tracking information like correlation IDs, causation IDs, and processing metadata.
