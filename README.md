@@ -316,6 +316,87 @@ var filter = new EventFilter<TestFilterEvent>()
 
 // Check if the event matches the filter
 bool matches = filter.Matches(testEvent); // Returns true
+```
+
+## NewCoreFunctionalityTests
+
+The `NewCoreFunctionalityTests` class provides comprehensive integration tests for new core functionality of the DotnetEventBus library. It validates priority-based handler invocation, middleware pipeline execution, retry mechanisms, dead letter queue functionality, and subscription management. These tests ensure the event bus operates correctly under various conditions including parallel publishing, priority-based execution, and failure scenarios.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Configuration;
+using DotnetEventBus.Middleware;
+using DotnetEventBus.Models;
+using DotnetEventBus.Repositories;
+using DotnetEventBus.Services;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Xunit;
+
+// Create service collection and configure event bus
+var services = new ServiceCollection();
+services.AddLogging();
+var serviceProvider = services.BuildServiceProvider();
+
+// Create event bus with default options
+var options = new EventBusOptions();
+var bus = new EventBus(options: options, serviceProvider: serviceProvider);
+
+// Subscribe handlers with different priorities
+bus.Subscribe<string>((e, ct) => {
+    Console.WriteLine("Low priority handler executed");
+    return Task.CompletedTask;
+}, "LowPriority", priority: 0);
+
+bus.Subscribe<string>((e, ct) => {
+    Console.WriteLine("High priority handler executed");
+    return Task.CompletedTask;
+}, "HighPriority", priority: 10);
+
+// Publish an event - handlers will be invoked in priority order
+await bus.PublishAsync("test-event");
+
+// Subscribe with retry policy
+var retryOptions = new EventBusOptions { MaxRetryAttempts = 2 };
+var retryBus = new EventBus(options: retryOptions, serviceProvider: serviceProvider);
+int attempts = 0;
+
+retryBus.Subscribe<string>((e, ct) => {
+    attempts++;
+    if (attempts < 3) throw new Exception("Temporary failure");
+    return Task.CompletedTask;
+});
+
+await retryBus.PublishAsync("retry-test");
+Console.WriteLine($"Handler attempted {attempts} times"); // Will be 3
+
+// Unsubscribe to prevent future invocations
+var subscription = bus.SubscribeSync<string>(e => Console.WriteLine("Handler called"));
+await bus.PublishAsync("first"); // Handler called
+subscription.Dispose();
+await bus.PublishAsync("second"); // Handler not called
+```
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Advanced;
+
+// Define a test event
+var testEvent = new TestFilterEvent {
+    OrderId = 123,
+    Amount = 99.99m,
+    Status = "Pending",
+    Region = "US"
+};
+
+// Create a filter to match events with OrderId > 100
+var filter = new EventFilter<TestFilterEvent>()
+    .Where(e => e.OrderId > 100);
+
+// Check if the event matches the filter
+bool matches = filter.Matches(testEvent); // Returns true
 
 // Create a filter with multiple predicates
 var complexFilter = new EventFilter<TestFilterEvent>()
