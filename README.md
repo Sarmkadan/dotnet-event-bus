@@ -293,6 +293,63 @@ Assert.True(context.IsProcessed);
 Assert.ContainsKey(context.Metadata, "startedAt");
 ```
 
+## TestEvent
+
+The `TestEvent` class is a simple test event used throughout the event bus unit tests. It contains basic properties for testing event publishing, subscription, and handler invocation scenarios. This event is commonly used to validate core event bus functionality including handler execution, priority-based invocation, and subscription management.
+
+Example usage:
+
+```csharp
+using DotnetEventBus;
+using DotnetEventBus.Tests;
+using Microsoft.Extensions.DependencyInjection;
+
+// Create service collection and configure event bus
+var services = new ServiceCollection();
+services.AddEventBus();
+var provider = services.BuildServiceProvider();
+var eventBus = provider.GetRequiredService<IEventBus>();
+
+// Define a test event with sample data
+var testEvent = new TestEvent {
+    Data = "Sample event data",
+    Value = 42
+};
+
+// Subscribe an asynchronous handler
+eventBus.Subscribe<TestEvent>(
+    async (@event, ct) => {
+        Console.WriteLine($"Received event with Data: {@event.Data}, Value: {@event.Value}");
+        await Task.CompletedTask;
+    },
+    handlerName: "TestHandler"
+);
+
+// Subscribe a synchronous handler
+eventBus.SubscribeSync<TestEvent>(
+    @event => {
+        Console.WriteLine($"Sync handler received: {@event.Data}");
+    },
+    handlerName: "SyncTestHandler"
+);
+
+// Subscribe with priority
+eventBus.Subscribe<TestEvent>(
+    async (@event, ct) => {
+        Console.WriteLine("High priority handler");
+        await Task.CompletedTask;
+    },
+    handlerName: "HighPriorityHandler",
+    priority: (int)HandlerPriority.High
+);
+
+// Publish the test event
+var result = await eventBus.PublishAsync(testEvent);
+
+// Verify the event was processed
+Console.WriteLine($"Handlers invoked: {result.HandlersInvoked}");
+```
+
 ## TestFilterEvent
 
 The `TestFilterEvent` class is a test event used for filtering scenarios within the event bus system. It contains properties that can be filtered on including order ID, amount, status, and region. This event is primarily used in unit tests for the `EventFilter<T>` class to validate filtering logic.
