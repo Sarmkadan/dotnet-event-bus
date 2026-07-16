@@ -784,6 +784,74 @@ var wildcardFilter = FilterBuilder.CreateWildcardFilter<OrderCreatedEvent>(); //
 var emptyFilter = FilterBuilder.CreateEmptyFilter<OrderCreatedEvent>(); // matches no events
 ```
 
+## IDeadLetterService
+
+The `IDeadLetterService` interface provides operations for managing the dead letter queue (DLQ), which stores failed event processing attempts. It allows you to query, reprocess, review, and archive dead letter entries, providing visibility into failed events and enabling recovery workflows.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Integration;
+using DotnetEventBus.Models;
+using Microsoft.Extensions.DependencyInjection;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
+
+// Setup DI (typically done in Program.cs or Startup.cs)
+var services = new ServiceCollection();
+services.AddEventBus(builder => builder
+    .AddDeadLetterService()
+    // ... other configuration
+);
+
+var serviceProvider = services.BuildServiceProvider();
+var deadLetterService = serviceProvider.GetRequiredService<IDeadLetterService>();
+
+// Get statistics about the dead letter queue
+var stats = await deadLetterService.GetStatisticsAsync();
+Console.WriteLine($"Total entries: {stats.TotalEntries}");
+Console.WriteLine($"Pending entries: {stats.PendingEntries}");
+Console.WriteLine($"Failed reprocessing: {stats.ReprocessFailedEntries}");
+
+// List entries by event type
+foreach (var kvp in stats.EntriesByEventType)
+{
+    Console.WriteLine($"Event {kvp.Key}: {kvp.Value} entries");
+}
+
+// Get all pending entries
+var pendingEntries = await deadLetterService.GetPendingEntriesAsync();
+foreach (var entry in pendingEntries.Take(5)) // Show first 5
+{
+    Console.WriteLine($"Pending: {entry.Id} - {entry.Message.EventType} - {entry.Status}");
+}
+
+// Reprocess a specific entry
+bool success = await deadLetterService.ReprocessEntryAsync("entry-id-123");
+Console.WriteLine(success ? "Reprocessed successfully" : "Failed to reprocess");
+
+// Batch reprocess all pending entries for a specific event type
+var batchResult = await deadLetterService.ReprocessByEventTypeAsync("OrderCreated", maxEntries: 10);
+Console.WriteLine($"Batch reprocess: {batchResult.SucceededCount} succeeded, {batchResult.FailedCount} failed");
+
+if (batchResult.FailedCount > 0)
+{
+    Console.WriteLine("Failed entry IDs:");
+    foreach (var id in batchResult.FailedEntryIds)
+    {
+        Console.WriteLine($"  - {id}");
+    }
+}
+
+// Mark an entry as reviewed (skip reprocessing)
+await deadLetterService.MarkAsReviewedAsync("entry-id-456", "Will fix in next deployment");
+
+// Archive old entries (older than 30 days)
+int archivedCount = await deadLetterService.ArchiveOldEntriesAsync(TimeSpan.FromDays(30));
+Console.WriteLine($"Archived {archivedCount} old entries");
+```
+
 ## EventMessage
 
 The `EventMessage` class represents the fundamental unit of communication in the event bus. It encapsulates event data with metadata such as unique identifiers, timestamps, correlation IDs, and headers, enabling reliable event processing, retry mechanisms, and distributed tracing across the system.
