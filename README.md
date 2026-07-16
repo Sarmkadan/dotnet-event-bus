@@ -1385,6 +1385,73 @@ var wildcardFilter = FilterBuilder.CreateWildcardFilter<OrderCreatedEvent>(); //
 var emptyFilter = FilterBuilder.CreateEmptyFilter<OrderCreatedEvent>(); // matches no events
 ```
 
+## ValidationHelper
+
+The `ValidationHelper` class provides a fluent API for validating objects and collections using a chainable builder pattern. It supports various validation rules including null checks, empty checks, pattern matching, length constraints, range validation, collection size constraints, and custom conditions.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Utilities;
+using System;
+using System.Collections.Generic;
+
+// Create a validation helper for a string
+var validationHelper = ValidationHelper.RequireNotEmpty("username")
+    .RequirePattern("^[a-zA-Z0-9_]+$", "Username can only contain alphanumeric characters and underscores")
+    .RequireLength(3, 20, "Username must be between 3 and 20 characters");
+
+// Validate and throw if invalid
+validationHelper.ThrowIfInvalid();
+
+// Or get all validation errors
+var errors = validationHelper.GetErrors();
+if (errors.Count > 0)
+{
+    foreach (var error in errors)
+    {
+        Console.WriteLine($"Validation error: {error}");
+    }
+}
+
+// Validate a complex object
+public class UserRegistration
+{
+    public string Username { get; set; }
+    public string Email { get; set; }
+    public int Age { get; set; }
+    public List<string> Roles { get; set; }
+}
+
+var user = new UserRegistration
+{
+    Username = "john_doe",
+    Email = "john@example.com",
+    Age = 25,
+    Roles = new List<string> { "admin", "user" }
+};
+
+var userValidation = ValidationHelper.RequireNotNull(user)
+    .RequireNotEmpty(u => u.Username, "Username is required")
+    .RequireValidEmail(u => u.Email, "Invalid email format")
+    .RequireRange(u => u.Age, 18, 120, "Age must be between 18 and 120")
+    .RequireMinimumItems(u => u.Roles, 1, "At least one role is required")
+    .RequireMaximumItems(u => u.Roles, 5, "Maximum 5 roles allowed");
+
+userValidation.ThrowIfInvalid();
+
+// Validate a URL
+var urlValidation = ValidationHelper.RequireValidUrl("https://example.com/path?query=value", 
+    "Invalid URL format");
+urlValidation.ThrowIfInvalid();
+
+// Create a custom validation condition
+var customValidation = ValidationHelper.RequireCondition(
+    string.IsNullOrWhiteSpace("test") == false,
+    "Value cannot be null or whitespace");
+customValidation.ThrowIfInvalid();
+```
+
 ## ReflectionHelper
 
 The `ReflectionHelper` class provides a set of utility methods for performing reflection operations at runtime. It simplifies common reflection tasks such as finding type implementations, creating instances, inspecting attributes, and invoking methods or properties, making it easier to work with dynamic types and generic patterns in the event bus system.
