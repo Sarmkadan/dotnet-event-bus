@@ -1557,6 +1557,77 @@ foreach (var arg in genericArgs)
 }
 ```
 
+## CsvEventFormatter
+
+The `CsvEventFormatter` class formats events as CSV (Comma-Separated Values) for data export and reporting. It automatically extracts properties from event objects and converts them into CSV format, making it easy to export event data to external tools like Excel, databases, or analytics platforms. The formatter supports custom delimiters and optional headers.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Formatters;
+using System;
+using System.Collections.Generic;
+
+// Define a sample event type
+public class OrderCreatedEvent
+{
+    public int OrderId { get; set; }
+    public string CustomerName { get; set; } = string.Empty;
+    public decimal TotalAmount { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public string Status { get; set; } = "Pending";
+}
+
+// Create a CSV formatter with comma delimiter and headers
+var csvFormatter = new CsvEventFormatter(delimiter: ",", includeHeaders: true);
+
+// Format a single event
+var orderEvent = new OrderCreatedEvent
+{
+    OrderId = 123,
+    CustomerName = "John Doe",
+    TotalAmount = 99.99m,
+    Status = "Completed"
+};
+
+string csvOutput = csvFormatter.Serialize(orderEvent);
+Console.WriteLine(csvOutput);
+/* Output:
+OrderId,CustomerName,TotalAmount,CreatedAt,Status
+123,John Doe,99.99,2025-07-16 10:30:00,Completed
+*/
+
+// Format event with additional metadata
+var metadata = new Dictionary<string, object>
+{
+    { "TenantId", "acme-corp" },
+    { "Environment", "production" },
+    { "ProcessedBy", "OrderService" }
+};
+
+string csvWithMetadata = csvFormatter.FormatEventWithMetadata(orderEvent, metadata);
+Console.WriteLine(csvWithMetadata);
+/* Output:
+OrderId,CustomerName,TotalAmount,CreatedAt,Status,TenantId,Environment,ProcessedBy
+123,John Doe,99.99,2025-07-16 10:30:00,Completed,acme-corp,production,OrderService
+*/
+
+// Use different delimiter (e.g., semicolon for European locales)
+var semicolonFormatter = new CsvEventFormatter(delimiter: ";", includeHeaders: true);
+string semicolonOutput = semicolonFormatter.Serialize(orderEvent);
+Console.WriteLine(semicolonOutput);
+/* Output:
+OrderId;CustomerName;TotalAmount;CreatedAt;Status
+123;John Doe;99.99;2025-07-16 10:30:00;Completed
+*/
+
+// Disable headers for compact output
+var noHeadersFormatter = new CsvEventFormatter(delimiter: ",", includeHeaders: false);
+string compactOutput = noHeadersFormatter.Serialize(orderEvent);
+Console.WriteLine(compactOutput);
+// Output: 123,John Doe,99.99,2025-07-16 10:30:00,Completed
+```
+
 Example usage:
 
 ```csharp
