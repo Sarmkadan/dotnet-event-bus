@@ -527,6 +527,53 @@ var orderEvent = new OrderCreatedEvent
 bool matches = filter.Matches(orderEvent); // true
 ```
 
+## RateLimitingMiddleware
+
+The `RateLimitingMiddleware` class enforces rate limiting on event publishing to prevent system overload and ensure fair resource distribution across event types. It uses a sliding window algorithm to track request rates per event type, allowing you to configure the maximum number of requests allowed within a specified time window.
+
+Example usage:
+```csharp
+using DotnetEventBus.Middleware;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Threading.Tasks;
+
+// Configure rate limiting middleware with 1000 requests per 60 seconds per event type
+var rateLimitingMiddleware = new RateLimitingMiddleware(
+    logger: new TestLogger<RateLimitingMiddleware>(),
+    requestsPerWindow: 1000,
+    timeWindow: TimeSpan.FromSeconds(60)
+);
+
+// Create the middleware pipeline
+var middleware = rateLimitingMiddleware.Create(async context =>
+{
+    Console.WriteLine("Event processing continues...");
+    await Task.CompletedTask;
+});
+
+// Simulate checking if an event is allowed
+bool isAllowed = await rateLimitingMiddleware.IsAllowed("OrderCreated");
+Console.WriteLine($"Is OrderCreated allowed? {isAllowed}");
+
+// Record a request for an event type
+await rateLimitingMiddleware.RecordRequest("OrderCreated");
+
+// Handle rate limit exceeded exception
+try
+{
+    // This would throw if rate limit is exceeded
+    // throw new RateLimitExceededException("Rate limit exceeded for event type: OrderCreated");
+}
+catch (RateLimitExceededException ex)
+{
+    Console.WriteLine($"Rate limit exceeded: {ex.Message}");
+}
+
+// The RateLimitExceededException exception class
+var exception = new RateLimitExceededException("Rate limit exceeded");
+```
+
 ## Subscription
 
 The `Subscription` class represents a subscription between an event type and its handlers. It encapsulates metadata about the handler including execution priority, timeout settings, concurrency control, and failure handling behavior. Subscriptions can be dynamically enabled, disabled, or configured with custom timeouts to control event processing behavior.
