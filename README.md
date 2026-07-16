@@ -1248,6 +1248,71 @@ await subscriptionRepository.DisableHandlerAsync("PaymentHandler");
 await subscriptionRepository.EnableHandlerAsync("PaymentHandler");
 ```
 
+## IDeadLetterRepository
+
+The `IDeadLetterRepository` interface provides data access operations for querying and managing dead letter queue entries. It extends the base repository functionality with specialized query methods for finding entries by status, handler, event type, time range, and aggregated statistics. This repository is essential for operational tasks like monitoring failed events, analyzing failure patterns, and implementing cleanup workflows.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Models;
+using DotnetEventBus.Repositories;
+using Microsoft.Extensions.DependencyInjection;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
+
+// Setup DI container
+var services = new ServiceCollection();
+services.AddEventBus(builder => builder
+  .Configure(options => options.MaxRetryAttempts = 3)
+  .AddDeadLetterService()
+  .AddJsonFormatter());
+
+var serviceProvider = services.BuildServiceProvider();
+var deadLetterRepository = serviceProvider.GetRequiredService<IDeadLetterRepository>();
+
+// Get statistics about dead letter entries
+var pendingCount = await deadLetterRepository.CountByStatusAsync(DeadLetterStatus.Pending);
+var failedCount = await deadLetterRepository.CountByStatusAsync(DeadLetterStatus.Failed);
+Console.WriteLine($"Pending entries: {pendingCount}, Failed entries: {failedCount}");
+
+// Query entries by event type
+var orderFailedEntries = await deadLetterRepository.GetByEventTypeAsync("OrderCreated");
+foreach (var entry in orderFailedEntries.Take(5)) // Show first 5
+{
+    Console.WriteLine($"Failed OrderCreated entry: {entry.Id} - {entry.ErrorMessage}");
+}
+
+// Query entries by handler name
+var handlerFailedEntries = await deadLetterRepository.GetByHandlerAsync("OrderProcessingHandler");
+Console.WriteLine($"Entries failed in OrderProcessingHandler: {handlerFailedEntries.Count()}");
+
+// Get aggregated counts by event type
+var countsByEventType = await deadLetterRepository.GetCountsByEventTypeAsync();
+foreach (var kvp in countsByEventType)
+{
+    Console.WriteLine($"Event {kvp.Key}: {kvp.Value} failed entries");
+}
+
+// Get aggregated counts by handler
+var countsByHandler = await deadLetterRepository.GetCountsByHandlerAsync();
+foreach (var kvp in countsByHandler)
+{
+    Console.WriteLine($"Handler {kvp.Key}: {kvp.Value} failed entries");
+}
+
+// Get entries within a time range
+var yesterday = DateTime.UtcNow.AddDays(-1);
+var today = DateTime.UtcNow;
+var recentEntries = await deadLetterRepository.GetByTimeRangeAsync(yesterday, today);
+Console.WriteLine($"Recent entries (last 24h): {recentEntries.Count()}");
+
+// Archive old entries (older than 30 days)
+int archivedCount = await deadLetterRepository.ArchiveOldEntriesAsync(TimeSpan.FromDays(30));
+Console.WriteLine($"Archived {archivedCount} old entries");
+```
+
 ## ISubscriptionManager
 
 The `ISubscriptionManager` interface provides centralized management and monitoring capabilities for event subscriptions. It allows you to query subscriptions, enable/disable handlers, and retrieve detailed statistics about subscription patterns across your event bus. This service is particularly useful for operational tasks like debugging, monitoring, and dynamic configuration of event handlers.
