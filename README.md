@@ -431,4 +431,98 @@ var statusFilter = new EventFilter<TestFilterEvent>()
 var endStatusEvent = new TestFilterEvent { Status = "Pending" };
 bool containsMatches = statusFilter.Matches(endStatusEvent); // Returns true
 ```
+
+## RetryPolicyTests
+
+The `RetryPolicyTests` class provides comprehensive unit tests for the retry policy functionality within the DotnetEventBus library. It validates various retry scenarios including successful operations without retries, transient failures with automatic retries, maximum retry limits, exponential backoff with jitter, delay capping, exception filtering, and configuration validation for retry parameters.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Retry;
+using Microsoft.Extensions.DependencyInjection;
+using Xunit;
+
+// Configure retry policy with exponential backoff
+var retryPolicy = new ExponentialBackoffRetryPolicy
+{
+    MaxAttempts = 3,
+    InitialDelay = TimeSpan.FromMilliseconds(100),
+    MaxDelay = TimeSpan.FromSeconds(5),
+    BackoffMultiplier = 2.0,
+    EnableJitter = true
+};
+
+// Execute an operation with retry policy
+int attemptCount = 0;
+var result = await retryPolicy.ExecuteAsync(async () =>
+{
+    attemptCount++;
+    if (attemptCount < 3)
+    {
+        throw new InvalidOperationException("Temporary failure");
+    }
+    return "Success";
+});
+
+Console.WriteLine($"Operation succeeded after {attemptCount} attempts");
+
+// Configure retry policy with immediate retries
+var immediateRetryPolicy = new ImmediateRetryPolicy
+{
+    MaxAttempts = 5
+};
+
+// Execute an operation that eventually succeeds
+var successResult = await immediateRetryPolicy.ExecuteAsync(async () =>
+{
+    if (DateTime.UtcNow.Second % 2 == 0)
+    {
+        return "Success";
+    }
+    throw new InvalidOperationException("Temporary failure");
+});
+
+// Configure retry policy with custom exception filter
+var filteredRetryPolicy = new ExponentialBackoffRetryPolicy
+{
+    MaxAttempts = 3,
+    InitialDelay = TimeSpan.FromMilliseconds(50),
+    ExceptionFilter = ex => ex is InvalidOperationException || ex is ArgumentException
+};
+
+// Execute an operation that throws a retryable exception
+var filteredResult = await filteredRetryPolicy.ExecuteAsync(async () =>
+{
+    throw new InvalidOperationException("This will be retried");
+});
+
+// Configure retry policy with capped delay
+var cappedRetryPolicy = new ExponentialBackoffRetryPolicy
+{
+    MaxAttempts = 5,
+    InitialDelay = TimeSpan.FromSeconds(1),
+    MaxDelay = TimeSpan.FromSeconds(2), // Maximum delay will be capped at 2 seconds
+    BackoffMultiplier = 2.0
+};
+
+// Execute an operation with capped delay between retries
+var cappedResult = await cappedRetryPolicy.ExecuteAsync(async () =>
+{
+    throw new InvalidOperationException("Will retry with capped delay");
+});
+
+// Configure retry policy with jitter disabled for consistent delays
+var consistentRetryPolicy = new ExponentialBackoffRetryPolicy
+{
+    MaxAttempts = 3,
+    InitialDelay = TimeSpan.FromMilliseconds(100),
+    EnableJitter = false // Delays will be exactly InitialDelay * multiplier
+};
+
+// Execute an operation with consistent delays
+var consistentResult = await consistentRetryPolicy.ExecuteAsync(async () =>
+{
+    throw new InvalidOperationException("Will retry with consistent delays");
+});
 ```
