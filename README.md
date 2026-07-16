@@ -193,6 +193,53 @@ Console.WriteLine($"Total entries: {stats.TotalEntries}, Pending: {stats.Pending
 await deadLetterService.ArchiveOldEntriesAsync(TimeSpan.FromDays(7));
 ```
 
+## InMemoryRepositoryTests
+
+The `InMemoryRepositoryTests` class provides comprehensive unit tests for the in-memory repository implementation. It validates basic CRUD operations, pagination, existence checks, counting, and clearing functionality for generic entity storage. These tests serve as both validation and usage examples for the `InMemoryRepository<T>` class.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Repositories;
+using DotnetEventBus.Models;
+
+// Create an in-memory repository for a custom entity
+var repository = new InMemoryRepository<TestEntity>();
+
+// Add a new entity
+var newEntity = new TestEntity { Id = "1", Name = "Sample Entity" };
+var addedEntity = await repository.AddAsync(newEntity);
+
+// Retrieve an entity by ID
+var retrievedEntity = await repository.GetByIdAsync("1");
+Console.WriteLine($"Retrieved: {retrievedEntity?.Name}");
+
+// Update an existing entity
+retrievedEntity.Name = "Updated Entity";
+await repository.UpdateAsync(retrievedEntity);
+
+// Check if entity exists
+hasEntity = await repository.ExistsAsync("1");
+Console.WriteLine($"Entity exists: {hasEntity}");
+
+// Get total count of entities
+var totalCount = await repository.CountAsync();
+Console.WriteLine($"Total entities: {totalCount}");
+
+// Get paginated results
+var page = await repository.GetPagedAsync(1, 10);
+Console.WriteLine($"Page 1 has {page.Items.Count} items, total {page.TotalCount} items");
+
+// Clear all entities
+await repository.ClearAsync();
+var countAfterClear = await repository.CountAsync();
+Console.WriteLine($"Entities after clear: {countAfterClear}");
+
+// Access repository properties
+Console.WriteLine($"Repository ID: {repository.Id}");
+Console.WriteLine($"Repository Name: {repository.Name}");
+```
+
 ## PipelineBuilderTests
 
 The `PipelineBuilderTests` class provides comprehensive unit tests for the `PipelineBuilder` middleware pipeline construction. It verifies middleware registration, execution order, context manipulation, error handling, and pipeline building scenarios. The tests cover both synchronous and asynchronous middleware execution, short-circuiting behavior, exception handling, and proper initialization of event context.
