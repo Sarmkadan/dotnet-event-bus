@@ -476,6 +476,41 @@ Assert.Equal(10, flushedBatches[0].Events.Count);
 await publisher.FlushAsync();
 ```
 
+## EventMessageModelTests
+
+The `EventMessageModelTests` class provides comprehensive unit tests for the `EventMessage` model behavior, validating message retry functionality, header management, and processing state management. These tests ensure proper handling of event message operations including creating retry messages, managing custom headers, and tracking processing attempts.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Models;
+
+// Create a new event message
+var message = new EventMessage("OrderService.OrderPlaced", "{\"orderId\": 123, \"amount\": 99.99}");
+
+// Set message metadata
+message.CorrelationId = "corr-12345";
+message.Source = "order-service";
+message.ProcessingAttempts = 0;
+
+// Add custom headers for tracing and routing
+message.AddHeader("x-trace-id", "trace-abc-123");
+message.AddHeader("x-region", "eu-west-1");
+message.AddHeader("x-priority", "high");
+
+// Retrieve a header value
+string traceId = message.GetHeader("x-trace-id"); // Returns "trace-abc-123"
+string unknownHeader = message.GetHeader("x-unknown"); // Returns null
+
+// Create a retry message (increments ProcessingAttempts and generates new MessageId)
+var retryMessage = message.CreateRetry();
+Console.WriteLine($"Retry has {retryMessage.ProcessingAttempts} attempts"); // 1
+Console.WriteLine($"Original MessageId: {message.MessageId}, Retry MessageId: {retryMessage.MessageId}"); // Different IDs
+
+// Verify headers are preserved in retry
+string retryTraceId = retryMessage.GetHeader("x-trace-id"); // Returns "trace-abc-123"
+```
+
 ## RetryPolicyTests
 
 The `RetryPolicyTests` class provides comprehensive unit tests for the retry policy functionality within the DotnetEventBus library. It validates various retry scenarios including successful operations without retries, transient failures with automatic retries, maximum retry limits, exponential backoff with jitter, delay capping, exception filtering, and configuration validation for retry parameters.
