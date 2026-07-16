@@ -663,6 +663,104 @@ var consistentResult = await consistentRetryPolicy.ExecuteAsync(async () =>
 });
 ```
 
+## EventFilteringExample
+
+The `EventFilteringExample` class demonstrates selective event handler execution based on event properties using fluent filter APIs. It shows how to create filtered subscriptions that only process events matching specific criteria, enabling targeted event handling for different business scenarios.
+
+Example usage:
+
+```csharp
+using DotnetEventBus;
+using DotnetEventBus.Advanced;
+using Microsoft.Extensions.DependencyInjection;
+
+// Create service collection and configure event bus
+var services = new ServiceCollection();
+services.AddEventBus(options => {
+    options.AllowParallelHandling = false;
+});
+
+var serviceProvider = services.BuildServiceProvider();
+var eventBus = serviceProvider.GetRequiredService<IEventBus>();
+
+// Define event types
+public sealed class SalesEvent
+{
+    public string OrderId { get; set; }
+    public string Region { get; set; }
+    public decimal Amount { get; set; }
+    public string CustomerSegment { get; set; }
+    public DateTime Timestamp { get; set; }
+}
+
+public sealed class AlertEvent
+{
+    public string AlertId { get; set; }
+    public string Severity { get; set; }
+    public string Source { get; set; }
+    public string Message { get; set; }
+}
+
+// Create a filter for high-value orders (> $1000)
+var highValueFilter = new EventFilterBuilder()
+    .Where<SalesEvent>(e => e.Amount > 1000m)
+    .Build();
+
+// Subscribe a handler that only processes high-value orders
+eventBus.Subscribe<SalesEvent>(
+    async (@event, ct) => {
+        Console.WriteLine($"Processing high-value order: {0}", @event.OrderId);
+        await Task.CompletedTask;
+    },
+    handlerName: "HighValueOrderHandler",
+    filter: highValueFilter
+);
+
+// Subscribe a handler for premium customers
+var premiumFilter = new EventFilterBuilder()
+    .Where<SalesEvent>(e => e.CustomerSegment == "Premium")
+    .Build();
+
+eventBus.Subscribe<SalesEvent>(
+    async (@event, ct) => {
+        Console.WriteLine($"Processing premium customer order");
+        await Task.CompletedTask;
+    },
+    handlerName: "PremiumCustomerHandler",
+    filter: premiumFilter
+);
+
+// Subscribe a handler for critical alerts
+var criticalFilter = new EventFilterBuilder()
+    .Where<AlertEvent>(e => e.Severity == "Critical")
+    .Build();
+
+eventBus.Subscribe<AlertEvent>(
+    async (@event, ct) => {
+        Console.WriteLine($"CRITICAL ALERT: {0}", @event.Message);
+        await Task.CompletedTask;
+    },
+    handlerName: "CriticalAlertHandler",
+    filter: criticalFilter
+);
+
+// Publish events - only matching handlers will be invoked
+await eventBus.PublishAsync(new SalesEvent {
+    OrderId = "ORD-123",
+    Region = "North America",
+    Amount = 1500m,
+    CustomerSegment = "Premium",
+    Timestamp = DateTime.UtcNow
+});
+
+await eventBus.PublishAsync(new AlertEvent {
+    AlertId = "ALT-456",
+    Severity = "Critical",
+    Source = "Database",
+    Message = "Connection pool exhausted"
+});
+```
+
 ## MetricsCollectorTests
 
 The `MetricsCollectorTests` class provides comprehensive unit tests for the metrics collection functionality within the DotnetEventBus library. It validates metrics tracking for event publishing operations including publish counts, durations, failure tracking, handler execution metrics, success rates, and provides methods to retrieve and reset collected metrics.
