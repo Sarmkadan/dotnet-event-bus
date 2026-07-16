@@ -2,6 +2,62 @@
 
 DotnetEventBus is an in-process event bus: pub/sub with polymorphic dispatch, request/reply, per-handler retries with a dead letter queue, and a DI-resolved middleware pipeline - all in a single assembly, no broker. How the pieces fit together (core `EventBus` flow, DLQ pipeline, DI composition, design trade-offs, known limitations) is documented in [docs/architecture.md](docs/architecture.md).
 
+## EventBus
+
+The `EventBus` class is the core in-process event bus implementation that provides publish-subscribe and request-reply messaging patterns with middleware support, retry policies, and dead letter queue integration. It supports polymorphic event handling (handlers registered for base types or interfaces will receive events of derived types), configurable middleware pipelines, parallel or sequential handler execution, and automatic retry with exponential backoff.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Services;
+using Microsoft.Extensions.DependencyInjection;
+using System;
+using System.Threading.Tasks;
+
+// Setup DI container
+var services = new ServiceCollection();
+services.AddEventBus(builder => builder
+    .Configure(options => options.MaxRetryAttempts = 3)
+    .AddDeadLetterService()
+    .AddJsonFormatter());
+
+var serviceProvider = services.BuildServiceProvider();
+var eventBus = serviceProvider.GetRequiredService<EventBus>();
+
+// Define event types
+public class OrderCreatedEvent
+{
+    public int OrderId { get; set; }
+    public decimal TotalAmount { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+public class OrderCreatedHandler : IEventHandler<OrderCreatedEvent>
+{
+    public async Task Handle(OrderCreatedEvent @event, CancellationToken cancellationToken)
+    {
+        Console.WriteLine($"Processing order {@event.OrderId} for ${@event.TotalAmount}");
+        await Task.Delay(100, cancellationToken);
+    }
+}
+
+// Register handlers
+using var subscription = eventBus.Subscribe(new OrderCreatedHandler());
+
+// Publish events
+var publishResult = await eventBus.PublishAsync(new OrderCreatedEvent
+{
+    OrderId = 123,
+    TotalAmount = 99.99m
+});
+
+Console.WriteLine($"Published to {publishResult.SuccessfulHandlers.Count} handlers");
+
+// Get subscriptions and clear when done
+var handlers = await eventBus.GetSubscriptionsAsync(typeof(OrderCreatedEvent).FullName!);
+await eventBus.ClearSubscriptionsAsync();
+```
+
 ## DeadLetterEntry
 
 The `DeadLetterEntry` class represents a record of a failed event processing attempt within the event bus. It captures the original message, the handler that failed, exception details, and metadata to assist in diagnosing and managing re-processing attempts for failed events.
