@@ -102,6 +102,84 @@ public class Product
 }
 ```
 
+## TypeExtensions
+
+The `TypeExtensions` class provides utility extension methods for runtime type inspection and reflection operations. It simplifies common type checking scenarios like checking inheritance hierarchies, interface implementation, generic type analysis, and property enumeration, making reflection code more readable and maintainable.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Utilities;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+// Define sample types for demonstration
+public interface IOrderProcessor
+{
+    void ProcessOrder(int orderId);
+}
+
+public class OrderProcessor : IOrderProcessor
+{
+    public void ProcessOrder(int orderId) => Console.WriteLine($"Processing order {orderId}");
+}
+
+public class SpecializedOrderProcessor : OrderProcessor
+{
+    public void HandleSpecialOrder(int orderId) => Console.WriteLine($"Handling special order {orderId}");
+}
+
+public class GenericRepository<T> where T : class
+{
+    public void Add(T entity) => Console.WriteLine($"Adding entity of type {typeof(T).Name}");
+}
+
+// Get friendly type name without namespace
+var typeName = typeof(Dictionary<string, List<int>>).GetFriendlyName();
+Console.WriteLine($"Friendly name: {typeName}"); // "Dictionary<String, List<Int32>>"
+
+// Check if type is assignable from nullable type
+var stringType = typeof(string);
+var objectType = typeof(object);
+Console.WriteLine($"String assignable from object: {objectType.IsAssignableFromNullable(stringType)}"); // true
+
+// Check if type implements an interface
+Console.WriteLine($"OrderProcessor implements IOrderProcessor: {typeof(OrderProcessor).Implements<IOrderProcessor>()}"); // true
+Console.WriteLine($"SpecializedOrderProcessor implements IOrderProcessor: {typeof(SpecializedOrderProcessor).Implements<IOrderProcessor>()}"); // true
+
+// Check if type is nullable
+Console.WriteLine($"string is nullable: {typeof(string).IsNullableType()}"); // true
+Console.WriteLine($"int is nullable: {typeof(int).IsNullableType()}"); // false
+Console.WriteLine($"int? is nullable: {typeof(int?).IsNullableType()}"); // true
+
+// Get all interfaces implemented by a type
+var interfaces = typeof(SpecializedOrderProcessor).GetAllInterfaces();
+foreach (var iface in interfaces)
+{
+    Console.WriteLine($"Interface: {iface.Name}");
+}
+
+// Check if type can be instantiated
+Console.WriteLine($"OrderProcessor is instantiable: {typeof(OrderProcessor).IsInstantiable()}"); // true
+Console.WriteLine($"IOrderProcessor is instantiable: {typeof(IOrderProcessor).IsInstantiable()}"); // false
+
+// Get full type name with generic arguments
+var fullName = typeof(Dictionary<string, List<int>>).GetFullTypeNameWithGenerics();
+Console.WriteLine($"Full type name: {fullName}");
+
+// Check inheritance
+Console.WriteLine($"SpecializedOrderProcessor inherits from OrderProcessor: {typeof(SpecializedOrderProcessor).InheritsFrom(typeof(OrderProcessor))}"); // true
+Console.WriteLine($"OrderProcessor inherits from GenericRepository: {typeof(OrderProcessor).InheritsFrom(typeof(GenericRepository<>))}"); // false
+
+// Get all public properties of a type
+var properties = typeof(OrderProcessor).GetAllPublicProperties();
+foreach (var prop in properties)
+{
+    Console.WriteLine($"Property: {prop.Name}");
+}
+```
+
 ## DateTimeExtensions
 
 The `DateTimeExtensions` class provides a comprehensive set of extension methods for working with DateTime operations. It includes utilities for Unix timestamp conversions, date manipulation, time calculations, and temporal comparisons, making it easier to handle common date and time operations in a fluent and efficient manner.
