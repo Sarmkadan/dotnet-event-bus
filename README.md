@@ -245,4 +245,62 @@ await pipeline(context);
 Assert.True(context.IsProcessed);
 Assert.ContainsKey(context.Metadata, "startedAt");
 ```
+
+## TestFilterEvent
+
+The `TestFilterEvent` class is a test event used for filtering scenarios within the event bus system. It contains properties that can be filtered on including order ID, amount, status, and region. This event is primarily used in unit tests for the `EventFilter<T>` class to validate filtering logic.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Advanced;
+
+// Define a test event
+var testEvent = new TestFilterEvent {
+    OrderId = 123,
+    Amount = 99.99m,
+    Status = "Pending",
+    Region = "US"
+};
+
+// Create a filter to match events with OrderId > 100
+var filter = new EventFilter<TestFilterEvent>()
+    .Where(e => e.OrderId > 100);
+
+// Check if the event matches the filter
+bool matches = filter.Matches(testEvent); // Returns true
+
+// Create a filter with multiple predicates
+var complexFilter = new EventFilter<TestFilterEvent>()
+    .Where(e => e.OrderId > 100)
+    .WhereProperty(e => e.Status, "Pending")
+    .WherePropertyInRange(e => e.Amount, 50, 500);
+
+// Check if the event matches all predicates
+bool complexMatches = complexFilter.Matches(testEvent); // Returns true
+
+// Create a filter that excludes completed events
+var notFilter = new EventFilter<TestFilterEvent>()
+    .Not(e => e.Status == "Completed");
+
+// Check if the event matches the inverted predicate
+bool notMatches = notFilter.Matches(testEvent); // Returns true
+
+// Filter events by region (null-safe)
+var regionFilter = new EventFilter<TestFilterEvent>()
+    .WhereProperty(e => e.Region, "US");
+
+var usEvent = new TestFilterEvent { Region = "US" };
+bool regionMatches = regionFilter.Matches(usEvent); // Returns true
+
+var nullRegionEvent = new TestFilterEvent { Region = null };
+bool nullRegionMatches = regionFilter.Matches(nullRegionEvent); // Returns false
+
+// Filter events by string contains (case-insensitive)
+var statusFilter = new EventFilter<TestFilterEvent>()
+    .WherePropertyContains(e => e.Status, "end");
+
+var endStatusEvent = new TestFilterEvent { Status = "Pending" };
+bool containsMatches = statusFilter.Matches(endStatusEvent); // Returns true
+```
 ```
