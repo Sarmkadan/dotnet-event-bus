@@ -486,6 +486,63 @@ var dictTransformer = EventTransformerBuilder.CreateDictionaryTransformer<OrderC
 var dict = dictTransformer.Transform(orderEvent);
 ```
 
+## PipelineBuilder
+
+The `PipelineBuilder` class constructs the middleware pipeline for the event bus. It allows you to add, remove, and configure middleware components that process events before they reach their handlers. The builder maintains the order of middleware execution and provides methods to build the final pipeline.
+
+Example usage:
+```csharp
+using DotnetEventBus.Middleware;
+using Microsoft.Extensions.DependencyInjection;
+using System;
+using System.Threading.Tasks;
+
+// Define middleware components
+public class LoggingMiddleware : EventBusMiddleware
+{
+    public override async Task InvokeAsync(EventContext context, Func<Task> next)
+    {
+        Console.WriteLine($"Processing event {context.EventType} with correlation ID {context.CorrelationId}");
+        await next();
+        Console.WriteLine($"Completed processing event {context.EventType}");
+    }
+}
+
+public class ValidationMiddleware : EventBusMiddleware
+{
+    public override async Task InvokeAsync(EventContext context, Func<Task> next)
+    {
+        if (context.EventData is null)
+        {
+            throw new InvalidOperationException("Event data cannot be null");
+        }
+        await next();
+    }
+}
+
+// Build the pipeline with middleware
+var pipelineBuilder = new PipelineBuilder();
+
+pipelineBuilder.Use<LoggingMiddleware>();
+pipelineBuilder.Use<ValidationMiddleware>();
+
+// Build the pipeline
+var middlewarePipeline = pipelineBuilder.Build();
+
+// Use the pipeline with an event context
+var eventContext = new EventContext(
+    eventType: "OrderCreated",
+    eventData: new { OrderId = 123, Amount = 99.99m },
+    metadata: new Dictionary<string, object> { { "tenantId", "acme" } },
+    correlationId: Guid.NewGuid().ToString()
+);
+
+await middlewarePipeline(eventContext);
+
+// Clear all middleware and start fresh
+pipelineBuilder.Clear();
+```
+
 ## EventFilter
 
 The `EventFilter<T>` class provides a fluent filtering API for events, allowing handlers to filter events based on predicates before processing. It reduces unnecessary handler invocations by filtering at the bus level, which is particularly useful when you need to process only specific events that match certain criteria.
