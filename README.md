@@ -82,4 +82,53 @@ public class MyEventType
     public DateTime Timestamp { get; set; }
 }
 ```
+
+## PipelineBuilderTests
+
+The `PipelineBuilderTests` class provides comprehensive unit tests for the `PipelineBuilder` middleware pipeline construction. It verifies middleware registration, execution order, context manipulation, error handling, and pipeline building scenarios. The tests cover both synchronous and asynchronous middleware execution, short-circuiting behavior, exception handling, and proper initialization of event context.
+
+Example usage:
+```csharp
+using DotnetEventBus.Middleware;
+using Xunit;
+
+// Create a pipeline builder
+var builder = new PipelineBuilder();
+
+// Add middleware components to the pipeline
+builder.Use(next => async context => {
+    // Pre-processing logic
+    context.Metadata["startedAt"] = DateTime.UtcNow;
+    await next(context);
+    // Post-processing logic
+});
+
+builder.Use(next => async context => {
+    // Validation middleware
+    if (context.EventData == null)
+        throw new InvalidOperationException("Event data cannot be null");
+    await next(context);
+});
+
+builder.Use(next => async context => {
+    // Processing middleware
+    context.IsProcessed = true;
+    await next(context);
+});
+
+// Build the pipeline
+var pipeline = builder.Build();
+
+// Create and execute the pipeline with an event context
+var context = new EventContext {
+    EventType = "OrderPlaced",
+    EventData = new { OrderId = 123, Amount = 99.99 }
+};
+
+await pipeline(context);
+
+// Verify the context was processed
+Assert.True(context.IsProcessed);
+Assert.ContainsKey(context.Metadata, "startedAt");
+```
 ```
