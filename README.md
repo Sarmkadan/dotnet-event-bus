@@ -39,4 +39,47 @@ var deserializedData = formatter.Deserialize<dynamic>(xml);
 var formattedEvent = formatter.FormatEvent(eventData);
 var formattedEventWithMetadata = formatter.FormatEventWithMetadata(eventData, new Dictionary<string, object> { { "timestamp", DateTime.UtcNow } });
 ```
+
+## JsonEventFormatter
+The `JsonEventFormatter` class formats events as JSON strings for serialization and API responses. It supports both compact and pretty-printed output, and provides methods for serializing objects to JSON, deserializing JSON strings to objects, and formatting events with or without metadata.
+
+Example usage:
+```csharp
+using DotnetEventBus.Formatters;
+using System;
+using System.Collections.Generic;
+
+// Create a new JSON formatter
+var formatter = new JsonEventFormatter();
+
+// Serialize an object to compact JSON
+var eventData = new { Id = 1, Name = "Test Event", Timestamp = DateTime.UtcNow };
+string compactJson = formatter.Serialize(eventData);
+
+// Serialize with pretty printing
+string prettyJson = formatter.Serialize(eventData, prettyPrint: true);
+
+// Deserialize JSON back to a strongly-typed object
+var deserializedData = formatter.Deserialize<Dictionary<string, object>>(compactJson);
+
+// Format an event as JSON
+string formattedEvent = formatter.FormatEvent(eventData);
+
+// Format an event with metadata
+var metadata = new Dictionary<string, object> {
+    { "source", "event-bus" },
+    { "priority", "high" }
+};
+string formattedEventWithMetadata = formatter.FormatEventWithMetadata(eventData, metadata);
+
+// Deserialize to a specific type
+var typedData = formatter.Deserialize<MyEventType>(compactJson);
+
+public class MyEventType
+{
+    public int Id { get; set; }
+    public string Name { get; set; }
+    public DateTime Timestamp { get; set; }
+}
+```
 ```
