@@ -1,3 +1,57 @@
+## BasicPubSubExample
+
+The `BasicPubSubExample` class demonstrates the core publish-subscribe pattern of the DotnetEventBus library. It shows how to define custom events, subscribe multiple handlers to those events, and publish events asynchronously. The example includes both delegate-based handlers and class-based handlers, demonstrating different subscription approaches.
+
+Example usage:
+
+```csharp
+using DotnetEventBus;
+using DotnetEventBus.Examples;
+using Microsoft.Extensions.DependencyInjection;
+
+// Setup dependency injection with event bus
+var services = new ServiceCollection();
+services.AddEventBus(options =>
+{
+    options.AllowParallelHandling = true;
+    options.MaxConcurrentHandlers = 4;
+    options.EnableDetailedLogging = true;
+});
+
+var serviceProvider = services.BuildServiceProvider();
+var eventBus = serviceProvider.GetRequiredService<IEventBus>();
+
+// Subscribe handlers using delegate syntax
+eventBus.Subscribe<BasicPubSubExample.UserRegisteredEvent>(
+    async (@event, ct) =>
+    {
+        Console.WriteLine($"📊 Recording user registration in analytics");
+        await Task.Delay(75);
+        Console.WriteLine($"✓ Analytics recorded");
+    },
+    handlerName: "AnalyticsHandler",
+    priority: 0
+);
+
+// Subscribe class-based handlers
+eventBus.Subscribe<UserRegisteredEvent, SendWelcomeEmailHandler>();
+eventBus.Subscribe<UserRegisteredEvent, UpdateUserProfileHandler>();
+
+// Create and publish events
+var userRegisteredEvent = new BasicPubSubExample.UserRegisteredEvent
+{
+    UserId = "user-123",
+    Email = "user@example.com",
+    FullName = "John Doe",
+    RegisteredAt = DateTime.UtcNow
+};
+
+var result = await eventBus.PublishAsync(userRegisteredEvent);
+
+Console.WriteLine($"Handlers invoked: {result.HandlersInvoked}");
+Console.WriteLine($"Duration: {result.Duration.TotalMilliseconds:F2}ms");
+```
+
 ## EventFormatterFactory
 
 The `EventFormatterFactory` class provides a registry for event formatters within the event bus. It allows registering formatters for specific data formats (JSON, XML, CSV), negotiating the appropriate formatter based on content type or format name, and managing the lifecycle of formatters.
