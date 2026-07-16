@@ -2,6 +2,106 @@
 
 DotnetEventBus is an in-process event bus: pub/sub with polymorphic dispatch, request/reply, per-handler retries with a dead letter queue, and a DI-resolved middleware pipeline - all in a single assembly, no broker. How the pieces fit together (core `EventBus` flow, DLQ pipeline, DI composition, design trade-offs, known limitations) is documented in [docs/architecture.md](docs/architecture.md).
 
+## CollectionExtensions
+
+The `CollectionExtensions` class provides a comprehensive set of extension methods for working with collections and enumerables. It includes utilities for batch processing, safe access, transformation, and pagination, making it easier to handle common collection operations in a fluent and efficient manner.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Utilities;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+
+// Sample data
+var numbers = Enumerable.Range(1, 20).ToList();
+var products = new List<Product>
+{
+    new Product { Id = 1, Name = "Laptop", Price = 999.99m },
+    new Product { Id = 2, Name = "Mouse", Price = 29.99m },
+    new Product { Id = 3, Name = "Keyboard", Price = 79.99m },
+    new Product { Id = 4, Name = "Monitor", Price = 249.99m }
+};
+
+// Batch processing - split into chunks of 5 items each
+var batches = numbers.Batch(5);
+foreach (var batch in batches)
+{
+    Console.WriteLine($"Batch: [{string.Join(", ", batch)}]");
+}
+
+// Check if collection is null or empty
+List<string>? nullList = null;
+Console.WriteLine($"Is null or empty: {nullList.IsNullOrEmpty()}"); // true
+
+var emptyList = new List<string>();
+Console.WriteLine($"Is null or empty: {emptyList.IsNullOrEmpty()}"); // true
+
+var nonEmptyList = new List<string> { "item1", "item2" };
+Console.WriteLine($"Is null or empty: {nonEmptyList.IsNullOrEmpty()}"); // false
+
+// Safe first element with default value
+var emptyNumbers = new List<int>();
+var firstOrDefault = emptyNumbers.FirstOrDefaultValue(-1);
+Console.WriteLine($"First or default: {firstOrDefault}"); // -1
+
+// Execute action for each element (returns original collection for chaining)
+var result = products.ForEach(p => Console.WriteLine($"Processing: {p.Name}"))
+    .Where(p => p.Price > 50)
+    .ToList();
+
+// Async foreach
+await products.ForEachAsync(async p => 
+{
+    await Task.Delay(10);
+    Console.WriteLine($"Async processed: {p.Name}");
+});
+
+// Convert to dictionary with duplicate key handling (first occurrence wins)
+var productDict = products.ToDictionaryDistinct(
+    p => p.Id,
+    p => p.Name
+);
+
+// Group by category and convert to dictionary
+var groupedByPriceRange = products.GroupByToDictionary(p => 
+    p.Price > 100 ? "Expensive" : "Affordable"
+);
+
+// Check if two collections contain the same elements
+var list1 = new List<int> { 1, 2, 3 };
+var list2 = new List<int> { 3, 2, 1 };
+Console.WriteLine($"Sets equal: {list1.SetEquals(list2)}"); // true
+
+// Distinct by property
+var distinctByName = products.DistinctBy(p => p.Name);
+
+// Get random element
+var randomProduct = products.GetRandom();
+Console.WriteLine($"Random product: {randomProduct?.Name}");
+
+// Pagination
+var pages = products.AsPages(pageSize: 2);
+foreach (var page in pages)
+{
+    Console.WriteLine($"Page {page.PageNumber} (Size: {page.PageSize}, Total: {page.TotalItems}):");
+    foreach (var item in page.Items)
+    {
+        Console.WriteLine($"  - {item.Name}");
+    }
+}
+
+// Define a simple Product class for the examples
+public class Product
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public decimal Price { get; set; }
+}
+```
+
 ## EventBusOptions
 
 The `EventBusOptions` class provides configuration for the event bus, controlling retry behavior, parallel execution, dead letter queue integration, distributed messaging settings, and middleware pipeline composition. It supports exponential backoff retries, configurable timeouts, concurrency limits, and validation to ensure proper operation.
