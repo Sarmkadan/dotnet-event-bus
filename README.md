@@ -840,6 +840,90 @@ var wildcardFilter = FilterBuilder.CreateWildcardFilter<OrderCreatedEvent>(); //
 var emptyFilter = FilterBuilder.CreateEmptyFilter<OrderCreatedEvent>(); // matches no events
 ```
 
+## IHandlerInvoker
+
+The `IHandlerInvoker` interface is responsible for invoking event handlers using reflection and type safety. It provides methods for both regular event handling and request/reply pattern invocation, along with type checking capabilities to determine handler compatibility.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Handlers;
+using DotnetEventBus.Models;
+using Microsoft.Extensions.DependencyInjection;
+using System;
+using System.Threading.Tasks;
+
+// Define event types
+public class OrderCreatedEvent
+{
+    public int OrderId { get; set; }
+    public decimal TotalAmount { get; set; }
+}
+
+public class OrderCreatedHandler : IEventHandler<OrderCreatedEvent>
+{
+    public async Task Handle(OrderCreatedEvent @event, CancellationToken cancellationToken)
+    {
+        Console.WriteLine($"Processing order {@event.OrderId} for ${@event.TotalAmount}");
+        await Task.Delay(100, cancellationToken);
+    }
+}
+
+public class OrderRequest
+{
+    public int OrderId { get; set; }
+}
+
+public class OrderResponse
+{
+    public bool Success { get; set; }
+}
+
+public class OrderRequestHandler : IEventHandler<OrderRequest>
+{
+    public async Task<OrderResponse> Handle(OrderRequest request, CancellationToken cancellationToken)
+    {
+        Console.WriteLine($"Processing order request {request.OrderId}");
+        await Task.Delay(100, cancellationToken);
+        return new OrderResponse { Success = true };
+    }
+}
+
+// Setup DI container
+var services = new ServiceCollection();
+services.AddEventBus(builder => builder
+    .Configure(options => options.MaxRetryAttempts = 3)
+    .AddDeadLetterService()
+    .AddJsonFormatter());
+
+var serviceProvider = services.BuildServiceProvider();
+var handlerInvoker = serviceProvider.GetRequiredService<IHandlerInvoker>();
+
+// Create handler instance
+var handler = new OrderCreatedHandler();
+
+// Invoke event handler
+var orderEvent = new OrderCreatedEvent { OrderId = 123, TotalAmount = 99.99m };
+await handlerInvoker.InvokeAsync(handler, orderEvent);
+
+// Check if handler can handle event type
+bool canHandle = handlerInvoker.CanHandle(handler, typeof(OrderCreatedEvent));
+Console.WriteLine($"Can handle OrderCreatedEvent: {canHandle}");
+
+// Get supported event types
+var supportedTypes = handlerInvoker.GetSupportedEventTypes(handler);
+foreach (var type in supportedTypes)
+{
+    Console.WriteLine($"Handler supports: {type.Name}");
+}
+
+// Invoke request handler (request/reply pattern)
+var requestHandler = new OrderRequestHandler();
+var request = new OrderRequest { OrderId = 456 };
+var response = await handlerInvoker.InvokeRequestAsync(requestHandler, request) as OrderResponse;
+Console.WriteLine($"Request handled successfully: {response?.Success}");
+```
+
 ## IDeadLetterService
 
 The `IDeadLetterService` interface provides operations for managing the dead letter queue (DLQ), which stores failed event processing attempts. It allows you to query, reprocess, review, and archive dead letter entries, providing visibility into failed events and enabling recovery workflows.
