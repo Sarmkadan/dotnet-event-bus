@@ -1172,6 +1172,82 @@ Console.WriteLine($"Configured event types: {string.Join(", ", configuredTypes)}
 routingConfig.Clear();
 ```
 
+## ISubscriptionRepository
+
+The `ISubscriptionRepository` interface provides data access operations for managing event subscriptions in persistent storage. It extends the base repository functionality with specialized query methods for finding subscriptions by event type, handler name, and activation status. This repository is essential for operational tasks like monitoring subscription patterns, enabling/disabling handlers, and analyzing event routing configurations.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Models;
+using DotnetEventBus.Repositories;
+using Microsoft.Extensions.DependencyInjection;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
+
+// Setup DI container
+var services = new ServiceCollection();
+services.AddEventBus(builder => builder
+    .Configure(options => options.MaxRetryAttempts = 3)
+    .AddDeadLetterService()
+    .AddJsonFormatter());
+
+var serviceProvider = services.BuildServiceProvider();
+var subscriptionRepository = serviceProvider.GetRequiredService<ISubscriptionRepository>();
+
+// Define event types
+public class OrderCreatedEvent { public int OrderId { get; set; } }
+public class PaymentProcessedEvent { public decimal Amount { get; set; } }
+
+// Create and register handlers (typically via EventBus.Subscribe())
+var orderHandler = new Subscription(
+    eventType: typeof(OrderCreatedEvent).FullName!,
+    handlerName: "OrderCreatedHandler",
+    priority: 10
+);
+var paymentHandler = new Subscription(
+    eventType: typeof(PaymentProcessedEvent).FullName!,
+    handlerName: "PaymentHandler",
+    priority: 5
+);
+
+// Add subscriptions to repository
+// (In real usage, subscriptions are typically added via EventBus.Subscribe())
+
+// Query subscriptions by event type
+var orderSubscriptions = await subscriptionRepository.GetByEventTypeAsync(typeof(OrderCreatedEvent).FullName!);
+Console.WriteLine($"Found {orderSubscriptions.Count()} subscriptions for OrderCreatedEvent");
+
+// Query active subscriptions for a specific event type
+var activeOrderSubscriptions = await subscriptionRepository.GetActiveByEventTypeAsync(typeof(OrderCreatedEvent).FullName!);
+Console.WriteLine($"Found {activeOrderSubscriptions.Count()} active subscriptions for OrderCreatedEvent");
+
+// Get subscriptions by handler name
+var paymentHandlerSubscriptions = await subscriptionRepository.GetByHandlerNameAsync("PaymentHandler");
+Console.WriteLine($"Found {paymentHandlerSubscriptions.Count()} subscriptions for PaymentHandler");
+
+// Get all active/inactive subscriptions
+var allActive = await subscriptionRepository.GetAllActiveAsync();
+var allInactive = await subscriptionRepository.GetAllInactiveAsync();
+Console.WriteLine($"Active: {allActive.Count()}, Inactive: {allInactive.Count()}");
+
+// Get subscriptions ordered by priority (highest first)
+var orderedSubscriptions = await subscriptionRepository.GetByEventTypeOrderedByPriorityAsync(typeof(OrderCreatedEvent).FullName!);
+foreach (var sub in orderedSubscriptions)
+{
+    Console.WriteLine($"Subscription {sub.HandlerName} with priority {sub.Priority}");
+}
+
+// Count subscriptions for an event type
+var count = await subscriptionRepository.CountByEventTypeAsync(typeof(OrderCreatedEvent).FullName!);
+Console.WriteLine($"Total subscriptions for OrderCreatedEvent: {count}");
+
+// Disable/enable handlers
+await subscriptionRepository.DisableHandlerAsync("PaymentHandler");
+await subscriptionRepository.EnableHandlerAsync("PaymentHandler");
+```
+
 ## ISubscriptionManager
 
 The `ISubscriptionManager` interface provides centralized management and monitoring capabilities for event subscriptions. It allows you to query subscriptions, enable/disable handlers, and retrieve detailed statistics about subscription patterns across your event bus. This service is particularly useful for operational tasks like debugging, monitoring, and dynamic configuration of event handlers.
