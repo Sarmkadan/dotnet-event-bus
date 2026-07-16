@@ -432,6 +432,50 @@ var endStatusEvent = new TestFilterEvent { Status = "Pending" };
 bool containsMatches = statusFilter.Matches(endStatusEvent); // Returns true
 ```
 
+## BatchEventPublisherTests
+
+The `BatchEventPublisherTests` class provides comprehensive unit tests for the `BatchEventPublisher` batch event publishing functionality. It validates event addition to batches, batch flushing when the batch size is reached, error handling for invalid events, and constructor validation for proper argument handling. These tests serve as both validation and usage examples for working with the batch event publishing system.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Services;
+using DotnetEventBus.Models;
+using Microsoft.Extensions.Logging;
+using Xunit;
+
+// Create a batch event publisher with a batch size of 10 events
+var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+var publisher = new BatchEventPublisher(loggerFactory.CreateLogger<BatchEventPublisher>(), batchSize: 10);
+
+// Add valid events to the batch
+var envelope1 = new EventEnvelope { EventType = "OrderCreated", Payload = "{ \"orderId\": 123 }" };
+var envelope2 = new EventEnvelope { EventType = "PaymentProcessed", Payload = "{ \"paymentId\": 456 }" };
+
+var added1 = await publisher.AddEventAsync(envelope1); // Returns true
+var added2 = await publisher.AddEventAsync(envelope2); // Returns true
+
+// Set a flush handler to process batches when they're full
+var flushedBatches = new List<EventBatch>();
+publisher.SetFlushHandler(async batch => {
+    flushedBatches.Add(batch);
+    await Task.CompletedTask;
+});
+
+// Add enough events to trigger a flush (10 events with batchSize=10)
+for (int i = 0; i < 10; i++) {
+    var envelope = new EventEnvelope { EventType = "Event" + i, Payload = "payload" };
+    await publisher.AddEventAsync(envelope);
+}
+
+// Verify the batch was flushed
+Assert.Single(flushedBatches);
+Assert.Equal(10, flushedBatches[0].Events.Count);
+
+// Flush remaining events manually
+await publisher.FlushAsync();
+```
+
 ## RetryPolicyTests
 
 The `RetryPolicyTests` class provides comprehensive unit tests for the retry policy functionality within the DotnetEventBus library. It validates various retry scenarios including successful operations without retries, transient failures with automatic retries, maximum retry limits, exponential backoff with jitter, delay capping, exception filtering, and configuration validation for retry parameters.
