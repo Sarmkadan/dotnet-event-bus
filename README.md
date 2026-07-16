@@ -1233,9 +1233,74 @@ await cache.ClearAsync();
 // Cleanup is automatic via background task (expired entries every minute, LRU eviction when full)
 ```
 
-## ISubscriptionRepository
+## HealthCheck
 
-The `ISubscriptionRepository` interface provides data access operations for managing event subscriptions in persistent storage. It extends the base repository functionality with specialized query methods for finding subscriptions by event type, handler name, and activation status. This repository is essential for operational tasks like monitoring subscription patterns, enabling/disabling handlers, and analyzing event routing configurations.
+The `HealthCheck` class monitors the health of the event bus system by performing periodic checks on critical components and reporting their status. It aggregates results from multiple health check probes to provide an overall system health assessment, enabling automated detection of system degradation and failures.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Monitoring;
+using System;
+using System.Threading.Tasks;
+
+// Create a health check instance
+var healthCheck = new HealthCheck();
+
+// Register built-in probes for memory and responsiveness monitoring
+healthCheck.RegisterProbe("memory", BuiltInProbes.CreateMemoryProbe());
+healthCheck.RegisterProbe("responsiveness", BuiltInProbes.CreateResponsivenessProbe());
+
+// Perform health check
+var result = await healthCheck.CheckHealthAsync();
+
+// Analyze the result
+Console.WriteLine($"Overall status: {result.OverallStatus}");
+Console.WriteLine($"Checked at: {result.CheckedAt}");
+
+foreach (var kvp in result.Checks)
+{
+    Console.WriteLine($"Probe '{kvp.Key}': {kvp.Value.Status}");
+    if (kvp.Value.Message != null)
+    {
+        Console.WriteLine($"  Message: {kvp.Value.Message}");
+    }
+}
+
+// Get last status without re-checking
+var lastStatus = healthCheck.GetLastStatus();
+var lastCheckTime = healthCheck.GetLastCheckTime();
+
+// Create custom probes for specific components
+public class DatabaseHealthProbe : IHealthCheckProbe
+{
+    public async Task<ProbeResult> CheckAsync()
+    {
+        // Implement actual database health check logic
+        try
+        {
+            // Test database connection
+            await Task.Delay(50); // Simulate check
+            return new ProbeResult
+            {
+                Status = HealthStatus.Healthy,
+                Message = "Database connection successful"
+            };
+        }
+        catch (Exception ex)
+        {
+            return new ProbeResult
+            {
+                Status = HealthStatus.Unhealthy,
+                Message = $"Database connection failed: {ex.Message}"
+            };
+        }
+    }
+}
+
+// Register custom probe
+healthCheck.RegisterProbe("database", new DatabaseHealthProbe());
+```
 
 Example usage:
 
