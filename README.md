@@ -27,6 +27,52 @@ if (deadLetterEntry.Status == DeadLetterStatus.Pending)
 deadLetterEntry.MarkAsReprocessed();
 ```
 
+## PublishResult
+
+The `PublishResult` class represents the outcome of publishing an event to the event bus. It tracks which handlers successfully processed the event, which failed, timing information, and any errors that occurred during processing. This result is useful for monitoring event publishing operations and implementing retry logic for failed handlers.
+
+Example usage:
+```csharp
+using DotnetEventBus.Models;
+using System;
+using System.Threading.Tasks;
+
+// Publish an event and get the result
+var eventBus = new EventBusBuilder()
+    .Build();
+
+var publishResult = await eventBus.PublishAsync("OrderCreated", new OrderCreatedEvent {
+    OrderId = 123,
+    TotalAmount = 99.99m
+});
+
+// Analyze the result
+Console.WriteLine(publishResult.GetSummary());
+
+if (publishResult.Success)
+{
+    Console.WriteLine($"Successfully published to {publishResult.SuccessfulHandlers.Count} handlers");
+    foreach (var handler in publishResult.SuccessfulHandlers)
+    {
+        Console.WriteLine($"  - {handler}");
+    }
+}
+else
+{
+    Console.WriteLine($"Failed to publish: {publishResult.ErrorMessage}");
+    Console.WriteLine($"Failed handlers: {string.Join(", ", publishResult.FailedHandlerNames)}");
+}
+
+// Create results programmatically
+var successResult = PublishResult.CreateSuccess("msg-123", 3);
+successResult.AddSuccessfulHandler("OrderHandler");
+successResult.AddSuccessfulHandler("NotificationHandler");
+successResult.AddSuccessfulHandler("AuditHandler");
+
+var failedResult = PublishResult.CreateFailed("msg-456", new InvalidOperationException("Database unavailable"));
+failedResult.AddFailedHandler("PaymentHandler", new InvalidOperationException("Payment service timeout"));
+```
+
 ## PredicateSubscriptionBuilder
 
 The `PredicateSubscriptionBuilder<TEvent>` class is a fluent builder for constructing predicate-filtered subscriptions on an <see cref="IEventBus"/>. It allows you to compose multiple conditions using AND semantics, ensuring that only events that match all specified criteria are processed by the registered handler.
