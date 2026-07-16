@@ -407,6 +407,65 @@ var dictTransformer = EventTransformerBuilder.CreateDictionaryTransformer<OrderC
 var dict = dictTransformer.Transform(orderEvent);
 ```
 
+## EventFilter
+
+The `EventFilter<T>` class provides a fluent filtering API for events, allowing handlers to filter events based on predicates before processing. It reduces unnecessary handler invocations by filtering at the bus level, which is particularly useful when you need to process only specific events that match certain criteria.
+
+Example usage:
+```csharp
+using DotnetEventBus.Advanced;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+// Define an event type
+public class OrderCreatedEvent
+{
+    public int OrderId { get; set; }
+    public decimal TotalAmount { get; set; }
+    public string CustomerEmail { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public string Status { get; set; } = "Pending";
+}
+
+// Create and use a filter
+var filter = FilterBuilder.CreateFilter<OrderCreatedEvent>()
+    .Where(e => e.TotalAmount > 100)
+    .WhereProperty(e => e.Status, "Completed")
+    .WherePropertyContains(e => e.CustomerEmail, "@example.com")
+    .WherePropertyInRange(e => e.TotalAmount, 50, 500);
+
+// Check if an event matches all filters
+var orderEvent = new OrderCreatedEvent
+{
+    OrderId = 123,
+    TotalAmount = 150.50m,
+    CustomerEmail = "user@example.com",
+    CreatedAt = DateTime.Now,
+    Status = "Completed"
+};
+
+bool matches = filter.Matches(orderEvent); // true
+
+// Filter a collection of events
+var events = new List<OrderCreatedEvent>
+{
+    new() { OrderId = 1, TotalAmount = 50, CustomerEmail = "a@example.com", Status = "Pending" },
+    new() { OrderId = 2, TotalAmount = 150, CustomerEmail = "b@example.com", Status = "Completed" },
+    new() { OrderId = 3, TotalAmount = 250, CustomerEmail = "c@example.com", Status = "Completed" }
+};
+
+var filteredEvents = filter.FilterCollection(events).ToList();
+// Returns only events with TotalAmount > 100, Status = "Completed", and CustomerEmail contains "@example.com"
+
+// Clear filters when needed
+filter.Clear();
+
+// Create specialized filters using factory methods
+var wildcardFilter = FilterBuilder.CreateWildcardFilter<OrderCreatedEvent>(); // matches all events
+var emptyFilter = FilterBuilder.CreateEmptyFilter<OrderCreatedEvent>(); // matches no events
+```
+
 ## CommandLineInterface
 
 The `CommandLineInterface` class provides a command-line interface for interacting with the event bus. It allows system operators to execute commands for publishing, subscribing, querying, and managing events without writing code. The CLI supports registering custom commands, executing commands with arguments, and retrieving help text for available commands.
