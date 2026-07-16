@@ -1,3 +1,32 @@
+## DeadLetterEntry
+
+The `DeadLetterEntry` class represents a record of a failed event processing attempt within the event bus. It captures the original message, the handler that failed, exception details, and metadata to assist in diagnosing and managing re-processing attempts for failed events.
+
+Example usage:
+```csharp
+using DotnetEventBus.Models;
+using System;
+
+// Assume 'eventMessage' and 'exception' are available
+var deadLetterEntry = new DeadLetterEntry(
+    eventMessage, 
+    "OrderProcessingHandler", 
+    exception, 
+    maxRetryAttempts: 3);
+
+// Check if the entry is still pending
+if (deadLetterEntry.Status == DeadLetterStatus.Pending)
+{
+    Console.WriteLine(deadLetterEntry.GetSummary());
+    
+    // Mark as reviewed if no immediate action required
+    deadLetterEntry.MarkAsReviewed("Investigation pending");
+}
+
+// Mark as reprocessed if the issue was resolved
+deadLetterEntry.MarkAsReprocessed();
+```
+
 ## PredicateSubscriptionBuilder
 
 The `PredicateSubscriptionBuilder<TEvent>` class is a fluent builder for constructing predicate-filtered subscriptions on an <see cref="IEventBus"/>. It allows you to compose multiple conditions using AND semantics, ensuring that only events that match all specified criteria are processed by the registered handler.
