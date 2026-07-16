@@ -688,6 +688,105 @@ var orderEvent = new OrderCreatedEvent
 bool matches = filter.Matches(orderEvent); // true
 ```
 
+## BatchEventPublisher
+
+The `BatchEventPublisher` class collects events and flushes them in batches for improved throughput. It reduces per-event overhead and significantly improves system performance by processing multiple events together. Each event in a batch is processed independently, so a handler throwing for one event does not prevent the remaining events from being processed.
+
+The publisher automatically flushes events when either the batch size threshold is reached or the flush interval elapses. You can configure both the batch size and flush interval through the constructor.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Models;
+using DotnetEventBus.Services;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Threading.Tasks;
+
+// Setup DI container with logging
+var services = new ServiceCollection();
+services.AddLogging(configure => configure.AddConsole());
+
+var serviceProvider = services.BuildServiceProvider();
+var logger = serviceProvider.GetRequiredService<ILogger<BatchEventPublisher>>();
+
+// Create batch publisher with custom settings (batch size: 50, flush every 5 seconds)
+var batchPublisher = new BatchEventPublisher(logger, batchSize: 50, flushInterval: TimeSpan.FromSeconds(5));
+
+// Set up a flush handler to process batches
+batchPublisher.SetFlushHandler(async batch => {
+    Console.WriteLine($"Processing batch of {batch.Events.Count} events");
+    
+    // Process all events in the batch
+    foreach (var envelope in batch.Events) {
+        Console.WriteLine($"Processing event {envelope.EventType} (ID: {envelope.EventId})");
+        // Your batch processing logic here
+    }
+});
+
+// Create and publish events
+var orderCreatedEvent = EventEnvelope.Create("OrderCreated", new {
+    OrderId = 123,
+    TotalAmount = 99.99m,
+    CustomerName = "John Doe"
+});
+
+var paymentProcessedEvent = EventEnvelope.Create("PaymentProcessed", new {
+    PaymentId = 456,
+    Amount = 99.99m,
+    Status = "Completed"
+});
+
+// Add events to the batch (will auto-flush when batch size is reached or interval elapses)
+await batchPublisher.AddEventAsync(orderCreatedEvent);
+await batchPublisher.AddEventAsync(paymentProcessedEvent);
+
+// Flush remaining events manually if needed
+// await batchPublisher.FlushAsync();
+
+// Get statistics
+var stats = batchPublisher.GetStats();
+Console.WriteLine($"Buffered events: {stats.BufferedEventCount}");
+Console.WriteLine($"Last flush: {stats.LastFlushTime}");
+```
+
+
+For per-event error handling with detailed results:
+
+```csharp
+// Set up per-event handler with result aggregation
+batchPublisher.SetFlushHandlerWithResult(
+    async envelope => {
+        try {
+            // Process individual event
+            Console.WriteLine($"Processing event {envelope.EventType}");
+            await Task.Delay(10); // Simulate work
+            return new EventBatchItemResult {
+                EventId = envelope.EventId,
+                EventType = envelope.EventType,
+                Success = true
+            };
+        }
+        catch (Exception ex) {
+            return new EventBatchItemResult {
+                EventId = envelope.EventId,
+                EventType = envelope.EventType,
+                Success = false,
+                ErrorMessage = ex.Message,
+                Exception = ex
+            };
+        }
+    },
+    onBatchComplete: result => {
+        Console.WriteLine($"Batch complete: {result.SucceededCount} succeeded, {result.FailedCount} failed");
+        foreach (var failedEvent in result.FailedEvents) {
+            Console.WriteLine($"  Failed: {failedEvent.EventType} - {failedEvent.ErrorMessage}");
+        }
+    }
+);
+```
+
 ## RateLimitingMiddleware
 
 The `RateLimitingMiddleware` class enforces rate limiting on event publishing to prevent system overload and ensure fair resource distribution across event types. It uses a sliding window algorithm to track request rates per event type, allowing you to configure the maximum number of requests allowed within a specified time window.
