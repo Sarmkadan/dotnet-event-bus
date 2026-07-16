@@ -330,6 +330,83 @@ else
 ```
 ```
 
+## EventTransformer
+
+The `EventTransformer<TSource, TTarget>` class provides a flexible way to transform events from one type to another. It supports fluent transformation chains, allowing you to compose multiple transformation steps into a single pipeline. This is particularly useful when you need to convert events to a format that downstream handlers can process more easily.
+
+Example usage:
+```csharp
+using DotnetEventBus.Advanced;
+using System;
+using System.Collections.Generic;
+
+// Define source and target event types
+public class OrderCreatedEvent
+{
+    public int OrderId { get; set; }
+    public decimal TotalAmount { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class OrderSummaryEvent
+{
+    public int OrderId { get; set; }
+    public decimal TotalAmount { get; set; }
+}
+
+// Create a transformer using a mapping function
+var transformer = EventTransformerBuilder.CreateTransformer<OrderCreatedEvent, OrderSummaryEvent>(
+    source => new OrderSummaryEvent
+    {
+        OrderId = source.OrderId,
+        TotalAmount = source.TotalAmount
+    }
+);
+
+// Transform a single event
+var orderEvent = new OrderCreatedEvent { OrderId = 123, TotalAmount = 99.99m, CreatedAt = DateTime.Now };
+var summary = transformer.Transform(orderEvent);
+Console.WriteLine($"Transformed: Order {summary.OrderId} for ${summary.TotalAmount}");
+
+// Transform multiple events
+var events = new List<OrderCreatedEvent> 
+{
+    new() { OrderId = 1, TotalAmount = 10.50m },
+    new() { OrderId = 2, TotalAmount = 25.75m }
+};
+var summaries = transformer.TransformMany(events);
+
+// Add post-transformation steps
+var enhancedTransformer = EventTransformerBuilder.CreateTransformer<OrderCreatedEvent, OrderSummaryEvent>(
+    source => new OrderSummaryEvent
+    {
+        OrderId = source.OrderId,
+        TotalAmount = source.TotalAmount
+    }
+).Then(summary => 
+{
+    summary.TotalAmount = Math.Round(summary.TotalAmount, 2); // Ensure 2 decimal places
+    return summary;
+});
+
+// Chain transformers for complex transformations
+var chainedTransformer = EventTransformerBuilder.CreateTransformer<OrderCreatedEvent, OrderSummaryEvent>(
+    source => new OrderSummaryEvent { OrderId = source.OrderId, TotalAmount = source.TotalAmount }
+).Chain<OrderSummaryData>(summary => new OrderSummaryData 
+{
+    OrderId = summary.OrderId,
+    Amount = summary.TotalAmount,
+    FormattedAmount = $"${summary.TotalAmount:F2}"
+});
+
+// Create a property copy transformer (copies matching properties automatically)
+var copyTransformer = EventTransformerBuilder.CreatePropertyCopyTransformer<OrderCreatedEvent, OrderSummaryEvent>();
+
+// Create a dictionary transformer
+var dictTransformer = EventTransformerBuilder.CreateDictionaryTransformer<OrderCreatedEvent>();
+var dict = dictTransformer.Transform(orderEvent);
+```
+
 ## CommandLineInterface
 
 The `CommandLineInterface` class provides a command-line interface for interacting with the event bus. It allows system operators to execute commands for publishing, subscribing, querying, and managing events without writing code. The CLI supports registering custom commands, executing commands with arguments, and retrieving help text for available commands.
