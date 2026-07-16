@@ -521,6 +521,93 @@ var orderEvent = new OrderCreatedEvent
 };
 
 bool matches = filter.Matches(orderEvent); // true
+```
+
+## Subscription
+
+The `Subscription` class represents a subscription between an event type and its handlers. It encapsulates metadata about the handler including execution priority, timeout settings, concurrency control, and failure handling behavior. Subscriptions can be dynamically enabled, disabled, or configured with custom timeouts to control event processing behavior.
+
+Example usage:
+```csharp
+using DotnetEventBus.Models;
+using System;
+using System.Threading.Tasks;
+
+// Create a handler method
+async Task HandleOrderCreatedAsync(OrderCreatedEvent orderEvent)
+{
+    Console.WriteLine($"Processing order {orderEvent.OrderId} for ${orderEvent.TotalAmount}");
+    await Task.Delay(100);
+}
+
+// Create a subscription
+var subscription = new Subscription(
+    eventType: "OrderCreated",
+    handler: (Action<OrderCreatedEvent>)HandleOrderCreatedAsync,
+    handlerName: "OrderProcessingHandler",
+    priority: 10
+);
+
+// Configure subscription settings
+subscription.SetTimeout(TimeSpan.FromSeconds(30));
+subscription.AllowConcurrent = false;
+subscription.SendToDeadLetterOnFailure = true;
+
+// Disable/enable subscription dynamically
+subscription.Disable();
+// ... later ...
+subscription.Enable();
+
+// Access subscription properties
+Console.WriteLine($"Subscription ID: {subscription.Id}");
+Console.WriteLine($"Event Type: {subscription.EventType}");
+Console.WriteLine($"Handler: {subscription.HandlerName}");
+Console.WriteLine($"Priority: {subscription.Priority}");
+Console.WriteLine($"Is Active: {subscription.IsActive}");
+Console.WriteLine($"Is Async: {subscription.IsAsync}");
+Console.WriteLine($"Timeout: {subscription.Timeout}");
+Console.WriteLine($"Allow Concurrent: {subscription.AllowConcurrent}");
+Console.WriteLine($"Send to Dead Letter: {subscription.SendToDeadLetterOnFailure}");
+Console.WriteLine($"Created At: {subscription.CreatedAtUtc}");
+```
+
+## EventFilter
+
+Example usage:
+```csharp
+using DotnetEventBus.Advanced;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+// Define an event type
+public class OrderCreatedEvent
+{
+    public int OrderId { get; set; }
+    public decimal TotalAmount { get; set; }
+    public string CustomerEmail { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public string Status { get; set; } = "Pending";
+}
+
+// Create and use a filter
+var filter = FilterBuilder.CreateFilter<OrderCreatedEvent>()
+    .Where(e => e.TotalAmount > 100)
+    .WhereProperty(e => e.Status, "Completed")
+    .WherePropertyContains(e => e.CustomerEmail, "@example.com")
+    .WherePropertyInRange(e => e.TotalAmount, 50, 500);
+
+// Check if an event matches all filters
+var orderEvent = new OrderCreatedEvent
+{
+    OrderId = 123,
+    TotalAmount = 150.50m,
+    CustomerEmail = "user@example.com",
+    CreatedAt = DateTime.Now,
+    Status = "Completed"
+};
+
+bool matches = filter.Matches(orderEvent); // true
 
 // Filter a collection of events
 var events = new List<OrderCreatedEvent>
