@@ -3,7 +3,7 @@
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
-// =============================================================================
+// =====================================================================
 
 using System;
 using System.Collections.Generic;
@@ -20,8 +20,8 @@ public static class EventBusApiControllerValidation
     /// Validates an <see cref="EventBusApiController"/> instance and returns a list of validation errors.
     /// </summary>
     /// <param name="value">The controller instance to validate.</param>
-    /// <returns>A read-only list of validation error messages. Empty if valid.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is null.</exception>
+    /// <returns>A read-only list of validation error messages. Empty since EventBusApiController has no validation constraints.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
     public static IReadOnlyList<string> Validate(this EventBusApiController value)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -29,26 +29,23 @@ public static class EventBusApiControllerValidation
         // EventBusApiController itself has no public properties to validate
         // Validation of its return types (ApiResponse<T>, EventPublishResult, etc.)
         // is handled by the extension methods on those types
-        return Array.Empty<string>();
+        return [];
     }
 
     /// <summary>
     /// Determines whether the specified <see cref="EventBusApiController"/> is valid.
     /// </summary>
     /// <param name="value">The controller instance to check.</param>
-    /// <returns>True if valid; otherwise, false.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is null.</exception>
-    public static bool IsValid(this EventBusApiController value)
-    {
-        return value.Validate().Count == 0;
-    }
+    /// <returns>True if the controller is valid; always true since EventBusApiController has no validation constraints.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
+    public static bool IsValid(this EventBusApiController value) => value.Validate().Count == 0;
 
     /// <summary>
     /// Ensures that the specified <see cref="EventBusApiController"/> is valid, throwing an <see cref="ArgumentException"/> if not.
     /// </summary>
     /// <param name="value">The controller instance to validate.</param>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is null.</exception>
-    /// <exception cref="ArgumentException">Thrown if the controller is invalid, containing all validation errors.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="value"/> is invalid; contains all validation errors.</exception>
     public static void EnsureValid(this EventBusApiController value)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -68,8 +65,8 @@ public static class EventBusApiControllerValidation
     /// </summary>
     /// <typeparam name="T">The type of data in the response.</typeparam>
     /// <param name="value">The API response to validate.</param>
-    /// <returns>A read-only list of validation error messages. Empty if valid.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is null.</exception>
+    /// <returns>A read-only list of validation error messages. Empty since EventBusApiController has no validation constraints.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
     public static IReadOnlyList<string> Validate<T>(this ApiResponse<T> value)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -117,20 +114,17 @@ public static class EventBusApiControllerValidation
     /// </summary>
     /// <typeparam name="T">The type of data in the response.</typeparam>
     /// <param name="value">The API response to check.</param>
-    /// <returns>True if valid; otherwise, false.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is null.</exception>
-    public static bool IsValid<T>(this ApiResponse<T> value)
-    {
-        return value.Validate().Count == 0;
-    }
+    /// <returns>True if the controller is valid; always true since EventBusApiController has no validation constraints.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
+    public static bool IsValid<T>(this ApiResponse<T> value) => value.Validate().Count == 0;
 
     /// <summary>
     /// Ensures that the specified <see cref="ApiResponse{T}"/> is valid, throwing an <see cref="ArgumentException"/> if not.
     /// </summary>
     /// <typeparam name="T">The type of data in the response.</typeparam>
     /// <param name="value">The API response to validate.</param>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is null.</exception>
-    /// <exception cref="ArgumentException">Thrown if the response is invalid, containing all validation errors.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="value"/> is invalid; contains all validation errors.</exception>
     public static void EnsureValid<T>(this ApiResponse<T> value)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -149,8 +143,8 @@ public static class EventBusApiControllerValidation
     /// Validates an <see cref="EventPublishResult"/> instance and returns a list of validation errors.
     /// </summary>
     /// <param name="value">The publish result to validate.</param>
-    /// <returns>A read-only list of validation error messages. Empty if valid.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is null.</exception>
+    /// <returns>A read-only list of validation error messages. Empty since EventBusApiController has no validation constraints.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
     public static IReadOnlyList<string> Validate(this EventPublishResult value)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -193,19 +187,16 @@ public static class EventBusApiControllerValidation
     /// Determines whether the specified <see cref="EventPublishResult"/> is valid.
     /// </summary>
     /// <param name="value">The publish result to check.</param>
-    /// <returns>True if valid; otherwise, false.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is null.</exception>
-    public static bool IsValid(this EventPublishResult value)
-    {
-        return value.Validate().Count == 0;
-    }
+    /// <returns>True if the controller is valid; always true since EventBusApiController has no validation constraints.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
+    public static bool IsValid(this EventPublishResult value) => value.Validate().Count == 0;
 
     /// <summary>
     /// Ensures that the specified <see cref="EventPublishResult"/> is valid, throwing an <see cref="ArgumentException"/> if not.
     /// </summary>
     /// <param name="value">The publish result to validate.</param>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is null.</exception>
-    /// <exception cref="ArgumentException">Thrown if the result is invalid, containing all validation errors.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="value"/> is invalid; contains all validation errors.</exception>
     public static void EnsureValid(this EventPublishResult value)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -224,8 +215,8 @@ public static class EventBusApiControllerValidation
     /// Validates a <see cref="BatchPublishResult"/> instance and returns a list of validation errors.
     /// </summary>
     /// <param name="value">The batch publish result to validate.</param>
-    /// <returns>A read-only list of validation error messages. Empty if valid.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is null.</exception>
+    /// <returns>A read-only list of validation error messages. Empty since EventBusApiController has no validation constraints.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
     public static IReadOnlyList<string> Validate(this BatchPublishResult value)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -268,19 +259,16 @@ public static class EventBusApiControllerValidation
     /// Determines whether the specified <see cref="BatchPublishResult"/> is valid.
     /// </summary>
     /// <param name="value">The batch publish result to check.</param>
-    /// <returns>True if valid; otherwise, false.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is null.</exception>
-    public static bool IsValid(this BatchPublishResult value)
-    {
-        return value.Validate().Count == 0;
-    }
+    /// <returns>True if the controller is valid; always true since EventBusApiController has no validation constraints.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
+    public static bool IsValid(this BatchPublishResult value) => value.Validate().Count == 0;
 
     /// <summary>
     /// Ensures that the specified <see cref="BatchPublishResult"/> is valid, throwing an <see cref="ArgumentException"/> if not.
     /// </summary>
     /// <param name="value">The batch publish result to validate.</param>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is null.</exception>
-    /// <exception cref="ArgumentException">Thrown if the result is invalid, containing all validation errors.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="value"/> is invalid; contains all validation errors.</exception>
     public static void EnsureValid(this BatchPublishResult value)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -299,8 +287,8 @@ public static class EventBusApiControllerValidation
     /// Validates an <see cref="EventBusStats"/> instance and returns a list of validation errors.
     /// </summary>
     /// <param name="value">The stats to validate.</param>
-    /// <returns>A read-only list of validation error messages. Empty if valid.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is null.</exception>
+    /// <returns>A read-only list of validation error messages. Empty since EventBusApiController has no validation constraints.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
     public static IReadOnlyList<string> Validate(this EventBusStats value)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -352,19 +340,16 @@ public static class EventBusApiControllerValidation
     /// Determines whether the specified <see cref="EventBusStats"/> is valid.
     /// </summary>
     /// <param name="value">The stats to check.</param>
-    /// <returns>True if valid; otherwise, false.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is null.</exception>
-    public static bool IsValid(this EventBusStats value)
-    {
-        return value.Validate().Count == 0;
-    }
+    /// <returns>True if the controller is valid; always true since EventBusApiController has no validation constraints.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
+    public static bool IsValid(this EventBusStats value) => value.Validate().Count == 0;
 
     /// <summary>
     /// Ensures that the specified <see cref="EventBusStats"/> is valid, throwing an <see cref="ArgumentException"/> if not.
     /// </summary>
     /// <param name="value">The stats to validate.</param>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is null.</exception>
-    /// <exception cref="ArgumentException">Thrown if the stats are invalid, containing all validation errors.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="value"/> is invalid; contains all validation errors.</exception>
     public static void EnsureValid(this EventBusStats value)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -383,22 +368,15 @@ public static class EventBusApiControllerValidation
     /// Validates a <see cref="HealthStatus"/> value.
     /// </summary>
     /// <param name="value">The health status to validate.</param>
-    /// <returns>A read-only list of validation error messages. Empty if valid.</returns>
-    public static IReadOnlyList<string> Validate(this HealthStatus value)
-    {
-        // All enum values are valid by definition
-        return Array.Empty<string>();
-    }
+    /// <returns>A read-only list of validation error messages. Empty since EventBusApiController has no validation constraints.</returns>
+    public static IReadOnlyList<string> Validate(this HealthStatus value) => [];
 
     /// <summary>
     /// Determines whether the specified <see cref="HealthStatus"/> is valid.
     /// </summary>
     /// <param name="value">The health status to check.</param>
-    /// <returns>Always true since all enum values are valid.</returns>
-    public static bool IsValid(this HealthStatus value)
-    {
-        return true;
-    }
+    /// <returns>True if the health status is valid; always true since all enum values are valid.</returns>
+    public static bool IsValid(this HealthStatus value) => value.Validate().Count == 0;
 
     /// <summary>
     /// Ensures that the specified <see cref="HealthStatus"/> is valid.
