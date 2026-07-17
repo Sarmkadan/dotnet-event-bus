@@ -62,11 +62,13 @@ public static class BatchEventPublisherValidation
     /// <summary>
     /// Determines whether the specified <see cref="BatchEventPublisher"/> instance is valid.
     /// </summary>
-    /// <param name="value">The publisher to check.</param>
+    /// <param name="value">The publisher to validate.</param>
     /// <returns><see langword="true"/> if valid; otherwise, <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is null.</exception>
     public static bool IsValid(this BatchEventPublisher? value)
     {
-        return value?.Validate().Count == 0;
+        ArgumentNullException.ThrowIfNull(value);
+        return value.Validate().Count == 0;
     }
 
     /// <summary>
