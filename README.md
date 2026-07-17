@@ -786,6 +786,77 @@ Console.WriteLine(profileReport);
 
 The `BatchPublishingOptimizationExample` class demonstrates efficient event publishing using batch operations to improve throughput and resource utilization. It compares individual event publishing with batch publishing, showing performance improvements and memory efficiency benefits.
 
+## BatchPublishingOptimizationExampleJsonExtensions
+
+The `BatchPublishingOptimizationExampleJsonExtensions` class provides System.Text.Json serialization and deserialization extensions for the event types in the `BatchPublishingOptimizationExample` class (`LogEntryEvent` and `AnalyticsEvent`). It enables easy conversion between event instances and JSON strings with support for both compact and indented formatting, making it ideal for event serialization, storage, and API communication.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Examples;
+using System;
+
+// Create a log entry event
+var logEvent = new BatchPublishingOptimizationExample.LogEntryEvent
+{
+    LogId = "LOG-001",
+    Level = "Info",
+    Message = "Application started successfully",
+    Timestamp = DateTime.UtcNow,
+    Source = "Application.Startup",
+    Category = "System"
+};
+
+// Serialize to compact JSON
+string compactJson = logEvent.ToJson();
+Console.WriteLine(compactJson);
+
+// Serialize to pretty-printed JSON
+string prettyJson = logEvent.ToJson(indented: true);
+Console.WriteLine(prettyJson);
+
+// Deserialize from JSON
+var deserializedLogEvent = BatchPublishingOptimizationExampleJsonExtensions.FromJson(compactJson);
+Console.WriteLine($"Deserialized log event: {deserializedLogEvent?.Message}");
+
+// Try to deserialize with error handling
+if (BatchPublishingOptimizationExampleJsonExtensions.TryFromJson(compactJson, out var safeLogEvent))
+{
+    Console.WriteLine("Successfully deserialized log event");
+}
+
+// Create an analytics event
+var analyticsEvent = new BatchPublishingOptimizationExample.AnalyticsEvent
+{
+    EventType = "PageView",
+    UserId = "USER-123",
+    SessionId = "SESSION-456",
+    Timestamp = DateTime.UtcNow,
+    Properties = new System.Collections.Generic.Dictionary<string, object>
+    {
+        { "page", "/products/premium" },
+        { "referrer", "/home" },
+        { "durationMs", 2500 },
+        { "deviceType", "Desktop" },
+        { "browser", "Chrome" }
+    }
+};
+
+// Serialize analytics event to JSON
+string analyticsJson = analyticsEvent.ToJson();
+Console.WriteLine(analyticsJson);
+
+// Deserialize analytics event from JSON
+var deserializedAnalyticsEvent = BatchPublishingOptimizationExampleJsonExtensions.FromJson(analyticsJson);
+Console.WriteLine($"Deserialized analytics event type: {deserializedAnalyticsEvent?.EventType}");
+
+// Try to deserialize analytics event with error handling
+if (BatchPublishingOptimizationExampleJsonExtensions.TryFromJson(analyticsJson, out var safeAnalyticsEvent))
+{
+    Console.WriteLine("Successfully deserialized analytics event");
+}
+```
+
 ## InMemoryEventCacheState
 
 The `InMemoryEventCacheState` class represents the serialized state of an `InMemoryEventCache` instance. It captures cache statistics including total items, hits, misses, and configuration details like maximum capacity. This type is primarily used with the `InMemoryEventCacheJsonExtensions` class for JSON serialization and deserialization of cache state.
