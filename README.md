@@ -1085,6 +1085,58 @@ var pricingResponse = await eventBus.RequestAsync<RequestReplyPatternExample.Get
 Console.WriteLine($"Total price: ${pricingResponse.TotalPrice:F2} (${pricingResponse.UnitPrice:F2} x {10} - {pricingResponse.Discount:F1}% discount: {pricingResponse.DiscountReason})");
 ```
 
+## EventMessageModelTestsValidation
+
+The `EventMessageModelTestsValidation` class provides validation extension methods for `EventMessage` and `Subscription` model classes. It offers validation methods to check model validity, return detailed validation errors, and throw exceptions when models are invalid. This is useful for unit testing and ensuring event message and subscription integrity.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Models;
+using DotnetEventBus.Tests;
+
+// Validate an EventMessage instance
+var validMessage = new EventMessage("OrderCreated", "{\"orderId\": 123}")
+{
+    MessageId = Guid.NewGuid().ToString(),
+    CreatedAtUtc = DateTime.UtcNow
+};
+
+var messageErrors = validMessage.ValidateEventMessage();
+if (validMessage.IsValid())
+{
+    Console.WriteLine("EventMessage is valid");
+}
+validMessage.EnsureValid(); // No-op if valid
+
+// Validate a Subscription instance
+var validSubscription = new Subscription
+{
+    Id = Guid.NewGuid().ToString(),
+    EventType = "OrderCreated",
+    HandlerName = "OrderHandler",
+    Handler = null, // Would be set in real usage
+    Priority = 5,
+    CreatedAtUtc = DateTime.UtcNow
+};
+
+var subscriptionErrors = validSubscription.ValidateSubscription();
+if (validSubscription.IsValid())
+{
+    Console.WriteLine("Subscription is valid");
+}
+validSubscription.EnsureValid(); // No-op if valid
+
+// Example with invalid data to show error handling
+var invalidMessage = new EventMessage("", "");
+var problems = invalidMessage.ValidateEventMessage();
+Console.WriteLine($"Validation found {problems.Count} problems:");
+foreach (var problem in problems)
+{
+    Console.WriteLine($"- {problem}");
+}
+```
+
 ## EventBusApiControllerValidation
 
 The `EventBusApiControllerValidation` class provides validation extension methods for API controller types and their return values in the DotnetEventBus REST API. It offers validation for `EventBusApiController`, `ApiResponse<T>`, `EventPublishResult`, `BatchPublishResult`, `EventBusStats`, and `HealthStatus` types, ensuring data consistency and proper state validation.
