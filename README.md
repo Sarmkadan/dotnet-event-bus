@@ -860,6 +860,62 @@ Console.WriteLine($"Log events processed: {logCount}");
 Console.WriteLine($"Analytics events processed: {analyticsCount}");
 ```
 
+## RequestReplyPatternExample
+
+The `RequestReplyPatternExample` class demonstrates synchronous request-response communication using events, implementing the request-reply pattern for querying user data, product availability, and pricing information. This pattern allows services to send requests and wait for responses, enabling real-time lookups and calculations.
+
+The example shows how to define request/response pairs, set up handlers for each request type, and make synchronous requests with timeout handling.
+
+Example usage:
+
+```csharp
+using DotnetEventBus;
+using DotnetEventBus.Examples;
+using Microsoft.Extensions.DependencyInjection;
+
+// Setup dependency injection with event bus
+var services = new ServiceCollection();
+services.AddEventBus(options => {
+    options.DefaultHandlerTimeout = TimeSpan.FromSeconds(10);
+});
+
+var serviceProvider = services.BuildServiceProvider();
+var eventBus = serviceProvider.GetRequiredService<IEventBus>();
+
+// Setup request handlers for different request types
+RequestReplyPatternExample.SetupUserRequestHandler(eventBus);
+RequestReplyPatternExample.SetupProductAvailabilityHandler(eventBus);
+RequestReplyPatternExample.SetupPricingHandler(eventBus);
+
+// Make a user lookup request
+var userResponse = await eventBus.RequestAsync<RequestReplyPatternExample.GetUserRequest, RequestReplyPatternExample.UserResponse>(
+    new RequestReplyPatternExample.GetUserRequest { UserId = "user-001" },
+    timeout: TimeSpan.FromSeconds(5)
+);
+
+Console.WriteLine($"User found: {userResponse.Name} ({userResponse.Email}) - Status: {userResponse.Status}");
+
+// Check product availability
+var availabilityResponse = await eventBus.RequestAsync<RequestReplyPatternExample.GetProductAvailabilityRequest, RequestReplyPatternExample.ProductAvailabilityResponse>(
+    new RequestReplyPatternExample.GetProductAvailabilityRequest { ProductId = "prod-001" },
+    timeout: TimeSpan.FromSeconds(5)
+);
+
+Console.WriteLine($"Product {availabilityResponse.ProductId} available: {availabilityResponse.AvailableUnits} units at {availabilityResponse.Warehouse}");
+
+// Calculate pricing with customer tier discount
+var pricingResponse = await eventBus.RequestAsync<RequestReplyPatternExample.GetPricingRequest, RequestReplyPatternExample.PricingResponse>(
+    new RequestReplyPatternExample.GetPricingRequest {
+        ProductId = "prod-003",
+        Quantity = 10,
+        CustomerTier = "Gold"
+    },
+    timeout: TimeSpan.FromSeconds(5)
+);
+
+Console.WriteLine($"Total price: ${pricingResponse.TotalPrice:F2} (${pricingResponse.UnitPrice:F2} x {10} - {pricingResponse.Discount:F1}% discount: {pricingResponse.DiscountReason})");
+```
+
 ## EventFilteringExample
 var services = new ServiceCollection();
 services.AddEventBus(options =>
