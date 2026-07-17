@@ -49,10 +49,7 @@ public static class EventSourcedAggregateValidation
     /// <param name="value">The aggregate to check</param>
     /// <returns>True if the aggregate is valid; otherwise false</returns>
     /// <exception cref="ArgumentNullException">Thrown if value is null</exception>
-    public static bool IsValid(this EventSourcedAggregate value)
-    {
-        return value.Validate().Count == 0;
-    }
+    public static bool IsValid(this EventSourcedAggregate value) => value.Validate().Count == 0;
 
     /// <summary>
     /// Ensures that the specified aggregate is valid, throwing an exception if not.
@@ -69,7 +66,7 @@ public static class EventSourcedAggregateValidation
         if (problems.Count > 0)
         {
             throw new ArgumentException(
-                $"Aggregate validation failed:{Environment.NewLine}  - {string.Join($"{Environment.NewLine}  - ", problems)}");
+                $"Aggregate validation failed:{Environment.NewLine} - {string.Join($"{Environment.NewLine} - ", problems)}");
         }
     }
 }
