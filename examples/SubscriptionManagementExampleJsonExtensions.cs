@@ -11,8 +11,7 @@ using System.Text.Json.Serialization;
 namespace DotnetEventBus.Examples;
 
 /// <summary>
-/// Provides System.Text.Json serialization extensions for event types in the
-/// SubscriptionManagementExample class.
+/// Provides System.Text.Json serialization extensions for <see cref="SubscriptionManagementExample.UserActionEvent"/>.
 /// </summary>
 public static class SubscriptionManagementExampleJsonExtensions
 {
@@ -24,12 +23,15 @@ public static class SubscriptionManagementExampleJsonExtensions
     };
 
     /// <summary>
-    /// Serializes a <see cref="SubscriptionManagementExample.UserActionEvent"/> to JSON.
+    /// Serializes a <see cref="SubscriptionManagementExample.UserActionEvent"/> to a JSON string.
     /// </summary>
     /// <param name="value">The user action event to serialize.</param>
-    /// <param name="indented">Whether to format the JSON with indentation.</param>
+    /// <param name="indented">Whether to format the JSON with indentation for better readability.</param>
     /// <returns>A JSON string representation of the user action event.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
+    /// <remarks>
+    /// Uses camelCase property naming policy and ignores null values when serializing.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is <see langword="null"/>.</exception>
     public static string ToJson(this SubscriptionManagementExample.UserActionEvent value, bool indented = false)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -48,9 +50,9 @@ public static class SubscriptionManagementExampleJsonExtensions
     /// Deserializes a <see cref="SubscriptionManagementExample.UserActionEvent"/> from JSON.
     /// </summary>
     /// <param name="json">The JSON string to deserialize.</param>
-    /// <returns>The deserialized user action event, or null if the JSON is empty.</returns>
-    /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is null or empty.</exception>
-    /// <exception cref="JsonException">Thrown when the JSON is invalid or cannot be deserialized.</exception>
+    /// <returns>The deserialized user action event, or <see langword="null"/> if the JSON is empty or deserialization produces <see langword="null"/>.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is <see langword="null"/>, empty, or consists only of whitespace.</exception>
+    /// <exception cref="JsonException">Thrown when the JSON is invalid or cannot be deserialized into a <see cref="SubscriptionManagementExample.UserActionEvent"/>.</exception>
     public static SubscriptionManagementExample.UserActionEvent? FromJson(string json)
     {
         ArgumentException.ThrowIfNullOrEmpty(json);
@@ -62,8 +64,9 @@ public static class SubscriptionManagementExampleJsonExtensions
     /// Attempts to deserialize a <see cref="SubscriptionManagementExample.UserActionEvent"/> from JSON.
     /// </summary>
     /// <param name="json">The JSON string to deserialize.</param>
-    /// <param name="value">Receives the deserialized user action event if successful.</param>
+    /// <param name="value">Receives the deserialized user action event if successful; otherwise, <see langword="null"/>.</param>
     /// <returns>True if deserialization succeeded; otherwise, false.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is <see langword="null"/>, empty, or consists only of whitespace.</exception>
     public static bool TryFromJson(string json, out SubscriptionManagementExample.UserActionEvent? value)
     {
         ArgumentException.ThrowIfNullOrEmpty(json);
