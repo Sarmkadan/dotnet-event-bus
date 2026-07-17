@@ -860,6 +860,59 @@ Console.WriteLine($"Log events processed: {logCount}");
 Console.WriteLine($"Analytics events processed: {analyticsCount}");
 ```
 
+## OrderCreatedEvent
+
+The `OrderCreatedEvent` class represents an event that is raised when a new order is created in the system. This event carries essential order information needed for downstream processing, including the order ID, customer details, and financial data.
+
+### Key Properties
+
+- **EventId**: Unique identifier for this event instance (auto-generated)
+- **Timestamp**: When the event was created (UTC)
+- **OrderId**: Unique identifier for the order
+- **CustomerId**: Unique identifier for the customer who placed the order
+- **Amount**: Total monetary amount of the order
+- **ProductName**: Name of the product being ordered
+
+### Example Usage
+
+```csharp
+using DotnetEventBus;
+using DotnetEventBus.Examples.V2BasicUsage;
+using Microsoft.Extensions.DependencyInjection;
+
+// Setup dependency injection with event bus
+var services = new ServiceCollection();
+services.AddEventBus(options => 
+{
+    options.AllowParallelHandling = true;
+    options.MaxConcurrentHandlers = 4;
+});
+
+var serviceProvider = services.BuildServiceProvider();
+var eventBus = serviceProvider.GetRequiredService<IEventBus>();
+
+// Subscribe a handler to process order created events
+var subscription = eventBus.Subscribe<OrderCreatedEvent>(async (@event, ct) => 
+{
+    Console.WriteLine($"New order received: Order ID {@event.OrderId}");
+    Console.WriteLine($"Customer: {@event.CustomerId}, Amount: ${@event.Amount}");
+    Console.WriteLine($"Product: {@event.ProductName}");
+    await Task.CompletedTask;
+}, handlerName: "OrderProcessingHandler");
+
+// Create and publish an order created event
+var orderEvent = new OrderCreatedEvent
+{
+    OrderId = "ORD-2026-001",
+    CustomerId = "CUST-12345",
+    Amount = 299.99m,
+    ProductName = "Premium Wireless Headphones"
+};
+
+var result = await eventBus.PublishAsync(orderEvent);
+Console.WriteLine($"Order event published. Handlers invoked: {result.HandlersInvoked}");
+```
+
 ## RequestReplyPatternExample
 
 The `RequestReplyPatternExample` class demonstrates synchronous request-response communication using events, implementing the request-reply pattern for querying user data, product availability, and pricing information. This pattern allows services to send requests and wait for responses, enabling real-time lookups and calculations.
