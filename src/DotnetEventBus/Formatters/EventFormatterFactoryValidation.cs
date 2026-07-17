@@ -39,11 +39,6 @@ public static class EventFormatterFactoryValidation
         // Validate each formatter
         foreach (var formatter in value.GetAllFormatters())
         {
-            if (formatter is null)
-            {
-                continue; // Already reported above
-            }
-
             if (string.IsNullOrWhiteSpace(formatter.Format))
             {
                 problems.Add($"Formatter '{formatter.GetType().Name}' has null or whitespace Format.");
@@ -91,8 +86,9 @@ public static class EventFormatterFactoryValidation
 
         // Validate content type uniqueness (case-insensitive)
         var contentTypes = value.GetAllFormatters()
-            .Where(f => f is not null)
-            .Select(f => f.ContentType.ToLower(CultureInfo.InvariantCulture))
+            .Select(f => f.ContentType)
+            .Where(ct => !string.IsNullOrWhiteSpace(ct))
+            .Select(ct => ct.ToLower(CultureInfo.InvariantCulture))
             .ToList();
 
         var duplicateContentTypes = contentTypes
@@ -116,7 +112,7 @@ public static class EventFormatterFactoryValidation
     /// <returns>True if the factory is valid; otherwise, false.</returns>
     public static bool IsValid(this EventFormatterFactory? value)
     {
-        return value?.Validate().Count == 0;
+        return value is not null && value.Validate().Count == 0;
     }
 
     /// <summary>
@@ -129,7 +125,7 @@ public static class EventFormatterFactoryValidation
     {
         ArgumentNullException.ThrowIfNull(value);
 
-        var problems = value.Validate();
+        var problems = value.Validate() ?? Array.Empty<string>();
         if (problems.Count == 0)
         {
             return;
