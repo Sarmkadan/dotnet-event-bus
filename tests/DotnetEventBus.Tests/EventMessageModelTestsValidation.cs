@@ -5,22 +5,21 @@
 // CTO & Software Architect
 // =====================================================================
 
-using System.Globalization;
 using DotnetEventBus.Models;
 
 namespace DotnetEventBus.Tests;
 
 /// <summary>
-/// Provides validation helpers for EventMessage and Subscription model classes.
+/// Provides validation helpers for <see cref="EventMessage"/> and <see cref="Subscription"/> model classes.
 /// </summary>
 public static class EventMessageModelTestsValidation
 {
     /// <summary>
-    /// Validates an EventMessage instance and returns a list of validation problems.
+    /// Validates an <see cref="EventMessage"/> instance and returns a list of validation problems.
     /// </summary>
-    /// <param name="value">The EventMessage to validate</param>
+    /// <param name="value">The <see cref="EventMessage"/> to validate</param>
     /// <returns>An enumerable of validation problems, or empty if valid</returns>
-    /// <exception cref="ArgumentNullException">Thrown if value is null</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/></exception>
     public static IReadOnlyList<string> ValidateEventMessage(this EventMessage value)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -69,11 +68,11 @@ public static class EventMessageModelTestsValidation
     }
 
     /// <summary>
-    /// Validates a Subscription instance and returns a list of validation problems.
+    /// Validates a <see cref="Subscription"/> instance and returns a list of validation problems.
     /// </summary>
-    /// <param name="value">The Subscription to validate</param>
+    /// <param name="value">The <see cref="Subscription"/> to validate</param>
     /// <returns>An enumerable of validation problems, or empty if valid</returns>
-    /// <exception cref="ArgumentNullException">Thrown if value is null</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/></exception>
     public static IReadOnlyList<string> ValidateSubscription(this Subscription value)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -127,41 +126,35 @@ public static class EventMessageModelTestsValidation
         }
 
         // Validate Timeout
-        if (value.Timeout.HasValue)
+        if (value.Timeout.HasValue && value.Timeout <= TimeSpan.Zero)
         {
-            if (value.Timeout <= TimeSpan.Zero)
-            {
-                problems.Add("Timeout must be greater than zero if specified");
-            }
+            problems.Add("Timeout must be greater than zero if specified");
         }
 
         return problems.AsReadOnly();
     }
 
     /// <summary>
-    /// Determines whether an EventMessage is valid.
+    /// Determines whether an <see cref="EventMessage"/> is valid.
     /// </summary>
-    /// <param name="value">The EventMessage to check</param>
+    /// <param name="value">The <see cref="EventMessage"/> to check</param>
     /// <returns>True if valid, false otherwise</returns>
     public static bool IsValid(this EventMessage value)
-    {
-        return value.ValidateEventMessage().Count == 0;
-    }
+        => value.ValidateEventMessage().Count == 0;
 
     /// <summary>
-    /// Determines whether a Subscription is valid.
+    /// Determines whether a <see cref="Subscription"/> is valid.
     /// </summary>
-    /// <param name="value">The Subscription to check</param>
+    /// <param name="value">The <see cref="Subscription"/> to check</param>
     /// <returns>True if valid, false otherwise</returns>
     public static bool IsValid(this Subscription value)
-    {
-        return value.ValidateSubscription().Count == 0;
-    }
+        => value.ValidateSubscription().Count == 0;
 
     /// <summary>
-    /// Ensures that an EventMessage is valid, throwing an ArgumentException with validation details if not.
+    /// Ensures that an <see cref="EventMessage"/> is valid, throwing an <see cref="ArgumentException"/> with validation details if not.
     /// </summary>
-    /// <param name="value">The EventMessage to validate</param>
+    /// <param name="value">The <see cref="EventMessage"/> to validate</param>
+    /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/></exception>
     /// <exception cref="ArgumentException">Thrown if the message is invalid</exception>
     public static void EnsureValid(this EventMessage value)
     {
@@ -176,9 +169,10 @@ public static class EventMessageModelTestsValidation
     }
 
     /// <summary>
-    /// Ensures that a Subscription is valid, throwing an ArgumentException with validation details if not.
+    /// Ensures that a <see cref="Subscription"/> is valid, throwing an <see cref="ArgumentException"/> with validation details if not.
     /// </summary>
-    /// <param name="value">The Subscription to validate</param>
+    /// <param name="value">The <see cref="Subscription"/> to validate</param>
+    /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/></exception>
     /// <exception cref="ArgumentException">Thrown if the subscription is invalid</exception>
     public static void EnsureValid(this Subscription value)
     {
