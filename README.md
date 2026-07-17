@@ -782,6 +782,84 @@ var profileReport = performanceProfiler.GenerateReport();
 Console.WriteLine(profileReport);
 ```
 
+## BatchPublishingOptimizationExample
+
+The `BatchPublishingOptimizationExample` class demonstrates efficient event publishing using batch operations to improve throughput and resource utilization. It compares individual event publishing with batch publishing, showing performance improvements and memory efficiency benefits.
+
+The example includes:
+- Individual event publishing for baseline comparison
+- Batch event publishing with configurable batch sizes
+- Performance metrics and throughput calculations
+- Memory efficiency demonstration
+- Multiple batching strategies for optimization
+
+Example usage:
+
+```csharp
+using DotnetEventBus;
+using DotnetEventBus.Examples;
+using Microsoft.Extensions.DependencyInjection;
+
+// Setup dependency injection with event bus
+var services = new ServiceCollection();
+services.AddEventBus(options => {
+    options.AllowParallelHandling = true;
+    options.MaxConcurrentHandlers = Environment.ProcessorCount;
+});
+
+var serviceProvider = services.BuildServiceProvider();
+var eventBus = serviceProvider.GetRequiredService<IEventBus>();
+var batchPublisher = serviceProvider.GetRequiredService<IBatchEventPublisher>();
+
+// Method 1: Individual Publishing (baseline)
+for (int i = 0; i < 1000; i++)
+{
+    var logEvent = new BatchPublishingOptimizationExample.LogEntryEvent
+    {
+        LogId = $"LOG-{i:D5}",
+        Level = "Info",
+        Message = $"Application event {i}",
+        Timestamp = DateTime.UtcNow
+    };
+    
+    await eventBus.PublishAsync(logEvent);
+}
+
+// Method 2: Batch Publishing (optimized)
+for (int i = 0; i < 1000; i++)
+{
+    var analyticsEvent = new BatchPublishingOptimizationExample.AnalyticsEvent
+    {
+        EventType = "PageView",
+        UserId = $"USER-{i % 100:D3}",
+        Properties = new Dictionary<string, object>
+        {
+            { "page", $"/page{i % 10}" },
+            { "timestamp", DateTime.UtcNow },
+            { "duration", Random.Shared.Next(100, 5000) }
+        }
+    };
+    
+    await batchPublisher.AddEventAsync(analyticsEvent);
+    
+    // Flush every 100 events
+    if ((i + 1) % 100 == 0)
+    {
+        await batchPublisher.FlushAsync();
+    }
+}
+
+// Final flush to ensure all events are published
+await batchPublisher.FlushAsync();
+
+// Get processed counts from handlers
+var logCount = BatchPublishingOptimizationExample.LogAggregatorHandler.GetProcessedCount();
+var analyticsCount = BatchPublishingOptimizationExample.AnalyticsProcessorHandler.GetProcessedCount();
+
+Console.WriteLine($"Log events processed: {logCount}");
+Console.WriteLine($"Analytics events processed: {analyticsCount}");
+```
+
 ## EventFilteringExample
 var services = new ServiceCollection();
 services.AddEventBus(options =>
