@@ -786,6 +786,64 @@ Console.WriteLine(profileReport);
 
 The `BatchPublishingOptimizationExample` class demonstrates efficient event publishing using batch operations to improve throughput and resource utilization. It compares individual event publishing with batch publishing, showing performance improvements and memory efficiency benefits.
 
+## InMemoryEventCacheState
+
+The `InMemoryEventCacheState` class represents the serialized state of an `InMemoryEventCache` instance. It captures cache statistics including total items, hits, misses, and configuration details like maximum capacity. This type is primarily used with the `InMemoryEventCacheJsonExtensions` class for JSON serialization and deserialization of cache state.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Caching;
+using System;
+
+// Create a cache instance
+var cache = new InMemoryEventCache();
+
+// Add some events to the cache
+await cache.AddAsync("event1", new object());
+await cache.AddAsync("event2", new object());
+
+// Get cache statistics
+var stats = await cache.GetStatsAsync();
+
+// Serialize cache state to JSON
+string cacheStateJson = cache.ToJson();
+Console.WriteLine(cacheStateJson);
+
+// Serialize with pretty printing
+string prettyJson = cache.ToJson(indented: true);
+Console.WriteLine(prettyJson);
+
+// Deserialize from JSON (returns new cache instance)
+var deserializedCache = InMemoryEventCacheJsonExtensions.FromJson(cacheStateJson);
+Console.WriteLine("Deserialized cache created successfully");
+
+// Try to deserialize with error handling
+if (InMemoryEventCacheJsonExtensions.TryFromJson(cacheStateJson, out var safeCache))
+{
+    Console.WriteLine("Successfully deserialized cache state");
+}
+
+// Access state properties directly
+var state = new InMemoryEventCacheState
+{
+    Stats = new CacheStatistics
+    {
+        TotalItems = 1000,
+        Hits = 950,
+        Misses = 50
+    },
+    MaxCapacity = 10000
+};
+
+string stateJson = System.Text.Json.JsonSerializer.Serialize(state, new System.Text.Json.JsonSerializerOptions
+{
+    PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+    WriteIndented = true
+});
+Console.WriteLine(stateJson);
+```
+
 ## WebhookHandlerJsonExtensions
 
 The `WebhookHandlerJsonExtensions` class provides System.Text.Json serialization and deserialization extensions for `WebhookHandler` and `WebhookSubscription` types. It enables easy conversion between object instances and JSON strings with support for both compact and indented formatting, making it ideal for webhook payload serialization and API communication.
