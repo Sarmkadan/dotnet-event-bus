@@ -96,20 +96,15 @@ public static class InMemoryEventCacheJsonExtensions
     /// <param name="json">The JSON string to deserialize.</param>
     /// <returns>An <see cref="InMemoryEventCache"/> instance with default configuration.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is <c>null</c>.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is empty or whitespace.</exception>
     /// <exception cref="JsonException">Thrown when the JSON is invalid or cannot be deserialized.</exception>
     public static InMemoryEventCache? FromJson(string json)
     {
         ArgumentNullException.ThrowIfNull(json);
+        ArgumentException.ThrowIfNullOrWhiteSpace(json);
 
-        try
-        {
-            var _ = JsonSerializer.Deserialize<InMemoryEventCacheState>(json, _jsonOptions);
-            return new InMemoryEventCache();
-        }
-        catch (JsonException)
-        {
-            throw;
-        }
+        JsonSerializer.Deserialize<InMemoryEventCacheState>(json, _jsonOptions);
+        return new InMemoryEventCache();
     }
 
     /// <summary>
@@ -119,13 +114,15 @@ public static class InMemoryEventCacheJsonExtensions
     /// <param name="value">Receives the deserialized cache instance, or <c>null</c> if deserialization fails.</param>
     /// <returns><c>true</c> if deserialization succeeds; otherwise, <c>false</c>.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is <c>null</c>.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is empty or whitespace.</exception>
     public static bool TryFromJson(string json, out InMemoryEventCache? value)
     {
         ArgumentNullException.ThrowIfNull(json);
+        ArgumentException.ThrowIfNullOrWhiteSpace(json);
 
         try
         {
-            var _ = JsonSerializer.Deserialize<InMemoryEventCacheState>(json, _jsonOptions);
+            JsonSerializer.Deserialize<InMemoryEventCacheState>(json, _jsonOptions);
             value = new InMemoryEventCache();
             return true;
         }
