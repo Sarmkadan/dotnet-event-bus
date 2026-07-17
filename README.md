@@ -969,6 +969,44 @@ var pricingResponse = await eventBus.RequestAsync<RequestReplyPatternExample.Get
 Console.WriteLine($"Total price: ${pricingResponse.TotalPrice:F2} (${pricingResponse.UnitPrice:F2} x {10} - {pricingResponse.Discount:F1}% discount: {pricingResponse.DiscountReason})");
 ```
 
+## RequestReplyBenchmarksExtensions
+
+The `RequestReplyBenchmarksExtensions` class provides extension methods for the `RequestReplyBenchmarks` type, offering convenience methods for running benchmarks and validating benchmark infrastructure. These methods simplify common benchmarking scenarios including running individual benchmarks, executing all benchmarks sequentially, and validating that the request-reply infrastructure is properly configured.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Benchmarks;
+using Microsoft.Extensions.DependencyInjection;
+
+// Setup dependency injection with event bus
+var services = new ServiceCollection();
+services.AddEventBus(options => {
+    options.DefaultHandlerTimeout = TimeSpan.FromSeconds(10);
+});
+
+var serviceProvider = services.BuildServiceProvider();
+var eventBus = serviceProvider.GetRequiredService<IEventBus>();
+
+// Create benchmarks instance
+var benchmarks = new RequestReplyBenchmarks(eventBus);
+
+// Run a single benchmark by name
+await benchmarks.RunSingleBenchmarkAsync(nameof(RequestReplyBenchmarks.Request_Reply_Single));
+
+// Run all benchmarks sequentially and get execution tasks
+var allBenchmarksResults = benchmarks.RunAllBenchmarksSequentially();
+
+// Run a batch of sequential request-reply operations
+await benchmarks.Request_Reply_Batch_Sequential(batchSize: 50);
+
+// Run a batch of parallel request-reply operations
+await benchmarks.Request_Reply_Batch_Parallel(concurrencyLevel: 10);
+
+// Validate that the benchmark infrastructure is properly configured
+await benchmarks.ValidateBenchmarkInfrastructureAsync(testRequestId: "validation-test");
+```
+
 ## EventFilteringExample
 var services = new ServiceCollection();
 services.AddEventBus(options =>
