@@ -35,6 +35,7 @@ public static class StartupJsonExtensions
     /// <param name="json">The JSON string to deserialize.</param>
     /// <returns>A <see cref="Startup"/> instance if deserialization succeeds; otherwise, <see langword="null"/>.</returns>
     /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is <see langword="null"/>, empty, or whitespace.</exception>
+    /// <exception cref="JsonException">Thrown when the JSON is invalid or cannot be deserialized to a <see cref="Startup"/> instance.</exception>
     public static Startup? FromJson(string json)
     {
         ArgumentException.ThrowIfNullOrEmpty(json);
@@ -72,12 +73,8 @@ public static class StartupJsonExtensions
         }
     }
 
-    private static JsonSerializerOptions GetIndentedOptions()
+    private static JsonSerializerOptions GetIndentedOptions() => new(_jsonOptions)
     {
-        var options = new JsonSerializerOptions(_jsonOptions)
-        {
-            WriteIndented = true,
-        };
-        return options;
-    }
+        WriteIndented = true,
+    };
 }
