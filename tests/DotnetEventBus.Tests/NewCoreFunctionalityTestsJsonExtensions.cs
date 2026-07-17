@@ -7,6 +7,10 @@ namespace DotnetEventBus.Tests;
 /// Provides System.Text.Json serialization extensions for <see cref="NewCoreFunctionalityTests"/>.
 /// Enables JSON serialization and deserialization of test instances for storage and transmission.
 /// </summary>
+/// <remarks>
+/// This static class contains extension methods for serializing and deserializing <see cref="NewCoreFunctionalityTests"/> instances
+/// to and from JSON format using System.Text.Json.
+/// </remarks>
 public static class NewCoreFunctionalityTestsJsonExtensions
 {
     private static readonly JsonSerializerOptions _jsonSerializerOptions = new(JsonSerializerDefaults.Web)
@@ -41,9 +45,12 @@ public static class NewCoreFunctionalityTestsJsonExtensions
     /// </summary>
     /// <param name="json">The JSON string to deserialize.</param>
     /// <returns>The deserialized instance, or null if the JSON is empty or whitespace.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null.</exception>
     /// <exception cref="JsonException">Thrown when the JSON is invalid or cannot be deserialized.</exception>
     public static NewCoreFunctionalityTests? FromJson(string json)
     {
+        ArgumentNullException.ThrowIfNull(json);
+
         if (string.IsNullOrWhiteSpace(json))
         {
             return null;
@@ -58,8 +65,11 @@ public static class NewCoreFunctionalityTestsJsonExtensions
     /// <param name="json">The JSON string to deserialize.</param>
     /// <param name="value">The deserialized instance, or null if deserialization fails.</param>
     /// <returns>True if deserialization succeeds; otherwise, false.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null.</exception>
     public static bool TryFromJson(string json, out NewCoreFunctionalityTests? value)
     {
+        ArgumentNullException.ThrowIfNull(json);
+
         value = default;
 
         if (string.IsNullOrWhiteSpace(json))
