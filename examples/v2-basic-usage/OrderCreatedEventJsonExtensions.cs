@@ -2,7 +2,6 @@
 
 using System;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace DotnetEventBus.Examples.V2BasicUsage
 {
@@ -19,9 +18,9 @@ namespace DotnetEventBus.Examples.V2BasicUsage
         };
 
         /// <summary>
-        /// Serializes the <see cref="OrderCreatedEvent"/> to a JSON string.
+        /// Serializes the <see cref="OrderCreatedEvent"/> to a JSON string using camelCase property naming.
         /// </summary>
-        /// <param name="value">The event to serialize.</param>
+        /// <param name="value">The event to serialize. Must not be null.</param>
         /// <param name="indented">Whether to format the JSON with indentation for readability.</param>
         /// <returns>A JSON string representation of the event.</returns>
         /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
@@ -30,10 +29,7 @@ namespace DotnetEventBus.Examples.V2BasicUsage
             ArgumentNullException.ThrowIfNull(value);
 
             var options = indented
-                ? new JsonSerializerOptions(_jsonSerializerOptions)
-                {
-                    WriteIndented = true
-                }
+                ? new JsonSerializerOptions(_jsonSerializerOptions) { WriteIndented = true }
                 : _jsonSerializerOptions;
 
             return JsonSerializer.Serialize(value, options);
@@ -42,8 +38,8 @@ namespace DotnetEventBus.Examples.V2BasicUsage
         /// <summary>
         /// Deserializes an <see cref="OrderCreatedEvent"/> from a JSON string.
         /// </summary>
-        /// <param name="json">The JSON string to deserialize.</param>
-        /// <returns>The deserialized event, or null if the JSON is invalid.</returns>
+        /// <param name="json">The JSON string to deserialize. Must not be null or empty.</param>
+        /// <returns>The deserialized event if successful; otherwise, null.</returns>
         /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is null or empty.</exception>
         public static OrderCreatedEvent? FromJson(string json)
         {
@@ -62,7 +58,7 @@ namespace DotnetEventBus.Examples.V2BasicUsage
         /// <summary>
         /// Attempts to deserialize an <see cref="OrderCreatedEvent"/> from a JSON string.
         /// </summary>
-        /// <param name="json">The JSON string to deserialize.</param>
+        /// <param name="json">The JSON string to deserialize. Must not be null or empty.</param>
         /// <param name="value">Receives the deserialized event if successful.</param>
         /// <returns>True if deserialization succeeded; otherwise, false.</returns>
         /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is null or empty.</exception>
