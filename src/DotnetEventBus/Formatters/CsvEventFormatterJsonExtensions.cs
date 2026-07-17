@@ -14,7 +14,7 @@ namespace DotnetEventBus.Formatters;
 
 /// <summary>
 /// Provides System.Text.Json serialization and deserialization extensions for <see cref="CsvEventFormatter"/>.
-/// Enables JSON representation of CSV formatter configuration and serialized event data.
+/// Enables JSON representation of CSV formatter configuration (delimiter and includeHeaders settings).
 /// </summary>
 public static class CsvEventFormatterJsonExtensions
 {
@@ -27,10 +27,11 @@ public static class CsvEventFormatterJsonExtensions
 
     /// <summary>
     /// Serializes the <see cref="CsvEventFormatter"/> instance to a JSON string.
+    /// Serializes the formatter's configuration: <see cref="CsvEventFormatter._delimiter"/> and <see cref="CsvEventFormatter._includeHeaders"/>.
     /// </summary>
     /// <param name="value">The formatter instance to serialize. Cannot be null.</param>
     /// <param name="indented">Whether to format the JSON with indentation for readability.</param>
-    /// <returns>A JSON string representation of the formatter.</returns>
+    /// <returns>A JSON string representation of the formatter configuration.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
     public static string ToJson(this CsvEventFormatter value, bool indented = false)
     {
@@ -49,18 +50,12 @@ public static class CsvEventFormatterJsonExtensions
     /// <param name="json">The JSON string to deserialize. Cannot be null or empty.</param>
     /// <returns>A deserialized <see cref="CsvEventFormatter"/> instance, or null if deserialization fails.</returns>
     /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is null or empty.</exception>
+    /// <exception cref="JsonException">Thrown when the JSON is malformed or cannot be deserialized to a valid <see cref="CsvEventFormatter"/>.</exception>
     public static CsvEventFormatter? FromJson(string json)
     {
         ArgumentException.ThrowIfNullOrEmpty(json);
 
-        try
-        {
-            return JsonSerializer.Deserialize<CsvEventFormatter>(json, _jsonOptions);
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
+        return JsonSerializer.Deserialize<CsvEventFormatter>(json, _jsonOptions);
     }
 
     /// <summary>

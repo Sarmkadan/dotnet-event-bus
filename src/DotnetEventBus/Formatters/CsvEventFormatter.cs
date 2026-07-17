@@ -23,6 +23,9 @@ public sealed class CsvEventFormatter : IEventFormatter
     public string Format => "csv";
     public string ContentType => "text/csv";
 
+    public string Delimiter => _delimiter;
+    public bool IncludeHeaders => _includeHeaders;
+
     private readonly string _delimiter;
     private readonly bool _includeHeaders;
 
