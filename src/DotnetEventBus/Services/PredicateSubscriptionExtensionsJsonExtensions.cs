@@ -13,9 +13,13 @@ namespace DotnetEventBus.Services;
 
 /// <summary>
 /// Provides System.Text.Json serialization extensions for predicate subscription types.
-/// Enables serialization and deserialization of predicate-based subscription configurations
-/// for persistence, transmission, or debugging purposes.
+/// Enables serialization of predicate-based subscription configurations for persistence,
+/// transmission, or debugging purposes.
 /// </summary>
+/// <remarks>
+/// Note: Deserialization of <see cref="PredicateSubscriptionBuilder{TEvent}"/> is not supported
+/// as the type has an internal constructor and requires an <see cref="IEventBus"/> instance.
+/// </remarks>
 public static class PredicateSubscriptionExtensionsJsonExtensions
 {
     private static readonly JsonSerializerOptions _jsonSerializerOptions = new(JsonSerializerDefaults.Web)
@@ -49,63 +53,5 @@ public static class PredicateSubscriptionExtensionsJsonExtensions
             : _jsonSerializerOptions;
 
         return JsonSerializer.Serialize(builder, options);
-    }
-
-    /// <summary>
-    /// Deserializes a predicate subscription builder configuration from JSON.
-    /// </summary>
-    /// <typeparam name="TEvent">The event type being deserialized.</typeparam>
-    /// <param name="json">The JSON string to deserialize.</param>
-    /// <returns>The deserialized predicate subscription builder configuration, or <see langword="null"/> if the JSON is empty or whitespace.</returns>
-    /// <exception cref="ArgumentNullException">
-    /// Thrown when <paramref name="json"/> is <see langword="null"/>.
-    /// </exception>
-    /// <exception cref="JsonException">
-    /// Thrown when the JSON is invalid or cannot be deserialized.
-    /// </exception>
-    public static PredicateSubscriptionBuilder<TEvent>? FromJson<TEvent>(string json)
-        where TEvent : class
-    {
-        ArgumentNullException.ThrowIfNull(json);
-
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return null;
-        }
-
-        return JsonSerializer.Deserialize<PredicateSubscriptionBuilder<TEvent>>(json, _jsonSerializerOptions);
-    }
-
-    /// <summary>
-    /// Attempts to deserialize a predicate subscription builder configuration from JSON.
-    /// </summary>
-    /// <typeparam name="TEvent">The event type being deserialized.</typeparam>
-    /// <param name="json">The JSON string to deserialize.</param>
-    /// <param name="value">The deserialized predicate subscription builder configuration, or <see langword="null"/> if deserialization fails.</param>
-    /// <returns><see langword="true"/> if deserialization succeeds; otherwise, <see langword="false"/>.</returns>
-    /// <exception cref="ArgumentNullException">
-    /// Thrown when <paramref name="json"/> is <see langword="null"/>.
-    /// </exception>
-    public static bool TryFromJson<TEvent>(string json, out PredicateSubscriptionBuilder<TEvent>? value)
-        where TEvent : class
-    {
-        ArgumentNullException.ThrowIfNull(json);
-
-        value = null;
-
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return true;
-        }
-
-        try
-        {
-            value = JsonSerializer.Deserialize<PredicateSubscriptionBuilder<TEvent>>(json, _jsonSerializerOptions);
-            return true;
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
     }
 }
