@@ -1027,6 +1027,89 @@ var pricingResponse = await eventBus.RequestAsync<RequestReplyPatternExample.Get
 Console.WriteLine($"Total price: ${pricingResponse.TotalPrice:F2} (${pricingResponse.UnitPrice:F2} x {10} - {pricingResponse.Discount:F1}% discount: {pricingResponse.DiscountReason})");
 ```
 
+## EventBusApiControllerValidation
+
+The `EventBusApiControllerValidation` class provides validation extension methods for API controller types and their return values in the DotnetEventBus REST API. It offers validation for `EventBusApiController`, `ApiResponse<T>`, `EventPublishResult`, `BatchPublishResult`, `EventBusStats`, and `HealthStatus` types, ensuring data consistency and proper state validation.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Api;
+using Microsoft.AspNetCore.Mvc;
+
+// Validate an EventBusApiController instance
+var controller = new EventBusApiController(eventBus);
+var validationErrors = controller.Validate();
+if (!controller.IsValid())
+{
+    Console.WriteLine("Controller validation failed!");
+}
+controller.EnsureValid(); // Throws if invalid
+
+// Validate an API response
+var successResponse = new ApiResponse<string>("Success", data: "result-data", timestamp: DateTime.UtcNow);
+var responseErrors = successResponse.Validate();
+if (successResponse.IsValid())
+{
+    Console.WriteLine("Response is valid");
+}
+successResponse.EnsureValid(); // Throws if invalid
+
+// Validate an event publish result
+var publishResult = new EventPublishResult
+{
+    EventType = "OrderCreated",
+    PublishedAt = DateTime.UtcNow,
+    Success = true
+};
+var publishErrors = publishResult.Validate();
+if (publishResult.IsValid())
+{
+    Console.WriteLine("Publish result is valid");
+}
+publishResult.EnsureValid(); // Throws if invalid
+
+// Validate batch publish result
+var batchResult = new BatchPublishResult
+{
+    BatchId = Guid.NewGuid().ToString(),
+    EventCount = 10,
+    PublishedAt = DateTime.UtcNow,
+    Success = true
+};
+var batchErrors = batchResult.Validate();
+if (batchResult.IsValid())
+{
+    Console.WriteLine("Batch publish result is valid");
+}
+batchResult.EnsureValid(); // Throws if invalid
+
+// Validate event bus statistics
+var stats = new EventBusStats
+{
+    Status = "Healthy",
+    TotalEventsPublished = 1000,
+    TotalEventsFailed = 5,
+    ActiveSubscriptions = 25,
+    LastCheckTime = DateTime.UtcNow
+};
+var statsErrors = stats.Validate();
+if (stats.IsValid())
+{
+    Console.WriteLine("Stats are valid");
+}
+stats.EnsureValid(); // Throws if invalid
+
+// Validate health status
+var healthStatus = HealthStatus.Healthy;
+var healthErrors = healthStatus.Validate();
+if (healthStatus.IsValid())
+{
+    Console.WriteLine("Health status is valid");
+}
+healthStatus.EnsureValid(); // No-op since all enum values are valid
+```
+
 ## RequestReplyBenchmarksExtensions
 
 The `RequestReplyBenchmarksExtensions` class provides extension methods for the `RequestReplyBenchmarks` type, offering convenience methods for running benchmarks and validating benchmark infrastructure. These methods simplify common benchmarking scenarios including running individual benchmarks, executing all benchmarks sequentially, and validating that the request-reply infrastructure is properly configured.
