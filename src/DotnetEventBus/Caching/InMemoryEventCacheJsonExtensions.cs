@@ -14,25 +14,43 @@ namespace DotnetEventBus.Caching;
 /// <summary>
 /// Represents the serialized state of an <see cref="InMemoryEventCache"/>.
 /// </summary>
-internal sealed class InMemoryEventCacheState
+public sealed class InMemoryEventCacheState
 {
+    /// <summary>
+    /// Gets the cache statistics captured at the time of serialization.
+    /// </summary>
     public required CacheStatistics Stats { get; init; }
+
+    /// <summary>
+    /// Gets the maximum capacity of the cache.
+    /// </summary>
     public required int MaxCapacity { get; init; }
 }
 
 /// <summary>
 /// Represents cache statistics for serialization.
 /// </summary>
-internal sealed class CacheStatistics
+public sealed class CacheStatistics
 {
+    /// <summary>
+    /// Gets the total number of items stored in the cache.
+    /// </summary>
     public required long TotalItems { get; init; }
+
+    /// <summary>
+    /// Gets the cumulative number of cache hits.
+    /// </summary>
     public required long Hits { get; init; }
+
+    /// <summary>
+    /// Gets the cumulative number of cache misses.
+    /// </summary>
     public required long Misses { get; init; }
 }
 
 /// <summary>
 /// Provides System.Text.Json serialization extensions for <see cref="InMemoryEventCache"/>.
-/// Enables round-trip serialization/deserialization of cache state.
+/// Enables round‑trip serialization/deserialization of cache state.
 /// </summary>
 public static class InMemoryEventCacheJsonExtensions
 {
@@ -50,7 +68,7 @@ public static class InMemoryEventCacheJsonExtensions
     /// <param name="value">The cache instance to serialize.</param>
     /// <param name="indented">Whether to format the JSON with indentation for readability.</param>
     /// <returns>A JSON string representation of the cache state.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is <c>null</c>.</exception>
     /// <exception cref="InvalidOperationException">Thrown when unable to retrieve cache statistics.</exception>
     public static string ToJson(this InMemoryEventCache value, bool indented = false)
     {
@@ -77,7 +95,7 @@ public static class InMemoryEventCacheJsonExtensions
     /// </summary>
     /// <param name="json">The JSON string to deserialize.</param>
     /// <returns>An <see cref="InMemoryEventCache"/> instance with default configuration.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is <c>null</c>.</exception>
     /// <exception cref="JsonException">Thrown when the JSON is invalid or cannot be deserialized.</exception>
     public static InMemoryEventCache? FromJson(string json)
     {
@@ -98,9 +116,9 @@ public static class InMemoryEventCacheJsonExtensions
     /// Attempts to deserialize a JSON string to an <see cref="InMemoryEventCache"/> instance.
     /// </summary>
     /// <param name="json">The JSON string to deserialize.</param>
-    /// <param name="value">Receives the deserialized cache instance, or null if deserialization fails.</param>
-    /// <returns>True if deserialization succeeds; otherwise, false.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null.</exception>
+    /// <param name="value">Receives the deserialized cache instance, or <c>null</c> if deserialization fails.</param>
+    /// <returns><c>true</c> if deserialization succeeds; otherwise, <c>false</c>.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is <c>null</c>.</exception>
     public static bool TryFromJson(string json, out InMemoryEventCache? value)
     {
         ArgumentNullException.ThrowIfNull(json);
