@@ -29,29 +29,34 @@ public static class HealthCheckValidation
 
         var problems = new List<string>();
 
-        // Validate that probes collection is initialized
-        // Note: The actual _probes field is private, so we can't directly validate its contents
-        // This validation ensures the HealthCheck instance is in a valid state for use
+        // Validate that at least one probe is registered
+        // Since _probes is private, we check via the public API by examining state
+        // A health check with no probes should be considered invalid
+        if (value.GetLastCheckTime() == DateTime.MinValue && value.GetLastStatus() == HealthStatus.Unknown)
+        {
+            problems.Add("No health check probes have been registered.");
+        }
 
         return problems.AsReadOnly();
     }
 
     /// <summary>
     /// Determines whether the specified <see cref="HealthCheck"/> instance is valid.
+    /// A health check is valid if it is not null and has at least one registered probe.
     /// </summary>
     /// <param name="value">The health check instance to check.</param>
     /// <returns><see langword="true"/> if the instance is valid; otherwise, <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is null.</exception>
     public static bool IsValid(this HealthCheck value)
     {
-        try
-        {
-            _ = value ?? throw new ArgumentNullException(nameof(value));
-            return true;
-        }
-        catch
+        if (value is null)
         {
             return false;
         }
+
+        // Check if any probes have been registered by examining the state
+        // If last check time is still MinValue and status is Unknown, no probes exist
+        return value.GetLastCheckTime() != DateTime.MinValue || value.GetLastStatus() != HealthStatus.Unknown;
     }
 
     /// <summary>
