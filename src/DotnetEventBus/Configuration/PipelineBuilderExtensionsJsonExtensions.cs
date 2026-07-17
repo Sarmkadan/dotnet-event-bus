@@ -7,6 +7,7 @@
 
 using System;
 using System.Text.Json;
+using DotnetEventBus.Middleware;
 
 namespace DotnetEventBus.Configuration;
 
@@ -33,18 +34,16 @@ public static class PipelineBuilderExtensionsJsonExtensions
     /// <param name="indented">Whether to format the JSON with indentation for readability.</param>
     /// <returns>A JSON string representation of the pipeline configuration.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="builder"/> is null.</exception>
-    public static string ToJson(this global::DotnetEventBus.Middleware.PipelineBuilder builder, bool indented = false)
+    public static string ToJson(this PipelineBuilder builder, bool indented = false)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
         var config = new PipelineConfiguration
         {
-            HasLogging = true,
-            HasErrorHandling = true,
-            HasRateLimiting = true,
+            MiddlewareCount = builder.GetMiddlewareCount()
         };
 
-        var options = new JsonSerializerOptions(indented ? JsonSerializerDefaults.Web : JsonSerializerDefaults.Web)
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             WriteIndented = indented,
@@ -61,7 +60,7 @@ public static class PipelineBuilderExtensionsJsonExtensions
     /// <returns>A pipeline builder configured according to the saved configuration, or null if the JSON is empty.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null.</exception>
     /// <exception cref="JsonException">Thrown when the JSON is invalid or cannot be deserialized.</exception>
-    public static global::DotnetEventBus.Middleware.PipelineBuilder? FromJson(string json)
+    public static PipelineBuilder? FromJson(string json)
     {
         ArgumentNullException.ThrowIfNull(json);
 
@@ -71,12 +70,12 @@ public static class PipelineBuilderExtensionsJsonExtensions
         }
 
         var config = JsonSerializer.Deserialize<PipelineConfiguration>(json, _jsonOptions);
-        if (config == null)
+        if (config is null)
         {
             return null;
         }
 
-        var builder = new global::DotnetEventBus.Middleware.PipelineBuilder();
+        var builder = new PipelineBuilder();
         return builder;
     }
 
@@ -87,7 +86,7 @@ public static class PipelineBuilderExtensionsJsonExtensions
     /// <param name="builder">Receives the deserialized pipeline builder instance if successful.</param>
     /// <returns>True if deserialization succeeded; otherwise, false.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null.</exception>
-    public static bool TryFromJson(string json, out global::DotnetEventBus.Middleware.PipelineBuilder? builder)
+    public static bool TryFromJson(string json, out PipelineBuilder? builder)
     {
         ArgumentNullException.ThrowIfNull(json);
 
@@ -101,12 +100,12 @@ public static class PipelineBuilderExtensionsJsonExtensions
         try
         {
             var config = JsonSerializer.Deserialize<PipelineConfiguration>(json, _jsonOptions);
-            if (config == null)
+            if (config is null)
             {
                 return false;
             }
 
-            builder = new global::DotnetEventBus.Middleware.PipelineBuilder();
+            builder = new PipelineBuilder();
             return true;
         }
         catch (JsonException)
@@ -120,8 +119,21 @@ public static class PipelineBuilderExtensionsJsonExtensions
     /// </summary>
     private sealed class PipelineConfiguration
     {
-        public bool? HasLogging { get; set; }
-        public bool? HasErrorHandling { get; set; }
-        public bool? HasRateLimiting { get; set; }
+        public int MiddlewareCount { get; set; }
+    }
+
+    /// <summary>
+    /// Gets the number of middleware components registered in the pipeline builder.
+    /// </summary>
+    /// <returns>The count of middleware components.</returns>
+    private static int GetMiddlewareCount(this PipelineBuilder builder)
+    {
+        // Use reflection to access the private _middlewares field
+        var field = typeof(PipelineBuilder).GetField("_middlewares", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        if (field?.GetValue(builder) is System.Collections.Generic.List<Func<EventBusMiddleware, EventBusMiddleware>> middlewares)
+        {
+            return middlewares.Count;
+        }
+        return 0;
     }
 }
