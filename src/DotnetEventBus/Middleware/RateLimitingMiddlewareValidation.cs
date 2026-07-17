@@ -3,11 +3,11 @@
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
-// =============================================================================
+// =====================================================================
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
+using System.Reflection;
 
 namespace DotnetEventBus.Middleware;
 
@@ -28,11 +28,27 @@ public static class RateLimitingMiddlewareValidation
 
         var problems = new List<string>();
 
-        // requestsPerWindow is validated in constructor, but we check the effective value
-        // The default is 1000, which is always valid (> 0)
+        // Access private fields via reflection since they're not exposed as properties
+        var requestsPerWindowField = typeof(RateLimitingMiddleware).GetField(
+            "_requestsPerWindow", BindingFlags.Instance | BindingFlags.NonPublic);
+        var timeWindowField = typeof(RateLimitingMiddleware).GetField(
+            "_timeWindow", BindingFlags.Instance | BindingFlags.NonPublic);
 
-        // timeWindow is validated in constructor, but we check the effective value
-        // The default is TimeSpan.FromSeconds(60), which is always valid (> TimeSpan.Zero)
+        if (requestsPerWindowField != null && timeWindowField != null)
+        {
+            var requestsPerWindow = (int)requestsPerWindowField.GetValue(value)!;
+            var timeWindow = (TimeSpan)timeWindowField.GetValue(value)!;
+
+            if (requestsPerWindow <= 0)
+            {
+                problems.Add($"RequestsPerWindow must be greater than 0, but was {requestsPerWindow}.");
+            }
+
+            if (timeWindow <= TimeSpan.Zero)
+            {
+                problems.Add($"TimeWindow must be greater than TimeSpan.Zero, but was {timeWindow}.");
+            }
+        }
 
         return problems.AsReadOnly();
     }
