@@ -3,13 +3,20 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace DotnetEventBus.Models;
 
-public static class SubscriptionJsonExtensions
+public static partial class SubscriptionJsonExtensions
 {
     private static readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
         WriteIndented = false
+    };
+
+    private static readonly JsonSerializerOptions _jsonOptionsIndented = new(JsonSerializerDefaults.Web)
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
+        WriteIndented = true
     };
 
     /// <summary>
@@ -23,11 +30,7 @@ public static class SubscriptionJsonExtensions
     {
         ArgumentNullException.ThrowIfNull(value);
 
-        var options = indented
-            ? new JsonSerializerOptions(_jsonOptions) { WriteIndented = true }
-            : _jsonOptions;
-
-        return JsonSerializer.Serialize(value, options);
+        return JsonSerializer.Serialize(value, indented ? _jsonOptionsIndented : _jsonOptions);
     }
 
     /// <summary>
@@ -41,12 +44,9 @@ public static class SubscriptionJsonExtensions
     {
         ArgumentNullException.ThrowIfNull(json);
 
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return null;
-        }
-
-        return JsonSerializer.Deserialize<Subscription>(json, _jsonOptions);
+        return string.IsNullOrWhiteSpace(json)
+            ? null
+            : JsonSerializer.Deserialize<Subscription>(json, _jsonOptions);
     }
 
     /// <summary>
@@ -60,10 +60,9 @@ public static class SubscriptionJsonExtensions
     {
         ArgumentNullException.ThrowIfNull(json);
 
-        value = null;
-
         if (string.IsNullOrWhiteSpace(json))
         {
+            value = null;
             return false;
         }
 
@@ -74,6 +73,7 @@ public static class SubscriptionJsonExtensions
         }
         catch (JsonException)
         {
+            value = null;
             return false;
         }
     }
