@@ -125,6 +125,7 @@ public static class DeadLetterEntryValidation
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is null.</exception>
     public static bool IsValid(this DeadLetterEntry value)
     {
+        ArgumentNullException.ThrowIfNull(value);
         return value.Validate().Count == 0;
     }
 
@@ -160,18 +161,14 @@ public static class DeadLetterEntryValidation
             return false;
         }
 
-        try
+        // Try standard parse first
+        if (Guid.TryParse(input, out _))
         {
-            _ = Guid.Parse(input);
             return true;
         }
-        catch (FormatException)
-        {
-            return false;
-        }
-        catch (OverflowException)
-        {
-            return false;
-        }
+
+        // Try parsing with different formats
+        var formats = new[] { "D", "N", "B", "P", "X" };
+        return formats.Any(format => Guid.TryParseExact(input, format, out _));
     }
 }
