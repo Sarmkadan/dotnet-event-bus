@@ -786,6 +786,64 @@ Console.WriteLine(profileReport);
 
 The `BatchPublishingOptimizationExample` class demonstrates efficient event publishing using batch operations to improve throughput and resource utilization. It compares individual event publishing with batch publishing, showing performance improvements and memory efficiency benefits.
 
+## WebhookHandlerJsonExtensions
+
+The `WebhookHandlerJsonExtensions` class provides System.Text.Json serialization and deserialization extensions for `WebhookHandler` and `WebhookSubscription` types. It enables easy conversion between object instances and JSON strings with support for both compact and indented formatting, making it ideal for webhook payload serialization and API communication.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Integration;
+using System;
+
+// Create a webhook handler
+var handler = new WebhookHandler
+{
+    Id = Guid.NewGuid(),
+    Name = "Order Processing Webhook",
+    Url = "https://api.example.com/webhooks/order-processed",
+    Secret = "whsec_test_secret_12345",
+    Events = new[] { "order.created", "order.paid" },
+    IsActive = true,
+    CreatedAt = DateTime.UtcNow
+};
+
+// Serialize to JSON (compact format)
+string json = handler.ToJson();
+Console.WriteLine(json);
+
+// Serialize to pretty-printed JSON
+string prettyJson = handler.ToJson(indented: true);
+Console.WriteLine(prettyJson);
+
+// Deserialize from JSON
+var deserializedHandler = WebhookHandlerJsonExtensions.FromJson(json);
+Console.WriteLine($"Deserialized handler: {deserializedHandler?.Name}");
+
+// Try to deserialize with error handling
+if (WebhookHandlerJsonExtensions.TryFromJson(json, out var safeHandler))
+{
+    Console.WriteLine("Successfully deserialized handler");
+}
+
+// Work with WebhookSubscription
+var subscription = new WebhookSubscription
+{
+    Id = Guid.NewGuid(),
+    HandlerId = handler.Id,
+    Status = "active",
+    CreatedAt = DateTime.UtcNow,
+    LastDelivery = null
+};
+
+// Serialize subscription to JSON
+string subscriptionJson = subscription.ToJson();
+
+// Deserialize subscription from JSON
+var deserializedSubscription = WebhookHandlerJsonExtensions.FromJsonToSubscription(subscriptionJson);
+Console.WriteLine($"Deserialized subscription: {deserializedSubscription?.Status}");
+```
+
 The example includes:
 - Individual event publishing for baseline comparison
 - Batch event publishing with configurable batch sizes
