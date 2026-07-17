@@ -12,7 +12,7 @@ using System.Text.Json.Serialization.Metadata;
 namespace DotnetEventBus.Tests;
 
 /// <summary>
-/// Provides System.Text.Json serialization and deserialization extensions for DeadLetterServiceTests.
+/// Provides System.Text.Json serialization and deserialization extensions for <see cref="DeadLetterServiceTests"/>.
 /// </summary>
 public static class DeadLetterServiceTestsJsonExtensions
 {
@@ -25,7 +25,7 @@ public static class DeadLetterServiceTestsJsonExtensions
     };
 
     /// <summary>
-    /// Serializes a DeadLetterServiceTests instance to a JSON string.
+    /// Serializes a <see cref="DeadLetterServiceTests"/> instance to a JSON string.
     /// </summary>
     /// <param name="value">The instance to serialize.</param>
     /// <param name="indented">Whether to format the JSON with indentation for readability.</param>
@@ -43,7 +43,7 @@ public static class DeadLetterServiceTestsJsonExtensions
     }
 
     /// <summary>
-    /// Deserializes a DeadLetterServiceTests instance from a JSON string.
+    /// Deserializes a <see cref="DeadLetterServiceTests"/> instance from a JSON string.
     /// </summary>
     /// <param name="json">The JSON string to deserialize.</param>
     /// <returns>The deserialized instance, or null if the JSON is empty or whitespace.</returns>
@@ -61,7 +61,7 @@ public static class DeadLetterServiceTestsJsonExtensions
     }
 
     /// <summary>
-    /// Attempts to deserialize a DeadLetterServiceTests instance from a JSON string.
+    /// Attempts to deserialize a <see cref="DeadLetterServiceTests"/> instance from a JSON string.
     /// </summary>
     /// <param name="json">The JSON string to deserialize.</param>
     /// <param name="value">The deserialized instance, or null if deserialization fails.</param>
