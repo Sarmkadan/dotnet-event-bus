@@ -32,10 +32,7 @@ public static class InMemoryRepositoryTestsJsonExtensions
     {
         ArgumentNullException.ThrowIfNull(value);
 
-        var options = indented
-            ? new JsonSerializerOptions(_jsonOptions) { WriteIndented = true }
-            : _jsonOptions;
-
+        var options = new JsonSerializerOptions(_jsonOptions) { WriteIndented = indented };
         return JsonSerializer.Serialize(value, options);
     }
 
@@ -50,12 +47,9 @@ public static class InMemoryRepositoryTestsJsonExtensions
     {
         ArgumentNullException.ThrowIfNull(json);
 
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return null;
-        }
-
-        return JsonSerializer.Deserialize<InMemoryRepositoryTests>(json, _jsonOptions);
+        return string.IsNullOrWhiteSpace(json)
+            ? null
+            : JsonSerializer.Deserialize<InMemoryRepositoryTests>(json, _jsonOptions);
     }
 
     /// <summary>
@@ -71,15 +65,15 @@ public static class InMemoryRepositoryTestsJsonExtensions
 
         value = null;
 
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return true;
+        }
+
         try
         {
-            if (!string.IsNullOrWhiteSpace(json))
-            {
-                value = JsonSerializer.Deserialize<InMemoryRepositoryTests>(json, _jsonOptions);
-                return true;
-            }
-
-            return true; // Empty JSON is valid and returns null
+            value = JsonSerializer.Deserialize<InMemoryRepositoryTests>(json, _jsonOptions);
+            return true;
         }
         catch (JsonException)
         {
