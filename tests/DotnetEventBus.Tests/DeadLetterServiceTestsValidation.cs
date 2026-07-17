@@ -12,46 +12,66 @@ using DotnetEventBus.Services;
 namespace DotnetEventBus.Tests;
 
 /// <summary>
-/// Provides validation helpers for DeadLetterServiceTests test fixture.
+/// Provides validation extensions for the <see cref="DeadLetterServiceTests"/> test fixture class.
 /// </summary>
 public static class DeadLetterServiceTestsValidation
 {
     /// <summary>
-    /// Validates a DeadLetterServiceTests instance and returns a list of validation errors.
+    /// Validates a <see cref="DeadLetterServiceTests"/> instance and returns a list of validation errors.
     /// </summary>
-    /// <param name="value">The DeadLetterServiceTests instance to validate.</param>
+    /// <remarks>
+    /// This method performs validation on the test fixture instance. Currently,
+    /// <see cref="DeadLetterServiceTests"/> has no public data members to validate,
+    /// so this method always returns an empty list. The validation infrastructure
+    /// is maintained for future extensibility and consistency with the project's
+    /// validation patterns.
+    /// </remarks>
+    /// <param name="value">The <see cref="DeadLetterServiceTests"/> instance to validate.</param>
     /// <returns>A read-only list of validation error messages. Empty if valid.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is null.</exception>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is <see langword="null"/>.</exception>
     public static IReadOnlyList<string> Validate(this DeadLetterServiceTests value)
     {
         ArgumentNullException.ThrowIfNull(value);
 
         var errors = new List<string>();
 
-        // DeadLetterServiceTests is a test fixture class with no public data members to validate
-        // All validation is handled by the individual test methods
+        // DeadLetterServiceTests is a test fixture class with no public data members to validate.
+        // All validation is handled by the individual test methods.
+        // This infrastructure is maintained for consistency with the project's validation patterns.
 
         return errors.AsReadOnly();
     }
 
     /// <summary>
-    /// Determines whether the specified DeadLetterServiceTests instance is valid.
+    /// Determines whether the specified <see cref="DeadLetterServiceTests"/> instance is valid.
     /// </summary>
-    /// <param name="value">The DeadLetterServiceTests instance to check.</param>
-    /// <returns>True if valid; otherwise, false.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is null.</exception>
+    /// <remarks>
+    /// A <see cref="DeadLetterServiceTests"/> instance is always considered valid as it's a test fixture
+    /// with no mutable state or data members that require validation.
+    /// </remarks>
+    /// <param name="value">The <see cref="DeadLetterServiceTests"/> instance to check.</param>
+    /// <returns><see langword="true"/> if valid; otherwise, <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is <see langword="null"/>.</exception>
     public static bool IsValid(this DeadLetterServiceTests value)
     {
         ArgumentNullException.ThrowIfNull(value);
-        return true; // DeadLetterServiceTests is always valid as it's a test fixture
+        return true;
     }
 
     /// <summary>
-    /// Ensures that the specified DeadLetterServiceTests instance is valid, throwing an <see cref="ArgumentException"/> if not.
+    /// Ensures that the specified <see cref="DeadLetterServiceTests"/> instance is valid,
+    /// throwing an <see cref="ArgumentException"/> if not.
     /// </summary>
-    /// <param name="value">The DeadLetterServiceTests instance to validate.</param>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is null.</exception>
-    /// <exception cref="ArgumentException">Thrown if the instance is invalid.</exception>
+    /// <remarks>
+    /// This method validates the test fixture instance and throws if invalid.
+    /// Currently, all <see cref="DeadLetterServiceTests"/> instances are valid,
+    /// so this method only validates for null.
+    /// </remarks>
+    /// <param name="value">The <see cref="DeadLetterServiceTests"/> instance to validate.</param>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown if the instance is invalid.
+    /// This exception is theoretically possible but will never occur with the
+    /// current implementation of <see cref="DeadLetterServiceTests"/>.</exception>
     public static void EnsureValid(this DeadLetterServiceTests value)
     {
         ArgumentNullException.ThrowIfNull(value);
