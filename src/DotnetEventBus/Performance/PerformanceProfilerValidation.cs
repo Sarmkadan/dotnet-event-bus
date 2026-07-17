@@ -15,7 +15,7 @@ namespace DotnetEventBus.Performance;
 /// Ensures that profiler statistics are valid before generating reports or using metrics.
 /// Why: Prevents misleading or incorrect performance data from being used in decisions.
 /// </summary>
-public static class PerformanceProfilerValidation
+internal static class PerformanceProfilerValidation
 {
     /// <summary>
     /// Validates an <see cref="OperationStats"/> instance and returns a list of human-readable problems.
@@ -62,6 +62,10 @@ public static class PerformanceProfilerValidation
         {
             errors.Add("MinTimeMs must be non-negative.");
         }
+        else if (value.ExecutionCount > 0 && value.MinTimeMs > value.MaxTimeMs)
+        {
+            errors.Add("MinTimeMs must be less than or equal to MaxTimeMs.");
+        }
 
         // Validate MaxTimeMs
         if (value.MaxTimeMs < 0)
@@ -73,6 +77,18 @@ public static class PerformanceProfilerValidation
         if (value.ExecutionCount > 0 && value.MaxTimeMs < value.MinTimeMs)
         {
             errors.Add("MaxTimeMs must be greater than or equal to MinTimeMs.");
+        }
+
+        // Validate that MinTimeMs is not greater than AverageTimeMs when there are executions
+        if (value.ExecutionCount > 0 && value.MinTimeMs > value.AverageTimeMs)
+        {
+            errors.Add("MinTimeMs must be less than or equal to AverageTimeMs.");
+        }
+
+        // Validate that MaxTimeMs is not less than AverageTimeMs when there are executions
+        if (value.ExecutionCount > 0 && value.MaxTimeMs < value.AverageTimeMs)
+        {
+            errors.Add("MaxTimeMs must be greater than or equal to AverageTimeMs.");
         }
 
         // Validate MedianTimeMs
@@ -144,6 +160,12 @@ public static class PerformanceProfilerValidation
         }
 
         if (value.P99TimeMs > 0 && value.P95TimeMs > 0 && value.P99TimeMs < value.P95TimeMs)
+        {
+            errors.Add("P99TimeMs must be greater than or equal to P95TimeMs.");
+        }
+
+        // Validate that percentile values are within reasonable bounds of each other
+        if (value.P95TimeMs > 0 && value.P99TimeMs > 0 && value.P99TimeMs < value.P95TimeMs)
         {
             errors.Add("P99TimeMs must be greater than or equal to P95TimeMs.");
         }
@@ -247,20 +269,14 @@ public static class PerformanceProfilerValidation
     /// </summary>
     /// <param name="value">The operation statistics to check.</param>
     /// <returns><see langword="true"/> if valid; otherwise, <see langword="false"/>.</returns>
-    public static bool IsValid(this OperationStats? value)
-    {
-        return value?.Validate().Count == 0;
-    }
+    public static bool IsValid(this OperationStats? value) => value?.Validate().Count == 0;
 
     /// <summary>
     /// Determines whether the specified <see cref="ProfilingSessionSummary"/> instance is valid.
     /// </summary>
     /// <param name="value">The session summary to check.</param>
     /// <returns><see langword="true"/> if valid; otherwise, <see langword="false"/>.</returns>
-    public static bool IsValid(this ProfilingSessionSummary? value)
-    {
-        return value?.Validate().Count == 0;
-    }
+    public static bool IsValid(this ProfilingSessionSummary? value) => value?.Validate().Count == 0;
 
     /// <summary>
     /// Ensures that the specified <see cref="OperationStats"/> instance is valid.
