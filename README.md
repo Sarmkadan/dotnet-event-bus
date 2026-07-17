@@ -721,6 +721,11 @@ var consistentResult = await consistentRetryPolicy.ExecuteAsync(async () =>
 
 The `DeadLetterQueueHandlingExample` class demonstrates error handling, retries, and recovery mechanisms in the DotnetEventBus library. It shows how to configure the event bus to handle failed events, manage dead letter queues, and reprocess failed events.
 
+## PerformanceMetricsMonitoringExample
+
+
+The `PerformanceMetricsMonitoringExample` class demonstrates system metrics collection, handler performance profiling, and real-time monitoring capabilities. It shows how to track event publishing metrics, measure handler execution times, and generate performance reports for performance optimization and monitoring purposes.
+
 Example usage:
 
 ```csharp
@@ -728,7 +733,56 @@ using DotnetEventBus;
 using DotnetEventBus.Examples;
 using Microsoft.Extensions.DependencyInjection;
 
-// Setup dependency injection with event bus and dead letter queue
+// Setup dependency injection with event bus and enable metrics
+var services = new ServiceCollection();
+services.AddEventBus(options =>
+{
+    options.AllowParallelHandling = false;
+    options.EnableMetrics = true;
+    options.EnableDetailedLogging = true;
+});
+
+var serviceProvider = services.BuildServiceProvider();
+var eventBus = serviceProvider.GetRequiredService<IEventBus>();
+var metricsCollector = serviceProvider.GetRequiredService<IMetricsCollector>();
+var performanceProfiler = serviceProvider.GetRequiredService<IPerformanceProfiler>();
+
+// Define event with metrics properties
+var dataProcessingEvent = new PerformanceMetricsMonitoringExample.DataProcessingEvent
+{
+    ProcessId = "PROC-001",
+    DataSize = 1500,
+    ProcessType = "Medium"
+};
+
+// Subscribe handlers
+var fastProcessor = new PerformanceMetricsMonitoringExample.FastProcessorHandler();
+var mediumProcessor = new PerformanceMetricsMonitoringExample.MediumProcessorHandler();
+var slowProcessor = new PerformanceMetricsMonitoringExample.SlowProcessorHandler();
+
+// Publish event and collect metrics
+await eventBus.PublishAsync(dataProcessingEvent);
+
+// Get system metrics
+var systemMetrics = metricsCollector.GetSystemMetrics();
+Console.WriteLine($"Total Events Published: {systemMetrics.TotalEventsPublished}");
+Console.WriteLine($"Success Rate: {systemMetrics.SuccessRate:P2}");
+Console.WriteLine($"Average Latency: {systemMetrics.AverageLatency:F2}ms");
+
+// Get handler-specific metrics
+var handlerMetrics = metricsCollector.GetHandlerMetrics("FastProcessorHandler");
+if (handlerMetrics is not null)
+{
+    Console.WriteLine($"Handler Execution Count: {handlerMetrics.ExecutionCount}");
+    Console.WriteLine($"Average Duration: {handlerMetrics.AverageDuration:F2}ms");
+}
+
+// Generate performance profile report
+var profileReport = performanceProfiler.GenerateReport();
+Console.WriteLine(profileReport);
+```
+
+## EventFilteringExample
 var services = new ServiceCollection();
 services.AddEventBus(options =>
 {
