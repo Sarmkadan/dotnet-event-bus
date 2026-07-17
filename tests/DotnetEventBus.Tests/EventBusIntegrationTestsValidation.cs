@@ -21,10 +21,30 @@ public static class EventBusIntegrationTestsValidation
 
         var problems = new List<string>();
 
-        // All public methods are async Task, so we can't validate their internal state
-        // This validation focuses on the test class structure and basic invariants
+        // Validate that all test methods are properly async and follow naming conventions
+        var methods = value!.GetType().GetMethods(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
 
-        // Validate that the class has the expected structure (this is a static validation helper)
+        foreach (var method in methods)
+        {
+            if (method.Name.StartsWith("get_") || method.Name.StartsWith("set_"))
+                continue;
+
+            // All test methods should be async Task
+            if (method.ReturnType != typeof(System.Threading.Tasks.Task))
+            {
+                problems.Add($"Method '{method.Name}' should return Task but returns {method.ReturnType.Name}");
+            }
+
+            // Test methods should be named with async suffix or follow xUnit conventions
+            if (!method.Name.StartsWith("EventBus_") && !method.Name.StartsWith("CircuitBreaker_") &&
+                !method.Name.StartsWith("MetricsCollector_") && !method.Name.StartsWith("EventFilter_") &&
+                !method.Name.StartsWith("BatchEventPublisher_") && !method.Name.StartsWith("Pipeline_") &&
+                !method.Name.StartsWith("Concurrency_"))
+            {
+                problems.Add($"Method '{method.Name}' should follow test naming convention (EventBus_, CircuitBreaker_, etc.)");
+            }
+        }
+
         return problems.AsReadOnly();
     }
 
@@ -33,8 +53,12 @@ public static class EventBusIntegrationTestsValidation
     /// </summary>
     /// <param name="value">The instance to check.</param>
     /// <returns><see langword="true"/> if valid; otherwise, <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is null.</exception>
     public static bool IsValid(this EventBusIntegrationTests? value)
-        => Validate(value).Count is 0;
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        return Validate(value).Count is 0;
+    }
 
     /// <summary>
     /// Ensures that the specified <see cref="EventBusIntegrationTests"/> instance is valid, throwing an <see cref="ArgumentException"/> if not.
