@@ -35,6 +35,7 @@ public static class EventBusBuilderValidation
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is null.</exception>
     public static bool IsValid(this EventBusBuilder value)
     {
+        ArgumentNullException.ThrowIfNull(value);
         return value.Validate().Count == 0;
     }
 
@@ -58,13 +59,35 @@ public static class EventBusBuilderValidation
 
     private static EventBusOptions GetOptions(this EventBusBuilder builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
+
         // Use reflection to access the private _options field
-        var field = typeof(EventBusBuilder).GetField("_options", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        return (EventBusOptions)field!.GetValue(builder)!;
+        // This is a temporary workaround until EventBusBuilder exposes options publicly
+        var field = typeof(EventBusBuilder).GetField(
+            "_options",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        if (field is null)
+        {
+            throw new InvalidOperationException(
+                "Failed to retrieve EventBusOptions: _options field not found on EventBusBuilder. " +
+                "This may indicate a breaking change in the EventBusBuilder API.");
+        }
+
+        var options = field.GetValue(builder);
+        if (options is null)
+        {
+            throw new InvalidOperationException(
+                "EventBusBuilder._options field returned null, which is not a valid state.");
+        }
+
+        return (EventBusOptions)options;
     }
 
     private static IReadOnlyList<string> ValidateOptions(EventBusOptions options)
     {
+        ArgumentNullException.ThrowIfNull(options);
+
         var errors = new List<string>();
 
         if (options.RequestTimeout <= TimeSpan.Zero)
