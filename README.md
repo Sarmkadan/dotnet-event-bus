@@ -1203,3 +1203,53 @@ await Task.CompletedTask;
 });
 Assert.True(wasExecuted);
 ```
+
+## ECommerceOrderProcessingExample
+
+The `ECommerceOrderProcessingExample` class demonstrates a complete e-commerce order processing workflow using the event bus system. It shows how to define custom events for order placement, payment processing, and shipment creation, and how to create handlers with different priorities that work together to process an order through multiple stages.
+
+The example includes:
+- Order placement with inventory reservation (high priority)
+- Payment processing and transaction handling (medium priority)
+- Shipment creation and tracking (triggered by payment event)
+- Customer notifications (low priority)
+- Event chaining and dependency injection for handler services
+
+Example usage:
+
+```csharp
+using DotnetEventBus;
+using DotnetEventBus.Examples;
+using Microsoft.Extensions.DependencyInjection;
+
+// Setup dependency injection with event bus
+var services = new ServiceCollection();
+services.AddEventBus(options =>
+{
+    options.AllowParallelHandling = false; // Sequential for clear output
+    options.MaxRetryAttempts = 3;
+    options.EnableDeadLetterQueue = true;
+});
+
+var serviceProvider = services.BuildServiceProvider();
+var eventBus = serviceProvider.GetRequiredService<IEventBus>();
+
+// Create sample order
+var order = new ECommerceOrderProcessingExample.OrderPlacedEvent
+{
+    OrderId = "ORD-2026-001",
+    CustomerId = "CUST-123",
+    Items = new List<ECommerceOrderProcessingExample.OrderItem>
+    {
+        new ECommerceOrderProcessingExample.OrderItem { ProductId = "PROD-001", Quantity = 2, UnitPrice = 49.99m },
+        new ECommerceOrderProcessingExample.OrderItem { ProductId = "PROD-002", Quantity = 1, UnitPrice = 99.99m }
+    },
+    TotalPrice = 199.97m,
+    PlacedAt = DateTime.UtcNow
+};
+
+// Publish the order
+var result = await eventBus.PublishAsync(order);
+
+Console.WriteLine($"Order processing completed: {result.HandlersInvoked} handlers invoked");
+```
