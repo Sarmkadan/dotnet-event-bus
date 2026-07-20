@@ -23,19 +23,27 @@ public abstract class EventBusApiController
 {
     protected readonly IEventBus _eventBus;
     protected readonly MetricsCollector? _metrics;
+    private readonly DeadLetterStatistics? _deadLetterStatistics;
+    private readonly BatchPublisherStats? _batchPublisherStats;
 
     protected EventBusApiController(IEventBus eventBus)
-        : this(eventBus, null)
+        : this(eventBus, null, null, null)
     {
     }
 
     /// <summary>
     /// Creates a controller that also reports statistics from the supplied metrics collector.
     /// </summary>
-    protected EventBusApiController(IEventBus eventBus, MetricsCollector? metrics)
+    protected EventBusApiController(
+        IEventBus eventBus,
+        MetricsCollector? metrics,
+        DeadLetterStatistics? deadLetterStatistics = null,
+        BatchPublisherStats? batchPublisherStats = null)
     {
         _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
         _metrics = metrics;
+        _deadLetterStatistics = deadLetterStatistics;
+        _batchPublisherStats = batchPublisherStats;
     }
 
     /// <summary>
@@ -168,6 +176,42 @@ public abstract class EventBusApiController
         }
     }
 
+    /// <summary>
+    /// Returns a consolidated snapshot that includes bus statistics, dead‑letter statistics,
+    /// and batch‑publisher statistics. The response follows the same <see cref="ApiResponse{T}"/>
+    /// envelope used by the other actions.
+    /// </summary>
+    public virtual ApiResponse<ConsolidatedStats> GetConsolidatedStats()
+    {
+        try
+        {
+            // Re‑use the existing GetStats method to obtain the bus section.
+            var busStats = GetStats().Data;
+
+            var result = new ConsolidatedStats
+            {
+                Bus = busStats,
+                DeadLetter = _deadLetterStatistics,
+                Batch = _batchPublisherStats
+            };
+
+            return ApiResponse<ConsolidatedStats>.Success(result);
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<ConsolidatedStats>.Error(ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Async version of <c>GetConsolidatedStats</c> suitable for typical HTTP GET endpoints.
+    /// </summary>
+    public virtual async Task<ApiResponse<ConsolidatedStats>> GetConsolidatedStatsAsync()
+    {
+        // The method body is deliberately synchronous but wrapped in a Task to keep the async signature.
+        return await Task.FromResult(GetConsolidatedStats());
+    }
+
     private static HealthStatus DetermineStatus(SystemMetrics? metrics)
     {
         if (metrics is null || metrics.TotalEventsPublished == 0)
@@ -245,6 +289,27 @@ public sealed class EventBusStats
     public long TotalEventsFailed { get; set; }
     public int ActiveSubscriptions { get; set; }
     public DateTime LastCheckTime { get; set; }
+}
+
+/// <summary>
+/// Consolidated statistics snapshot returned by <c>GetConsolidatedStats</c>.
+/// </summary>
+public sealed class ConsolidatedStats
+{
+    /// <summary>
+    /// Statistics about the event bus itself.
+    /// </summary>
+    public EventBusStats? Bus { get; set; }
+
+    /// <summary>
+    /// Dead‑letter queue statistics (if available).
+    /// </summary>
+    public DeadLetterStatistics? DeadLetter { get; set; }
+
+    /// <summary>
+    /// Batch publisher statistics (if available).
+    /// </summary>
+    public BatchPublisherStats? Batch { get; set; }
 }
 
 /// <summary>
