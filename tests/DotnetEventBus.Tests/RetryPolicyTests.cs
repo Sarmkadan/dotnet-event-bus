@@ -335,4 +335,140 @@ public sealed class RetryPolicyTests
         await act.Should().ThrowAsync<TimeoutException>();
         executionCount.Should().Be(3);
     }
+
+    /// <summary>
+    /// Tests that ExecuteAsync with maxRetries = 0 does not retry and throws immediately.
+    /// </summary>
+    [Fact]
+    public async Task ExecuteAsync_WithZeroMaxRetries_ShouldNotRetryAndThrowImmediately()
+    {
+        // Arrange
+        var policy = new RetryPolicy()
+            .WithMaxRetries(0);
+
+        var executionCount = 0;
+
+        // Act
+        var act = () => policy.ExecuteAsync(async () =>
+        {
+            executionCount++;
+            throw new TimeoutException("Fail");
+        });
+
+        // Assert
+        await act.Should().ThrowAsync<TimeoutException>();
+        executionCount.Should().Be(1); // Only initial attempt, no retries
+    }
+
+    /// <summary>
+    /// Tests that ExecuteAsync with maxRetries = 0 succeeds on first attempt without retry.
+    /// </summary>
+    [Fact]
+    public async Task ExecuteAsync_WithZeroMaxRetries_ShouldSucceedWithoutRetry()
+    {
+        // Arrange
+        var policy = new RetryPolicy()
+            .WithMaxRetries(0);
+
+        var executionCount = 0;
+
+        // Act
+        var result = await policy.ExecuteAsync(async () =>
+        {
+            executionCount++;
+            return "success";
+        });
+
+        // Assert
+        result.Should().Be("success");
+        executionCount.Should().Be(1); // Only initial attempt, no retries
+    }
+
+    /// <summary>
+    /// Tests that ExecuteAsync with non-retryable exception throws immediately without retry.
+    /// </summary>
+    [Fact]
+    public async Task ExecuteAsync_WithNonRetryableException_ShouldThrowImmediatelyWithoutRetry()
+    {
+        // Arrange
+        var policy = new RetryPolicy()
+            .WithMaxRetries(5)
+            .WithInitialDelay(TimeSpan.FromMilliseconds(5))
+            .WithRetryableExceptionFilter(ex => ex is TimeoutException);
+
+        var executionCount = 0;
+
+        // Act
+        var act = () => policy.ExecuteAsync(async () =>
+        {
+            executionCount++;
+            throw new InvalidOperationException("Non-retryable exception");
+        });
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        executionCount.Should().Be(1); // No retries for non-retryable exception
+    }
+
+    /// <summary>
+    /// Tests that ExecuteAsync with retryable exception throws after max retries.
+    /// </summary>
+    [Fact]
+    public async Task ExecuteAsync_WithRetryableException_ShouldThrowAfterMaxRetries()
+    {
+        // Arrange
+        var policy = new RetryPolicy()
+            .WithMaxRetries(2)
+            .WithInitialDelay(TimeSpan.FromMilliseconds(5))
+            .WithRetryableExceptionFilter(ex => ex is TimeoutException);
+
+        var executionCount = 0;
+
+        // Act
+        var act = () => policy.ExecuteAsync(async () =>
+        {
+            executionCount++;
+            throw new TimeoutException("Always retryable");
+        });
+
+        // Assert
+        await act.Should().ThrowAsync<TimeoutException>();
+        executionCount.Should().Be(3); // 1 initial + 2 retries
+    }
+
+    /// <summary>
+    /// Tests that ExecuteAsync total delay respects the configured max delay ceiling.
+    /// </summary>
+    [Fact]
+    public async Task ExecuteAsync_WithMaxDelay_ShouldRespectTotalDelayCeiling()
+    {
+        // Arrange
+        var maxDelay = TimeSpan.FromMilliseconds(100);
+        var policy = new RetryPolicy()
+            .WithMaxRetries(10)
+            .WithInitialDelay(TimeSpan.FromMilliseconds(200)) // Initial delay exceeds max
+            .WithBackoffMultiplier(2.0)
+            .WithMaxDelay(maxDelay)
+            .WithJitter(false);
+
+        var executionCount = 0;
+        var stopwatch = Stopwatch.StartNew();
+
+        // Act
+        var act = () => policy.ExecuteAsync(async () =>
+        {
+            executionCount++;
+            throw new TimeoutException("Fail");
+        });
+
+        // Assert
+        await act.Should().ThrowAsync<TimeoutException>();
+        stopwatch.Stop();
+
+        // With maxDelay = 100ms and maxRetries = 10, total should be around 100ms * 10 = 1000ms
+        // The max delay cap ensures delays don't grow exponentially beyond the configured maximum
+        stopwatch.ElapsedMilliseconds.Should().BeGreaterThanOrEqualTo(900);
+        stopwatch.ElapsedMilliseconds.Should().BeLessThan(1500); // Allow some buffer
+        executionCount.Should().Be(11); // 1 initial + 10 retries
+    }
 }
