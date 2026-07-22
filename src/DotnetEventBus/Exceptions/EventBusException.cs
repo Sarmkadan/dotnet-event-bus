@@ -3,7 +3,7 @@
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
-// =============================================================================
+// =====================================================================
 
 namespace DotnetEventBus.Exceptions;
 
@@ -26,7 +26,7 @@ public class EventBusException : Exception
     /// Initializes a new instance of the <see cref="EventBusException"/> class with a message and inner exception.
     /// </summary>
     public EventBusException(string? message, Exception? innerException)
-        : base(message, innerException) { }
+    : base(message, innerException) { }
 }
 
 /// <summary>
@@ -37,7 +37,7 @@ public sealed class NoHandlersRegisteredException : EventBusException
     public string EventType { get; }
 
     public NoHandlersRegisteredException(string eventType)
-        : base($"No handlers registered for event type: {eventType}")
+    : base($"No handlers registered for event type: {eventType}")
     {
         EventType = eventType;
     }
@@ -52,7 +52,7 @@ public sealed class HandlerInvocationException : EventBusException
     public string EventType { get; }
 
     public HandlerInvocationException(string handlerName, string eventType, Exception? innerException)
-        : base($"Handler '{handlerName}' failed to process event '{eventType}'", innerException)
+    : base($"Handler '{handlerName}' failed to process event '{eventType}'", innerException)
     {
         HandlerName = handlerName;
         EventType = eventType;
@@ -67,7 +67,7 @@ public sealed class InvalidHandlerException : EventBusException
     public Type HandlerType { get; }
 
     public InvalidHandlerException(Type handlerType)
-        : base($"Handler type '{handlerType.FullName}' does not implement a valid handler interface")
+    : base(handlerType == null ? "Handler type '' does not implement a valid handler interface" : $"Handler type '{handlerType.FullName}' does not implement a valid handler interface")
     {
         HandlerType = handlerType;
     }
@@ -81,7 +81,7 @@ public sealed class MessageSerializationException : EventBusException
     public string MessageType { get; }
 
     public MessageSerializationException(string messageType, Exception? innerException)
-        : base($"Failed to serialize/deserialize message of type: {messageType}", innerException)
+    : base($"Failed to serialize/deserialize message of type: {messageType}", innerException)
     {
         MessageType = messageType;
     }
@@ -93,7 +93,7 @@ public sealed class MessageSerializationException : EventBusException
 public sealed class DistributedBusNotConfiguredException : EventBusException
 {
     public DistributedBusNotConfiguredException()
-        : base("Distributed event bus is not properly configured. Ensure transport is registered.")
+    : base("Distributed event bus is not properly configured. Ensure transport is registered.")
     {
     }
 }
@@ -107,7 +107,7 @@ public sealed class RequestTimeoutException : EventBusException
     public TimeSpan Timeout { get; }
 
     public RequestTimeoutException(string requestType, TimeSpan timeout)
-        : base($"Request of type '{requestType}' timed out after {timeout.TotalSeconds} seconds")
+    : base($"Request of type '{requestType}' timed out after {timeout.TotalSeconds} seconds")
     {
         RequestType = requestType;
         Timeout = timeout;
