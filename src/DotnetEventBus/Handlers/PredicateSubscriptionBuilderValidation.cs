@@ -9,7 +9,8 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 
-namespace DotnetEventBus.Handlers;
+using DotnetEventBus.Handlers;
+using DotnetEventBus.Utilities;
 
 /// <summary>
 /// Provides validation extension methods for <see cref="PredicateSubscriptionBuilder{TEvent}"/> instances.
@@ -40,7 +41,7 @@ public static class PredicateSubscriptionBuilderValidation
     public static IReadOnlyList<string> Validate<TEvent>(this PredicateSubscriptionBuilder<TEvent> builder)
         where TEvent : class
     {
-        ArgumentNullException.ThrowIfNull(builder);
+        Guard.NotNull(builder, nameof(builder));
 
         var errors = new List<string>();
 
@@ -80,7 +81,7 @@ public static class PredicateSubscriptionBuilderValidation
     public static bool IsValid<TEvent>(this PredicateSubscriptionBuilder<TEvent> builder)
         where TEvent : class
     {
-        ArgumentNullException.ThrowIfNull(builder);
+        Guard.NotNull(builder, nameof(builder));
         return Validate(builder).Count == 0;
     }
 
@@ -99,7 +100,7 @@ public static class PredicateSubscriptionBuilderValidation
     public static void EnsureValid<TEvent>(this PredicateSubscriptionBuilder<TEvent> builder)
         where TEvent : class
     {
-        ArgumentNullException.ThrowIfNull(builder);
+        Guard.NotNull(builder, nameof(builder));
 
         var errors = Validate(builder);
         if (errors.Count > 0)

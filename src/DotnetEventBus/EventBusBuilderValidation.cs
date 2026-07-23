@@ -1,5 +1,6 @@
 using System.Globalization;
 using DotnetEventBus.Configuration;
+using DotnetEventBus.Utilities;
 
 namespace DotnetEventBus;
 
@@ -16,7 +17,7 @@ public static class EventBusBuilderValidation
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is null.</exception>
     public static IReadOnlyList<string> Validate(this EventBusBuilder value)
     {
-        ArgumentNullException.ThrowIfNull(value);
+        Guard.NotNull(value, nameof(value));
 
         var errors = new List<string>();
 
@@ -35,7 +36,7 @@ public static class EventBusBuilderValidation
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is null.</exception>
     public static bool IsValid(this EventBusBuilder value)
     {
-        ArgumentNullException.ThrowIfNull(value);
+        Guard.NotNull(value, nameof(value));
         return value.Validate().Count == 0;
     }
 
@@ -47,7 +48,7 @@ public static class EventBusBuilderValidation
     /// <exception cref="ArgumentException">Thrown if the builder is invalid, containing the validation errors.</exception>
     public static void EnsureValid(this EventBusBuilder value)
     {
-        ArgumentNullException.ThrowIfNull(value);
+        Guard.NotNull(value, nameof(value));
 
         var errors = value.Validate();
         if (errors.Count > 0)
@@ -59,7 +60,7 @@ public static class EventBusBuilderValidation
 
     private static EventBusOptions GetOptions(this EventBusBuilder builder)
     {
-        ArgumentNullException.ThrowIfNull(builder);
+        Guard.NotNull(builder, nameof(builder));
 
         // Use reflection to access the private _options field
         // This is a temporary workaround until EventBusBuilder exposes options publicly
@@ -86,7 +87,7 @@ public static class EventBusBuilderValidation
 
     private static IReadOnlyList<string> ValidateOptions(EventBusOptions options)
     {
-        ArgumentNullException.ThrowIfNull(options);
+        Guard.NotNull(options, nameof(options));
 
         var errors = new List<string>();
 

@@ -2,9 +2,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 
-namespace DotnetEventBus.Integration;
+using DotnetEventBus.Integration;
+using DotnetEventBus.Utilities;
 
 /// <summary>
 /// Provides validation helpers for <see cref="CircuitBreaker"/> instances.
@@ -19,7 +19,7 @@ public static class CircuitBreakerValidation
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
     public static IReadOnlyList<string> Validate(this CircuitBreaker value)
     {
-        ArgumentNullException.ThrowIfNull(value);
+        Guard.NotNull(value, nameof(value));
 
         var problems = new List<string>();
 
@@ -72,7 +72,7 @@ public static class CircuitBreakerValidation
     /// <exception cref="ArgumentException">Thrown when the circuit breaker has validation problems.</exception>
     public static void EnsureValid(this CircuitBreaker? value)
     {
-        ArgumentNullException.ThrowIfNull(value);
+        Guard.NotNull(value, nameof(value));
 
         var problems = Validate(value);
         if (problems.Count > 0)
