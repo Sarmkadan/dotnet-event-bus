@@ -429,3 +429,183 @@ public class ConfigurationBenchmarks
         return services.BuildServiceProvider().GetRequiredService<IEventBus>();
     }
 }
+
+/// <summary>
+/// Benchmarks for predicate-based subscriptions to measure filtering performance.
+/// Tests the optimization of compiling multiple predicates into a single function.
+/// </summary>
+[MemoryDiagnoser]
+public class PredicateSubscriptionBenchmarks
+{
+    private IServiceProvider? _serviceProvider;
+    private IEventBus? _eventBus;
+    private ServiceCollection? _services;
+
+    public class TestEvent
+    {
+        public string Id { get; set; } = Guid.NewGuid().ToString();
+        public string Name { get; set; } = "TestEvent";
+        public int Value { get; set; }
+        public string Category { get; set; } = "default";
+        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+    }
+
+    [GlobalSetup]
+    public void GlobalSetup()
+    {
+        _services = new ServiceCollection();
+        _services.AddLogging(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Warning));
+        _services.AddEventBus(options =>
+        {
+            options.AllowParallelHandling = false;
+            options.MaxConcurrentHandlers = 1;
+            options.MaxRetryAttempts = 0;
+            options.DefaultHandlerTimeout = TimeSpan.FromSeconds(30);
+        });
+
+        _serviceProvider = _services.BuildServiceProvider();
+        _eventBus = _serviceProvider.GetRequiredService<IEventBus>();
+    }
+
+    [GlobalCleanup]
+    public void GlobalCleanup()
+    {
+        if (_serviceProvider is IDisposable disposable)
+        {
+            disposable.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Benchmark: Single predicate subscription with simple condition
+    /// Measures baseline performance for predicate filtering with one condition
+    /// </summary>
+    [Benchmark]
+    [BenchmarkCategory("Predicate Filtering")]
+    public async Task Publish_With_Single_Predicate()
+    {
+        _eventBus!.CreatePredicateSubscription<TestEvent>()
+            .Where(e => e.Value > 50)
+            .WithHandler(async (@event, ct) => await Task.CompletedTask)
+            .Register();
+
+        var testEvent = new TestEvent { Id = "predicate-test", Value = 100, Name = "PredicateTest" };
+        await _eventBus.PublishAsync(testEvent);
+    }
+
+    /// <summary>
+    /// Benchmark: Multiple predicate subscriptions (10) for the same event
+    /// Measures the overhead of multiple predicate evaluations per publish
+    /// </summary>
+    [Benchmark]
+    [BenchmarkCategory("Predicate Filtering")]
+    public async Task Publish_With_10_Predicate_Subscribers()
+    {
+        // Register 10 predicate-based subscriptions
+        for (int i = 0; i < 10; i++)
+        {
+            int threshold = i * 10; // Different threshold for each subscription
+            _eventBus!.CreatePredicateSubscription<TestEvent>()
+                .Where(e => e.Value > threshold)
+                .WithHandler(async (@event, ct) => await Task.CompletedTask)
+                .Register();
+        }
+
+        // Publish an event that matches all predicates
+        var testEvent = new TestEvent { Id = "multi-predicate-test", Value = 150, Name = "MultiPredicateTest" };
+        await _eventBus.PublishAsync(testEvent);
+    }
+
+    /// <summary>
+    /// Benchmark: Predicate subscription with complex conditions
+    /// Measures performance with multiple conditions combined
+    /// </summary>
+    [Benchmark]
+    [BenchmarkCategory("Predicate Filtering")]
+    public async Task Publish_With_Complex_Predicate()
+    {
+        _eventBus!.CreatePredicateSubscription<TestEvent>()
+            .Where(e => e.Value > 50)
+            .Where(e => e.Category == "important")
+            .Where(e => e.Name.StartsWith("Test"))
+            .WithHandler(async (@event, ct) => await Task.CompletedTask)
+            .Register();
+
+        var testEvent = new TestEvent { Id = "complex-test", Value = 100, Name = "TestEvent", Category = "important" };
+        await _eventBus.PublishAsync(testEvent);
+    }
+
+    /// <summary>
+    /// Benchmark: Predicate subscription with expression-based predicates
+    /// Tests the optimization of compiling Expression trees to Func delegates
+    /// </summary>
+    [Benchmark]
+    [BenchmarkCategory("Predicate Filtering")]
+    public async Task Publish_With_Expression_Predicate()
+    {
+        _eventBus!.CreatePredicateSubscription<TestEvent>()
+            .Where(e => e.Value > 50 && e.Category == "important")
+            .WithHandler(async (@event, ct) => await Task.CompletedTask)
+            .Register();
+
+        var testEvent = new TestEvent { Id = "expression-test", Value = 100, Name = "TestEvent", Category = "important" };
+        await _eventBus.PublishAsync(testEvent);
+    }
+
+    /// <summary>
+    /// Benchmark: Predicate subscription with parallel handling enabled
+    /// Measures predicate performance with concurrent handler execution
+    /// </summary>
+    [Benchmark]
+    [BenchmarkCategory("Predicate Filtering with Parallel")]
+    public async Task Publish_With_Predicate_And_Parallel_Handling()
+    {
+        _eventBus!.CreatePredicateSubscription<TestEvent>()
+            .Where(e => e.Value > 50)
+            .WithHandler(async (@event, ct) => await Task.Delay(1, ct))
+            .Register();
+
+        var testEvent = new TestEvent { Id = "parallel-predicate-test", Value = 100, Name = "ParallelPredicateTest" };
+        await _eventBus.PublishAsync(testEvent);
+    }
+
+    /// <summary>
+    /// Benchmark: Predicate subscription that filters out events
+    /// Measures performance when predicates reject events (no handler invocation)
+    /// </summary>
+    [Benchmark]
+    [BenchmarkCategory("Predicate Filtering")]
+    public async Task Publish_With_Predicate_That_Filters_Out()
+    {
+        _eventBus!.CreatePredicateSubscription<TestEvent>()
+            .Where(e => e.Value > 1000) // Event with Value=100 will be filtered out
+            .WithHandler(async (@event, ct) => await Task.CompletedTask)
+            .Register();
+
+        var testEvent = new TestEvent { Id = "filtered-out", Value = 100, Name = "FilteredOut" };
+        await _eventBus.PublishAsync(testEvent);
+    }
+
+    /// <summary>
+    /// Benchmark: Multiple predicate subscriptions with mixed matching
+    /// Tests performance when some predicates match and some don't
+    /// </summary>
+    [Benchmark]
+    [BenchmarkCategory("Predicate Filtering")]
+    public async Task Publish_With_10_Mixed_Predicate_Subscribers()
+    {
+        // Register 10 predicate-based subscriptions with different thresholds
+        for (int i = 0; i < 10; i++)
+        {
+            int threshold = i * 20;
+            _eventBus!.CreatePredicateSubscription<TestEvent>()
+                .Where(e => e.Value > threshold)
+                .WithHandler(async (@event, ct) => await Task.CompletedTask)
+                .Register();
+        }
+
+        // Publish an event that only matches some predicates
+        var testEvent = new TestEvent { Id = "mixed-match-test", Value = 125, Name = "MixedMatchTest" };
+        await _eventBus.PublishAsync(testEvent);
+    }
+}

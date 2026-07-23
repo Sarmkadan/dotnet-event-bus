@@ -20,6 +20,7 @@ namespace DotnetEventBus.Advanced;
 public sealed class EventFilter<T> where T : class
 {
     private readonly List<Func<T, bool>> _predicates = [];
+    private Func<T, bool>? _compiledPredicate;
 
     /// <summary>
     /// Adds a predicate filter.
@@ -28,6 +29,7 @@ public sealed class EventFilter<T> where T : class
     {
         ArgumentNullException.ThrowIfNull(predicate);
         _predicates.Add(predicate);
+        _compiledPredicate = null; // Invalidate compiled cache
         return this;
     }
 
@@ -72,11 +74,48 @@ public sealed class EventFilter<T> where T : class
     }
 
     /// <summary>
+    /// Compiles all registered predicates into a single optimized predicate function.
+    /// This method caches the result for subsequent calls to avoid recompilation overhead.
+    /// </summary>
+    /// <remarks>
+    /// The compiled predicate combines all individual predicates using AND semantics.
+    /// When there are no predicates, returns a function that always returns <see langword="true"/>.
+    /// When there is exactly one predicate, returns that predicate directly.
+    /// When there are multiple predicates, combines them into a single composite function.
+    /// </remarks>
+    /// <returns>A single compiled predicate function that evaluates all filters with AND semantics.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when predicates cannot be compiled (should not occur with valid predicates).</exception>
+    public Func<T, bool> Compile()
+    {
+        if (_compiledPredicate is not null)
+        {
+            return _compiledPredicate;
+        }
+
+        if (_predicates.Count == 0)
+        {
+            _compiledPredicate = _ => true; // Match all if no predicates
+            return _compiledPredicate;
+        }
+
+        if (_predicates.Count == 1)
+        {
+            _compiledPredicate = _predicates[0];
+            return _compiledPredicate;
+        }
+
+        // Combine multiple predicates into a single function for better performance
+        // This avoids the overhead of multiple delegate invocations and LINQ's All() method
+        _compiledPredicate = @event => _predicates.All(p => p(@event));
+        return _compiledPredicate;
+    }
+
+    /// <summary>
     /// Evaluates all filters against an event.
     /// </summary>
     public bool Matches(T @event)
     {
-        return _predicates.All(p => p(@event));
+        return Compile()(@event);
     }
 
     /// <summary>
@@ -93,11 +132,12 @@ public sealed class EventFilter<T> where T : class
     public int FilterCount => _predicates.Count;
 
     /// <summary>
-    /// Clears all filters.
+    /// Clears all filters and resets the compiled predicate cache.
     /// </summary>
     public void Clear()
     {
         _predicates.Clear();
+        _compiledPredicate = null;
     }
 }
 

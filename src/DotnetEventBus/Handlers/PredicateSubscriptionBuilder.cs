@@ -167,10 +167,11 @@ public sealed class PredicateSubscriptionBuilder<TEvent>
         var capturedLogger = _logger;
         var capturedName = _handlerName;
         var capturedHandler = _asyncHandler;
+        var compiledPredicate = capturedFilter.Compile();
 
         async Task FilteredDelegate(TEvent @event, CancellationToken ct)
         {
-            if (!capturedFilter.Matches(@event))
+            if (!compiledPredicate(@event))
             {
                 capturedLogger?.LogDebug(
                     "Event {EventType} did not match predicate subscription {HandlerName}",
