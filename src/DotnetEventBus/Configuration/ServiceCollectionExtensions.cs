@@ -8,8 +8,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using DotnetEventBus.Formatters;
+using DotnetEventBus.Integration;
 using DotnetEventBus.Repositories;
 using DotnetEventBus.Services;
+using DotnetEventBus.Transport;
 
 namespace DotnetEventBus.Configuration;
 
@@ -63,6 +65,7 @@ public static class ServiceCollectionExtensions
                 sp.GetService<Microsoft.Extensions.Logging.ILogger<DeadLetterService>>()));
         services.AddSingleton<ISubscriptionManager, SubscriptionManager>();
         services.AddSingleton<IHandlerInvoker, HandlerInvoker>();
+        services.AddSingleton<ITransportRegistry, TransportRegistry>();
 
         return services;
     }
@@ -137,5 +140,100 @@ public static class ServiceCollectionExtensions
         {
             services.TryAddTransient(middlewareType);
         }
+    }
+
+    /// <summary>
+    /// Adds and configures the default in-process transport.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configureOptions">Optional configuration for the event bus.</param>
+    /// <returns>The service collection.</returns>
+    public static IServiceCollection AddInProcessTransport(
+        this IServiceCollection services,
+        Action<EventBusOptions>? configureOptions = null)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        // Add the event bus first
+        services.AddEventBus(configureOptions);
+
+        // Register the in-process transport as the default
+        services.AddSingleton<IEventTransport>(sp =>
+        {
+            var eventBus = sp.GetRequiredService<IEventBus>();
+            return new InProcessTransport(eventBus);
+        });
+
+        return services;
+    }
+
+    /// <summary>
+    /// Adds and configures the webhook transport.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="signingSecret">Optional signing secret for webhook signature verification.</param>
+    /// <returns>The service collection.</returns>
+    public static IServiceCollection AddWebhookTransport(
+        this IServiceCollection services,
+        string? signingSecret = null)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        // Register webhook handler
+        services.AddSingleton<WebhookHandler>(sp => new WebhookHandler(signingSecret));
+
+        // Register webhook transport
+        services.AddSingleton<IEventTransport>(sp =>
+        {
+            var webhookHandler = sp.GetRequiredService<WebhookHandler>();
+            return new WebhookTransport(webhookHandler);
+        });
+
+        return services;
+    }
+
+    /// <summary>
+    /// Configures the transport registry with the specified transports as default.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="transportIds">The transport IDs to set as default (use "in-process-transport" for in-process).</param>
+    /// <returns>The service collection.</returns>
+    public static IServiceCollection ConfigureTransportRegistry(
+        this IServiceCollection services,
+        params string[] transportIds)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddSingleton<ITransportRegistry>(sp =>
+        {
+            var registry = new TransportRegistry();
+            var serviceProvider = sp;
+
+            // Find and register all transports
+            foreach (var transport in serviceProvider.GetServices<IEventTransport>() ?? Array.Empty<IEventTransport>())
+            {
+                registry.RegisterTransport(transport);
+            }
+
+            // Set default transport if specified
+            if (transportIds?.Length > 0)
+            {
+                foreach (var transportId in transportIds)
+                {
+                    var transport = serviceProvider.GetServices<IEventTransport>()
+                        .FirstOrDefault(t => t.TransportId == transportId);
+
+                    if (transport != null)
+                    {
+                        registry.RegisterTransport(transport, isDefault: true);
+                        break; // Use first match
+                    }
+                }
+            }
+
+            return registry;
+        });
+
+        return services;
     }
 }
