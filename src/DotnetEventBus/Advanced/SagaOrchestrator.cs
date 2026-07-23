@@ -3,13 +3,14 @@
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
-// =============================================================================
+// =====================================================================
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using DotnetEventBus.Exceptions;
 
 namespace DotnetEventBus.Advanced;
 
@@ -92,7 +93,13 @@ public sealed class SagaOrchestrator<TContext> where TContext : class
                     executionResult.Error = ex.Message;
 
                     // Rollback: execute compensation actions in reverse order
-                    await RollbackAsync(completedSteps, context);
+                    var compensationFailures = await RollbackAsync(completedSteps, context);
+
+                    if (compensationFailures.Count > 0)
+                    {
+                        executionResult.Success = false;
+                        throw new SagaCompensationException(ex, step.Name, compensationFailures, executionResult);
+                    }
 
                     executionResult.Success = false;
                     return executionResult;
@@ -105,6 +112,11 @@ public sealed class SagaOrchestrator<TContext> where TContext : class
                 _sagaId, _steps.Count);
             return executionResult;
         }
+        catch (SagaCompensationException)
+        {
+            // Re-throw SagaCompensationException as it's already properly formatted
+            throw;
+        }
         catch (Exception ex)
         {
             executionResult.Success = false;
@@ -115,35 +127,41 @@ public sealed class SagaOrchestrator<TContext> where TContext : class
         }
     }
 
-        private async Task RollbackAsync(List<SagaStep<TContext>> completedSteps, TContext context)
-        {
-            _logger?.LogWarning("Starting rollback for saga {SagaId} with {StepsCount} completed steps",
-                _sagaId, completedSteps.Count);
+    private async Task<List<CompensationFailure>> RollbackAsync(List<SagaStep<TContext>> completedSteps, TContext context)
+    {
+        _logger?.LogWarning("Starting rollback for saga {SagaId} with {StepsCount} completed steps",
+            _sagaId, completedSteps.Count);
 
-            // Execute compensations in reverse order
-            foreach (var step in completedSteps.AsEnumerable().Reverse())
+        var compensationFailures = new List<CompensationFailure>();
+
+        // Execute compensations in reverse order
+        foreach (var step in completedSteps.AsEnumerable().Reverse())
+        {
+            if (step.CompensationAction is not null)
             {
-                if (step.CompensationAction is not null)
+                try
                 {
-                    try
-                    {
-                        step.Status = SagaStepStatus.Compensating;
-                        _logger?.LogDebug("Executing compensation for step: {StepName}", step.Name);
-                        await step.CompensationAction(context);
-                        step.Status = SagaStepStatus.Compensated;
-                        _logger?.LogDebug("Compensation completed for step: {StepName}", step.Name);
-                    }
-                    catch (Exception ex)
-                    {
-                        step.Status = SagaStepStatus.CompensationFailed;
-                        step.ErrorMessage = ex.Message;
-                        _logger?.LogError(ex, "Compensation failed for step: {StepName}", step.Name);
-                    }
+                    step.Status = SagaStepStatus.Compensating;
+                    _logger?.LogDebug("Executing compensation for step: {StepName}", step.Name);
+                    await step.CompensationAction(context);
+                    step.Status = SagaStepStatus.Compensated;
+                    _logger?.LogDebug("Compensation completed for step: {StepName}", step.Name);
+                }
+                catch (Exception ex)
+                {
+                    step.Status = SagaStepStatus.CompensationFailed;
+                    step.ErrorMessage = ex.Message;
+                    _logger?.LogError(ex, "Compensation failed for step: {StepName}", step.Name);
+                    compensationFailures.Add(new DotnetEventBus.Exceptions.CompensationFailure(step.Name, ex));
                 }
             }
-
-            _logger?.LogWarning("Rollback completed for saga {SagaId}", _sagaId);
         }
+
+        _logger?.LogWarning("Rollback completed for saga {SagaId} with {FailuresCount} compensation failures",
+            _sagaId, compensationFailures.Count);
+
+        return compensationFailures;
+    }
 
     /// <summary>
     /// Gets the status of all steps.
@@ -153,6 +171,7 @@ public sealed class SagaOrchestrator<TContext> where TContext : class
         return _steps.ToList();
     }
 }
+
 
 public sealed class SagaStep<T> where T : class
 {

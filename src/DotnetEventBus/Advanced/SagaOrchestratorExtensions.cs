@@ -141,4 +141,28 @@ public static class SagaOrchestratorExtensions
             .Where(step => step.Status == SagaStepStatus.Failed || step.Status == SagaStepStatus.CompensationFailed)
             .ToList();
     }
+
+    /// <summary>
+    /// Adds a saga step with both execution and compensation actions using a fluent interface.
+    /// This provides a more expressive way to define saga steps with their compensations.
+    /// </summary>
+    /// <typeparam name="TContext">The context type.</typeparam>
+    /// <param name="orchestrator">The saga orchestrator instance.</param>
+    /// <param name="stepName">The name of the saga step.</param>
+    /// <param name="executeAsync">The action to execute during the forward path.</param>
+    /// <param name="compensateAsync">The compensation action to execute if rollback is needed.</param>
+    /// <returns>The saga orchestrator instance for fluent chaining.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="orchestrator"/>, <paramref name="stepName"/>, or <paramref name="executeAsync"/> is <see langword="null"/>.</exception>
+    public static SagaOrchestrator<TContext> Step<TContext>(
+        this SagaOrchestrator<TContext> orchestrator,
+        string stepName,
+        Func<TContext, Task> executeAsync,
+        Func<TContext, Task>? compensateAsync = null) where TContext : class
+    {
+        ArgumentNullException.ThrowIfNull(orchestrator);
+        ArgumentException.ThrowIfNullOrEmpty(stepName);
+        ArgumentNullException.ThrowIfNull(executeAsync);
+
+        return orchestrator.AddStep(stepName, executeAsync, compensateAsync);
+    }
 }
