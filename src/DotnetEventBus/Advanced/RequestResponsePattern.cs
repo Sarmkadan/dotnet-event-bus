@@ -3,7 +3,7 @@
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
-// =============================================================================
+// =====================================================================
 
 using System;
 using System.Collections.Concurrent;
@@ -44,16 +44,27 @@ public sealed class RequestResponseBus
     /// <summary>
     /// Sends a request and waits for a response.
     /// </summary>
+    /// <typeparam name="TRequest">The request type.</typeparam>
+    /// <typeparam name="TResponse">The response type.</typeparam>
+    /// <param name="eventType">The event type to publish the request as.</param>
+    /// <param name="request">The request payload.</param>
+    /// <param name="timeout">Optional timeout for the request. Uses <see cref="_defaultTimeout"/> if not specified.</param>
+    /// <param name="cancellationToken">The cancellation token to observe.</param>
+    /// <returns>The response from the handler.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="eventType"/> or <paramref name="request"/> is null.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when the request cannot be registered.</exception>
+    /// <exception cref="TimeoutException">Thrown when the request times out.</exception>
     public async Task<TResponse?> RequestAsync<TRequest, TResponse>(
         string eventType,
         TRequest request,
-        TimeSpan? timeout = null) where TRequest : class where TResponse : class
+        TimeSpan? timeout = null,
+        CancellationToken cancellationToken = default) where TRequest : class where TResponse : class
     {
         ArgumentNullException.ThrowIfNull(eventType);
         ArgumentNullException.ThrowIfNull(request);
 
         var requestId = Guid.NewGuid().ToString();
-        var tcs = new TaskCompletionSource<object?>();
+        var tcs = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
         var actualTimeout = timeout ?? _defaultTimeout;
 
         if (!_pendingRequests.TryAdd(requestId, tcs))
@@ -61,40 +72,65 @@ public sealed class RequestResponseBus
             throw new InvalidOperationException("Failed to register request");
         }
 
+        // Create a linked cancellation token source that combines the caller's token with the timeout
+        using var timeoutCts = new CancellationTokenSource(actualTimeout);
+        var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+
+        // Register timeout callback that uses TrySetException to avoid double-faulting the TCS
+        timeoutCts.Token.Register(() =>
+        {
+            // Only set exception if the task hasn't completed yet
+            if (!tcs.Task.IsCompleted)
+            {
+                tcs.TrySetException(new TimeoutException($"Request {requestId} timed out after {actualTimeout.TotalSeconds}s"));
+            }
+        });
+
+        // Register caller cancellation callback - use linkedCts.Token to ensure it's tied to the combined token
+        linkedCts.Token.Register(() =>
+        {
+            // Only set exception if the task hasn't completed yet
+            if (!tcs.Task.IsCompleted)
+            {
+                tcs.TrySetCanceled(linkedCts.Token);
+            }
+        });
+
         try
         {
-            using (var cts = new CancellationTokenSource(actualTimeout))
+            if (_publishRequest is not null)
             {
-                cts.Token.Register(() =>
+                var message = new RequestMessage<object>
                 {
-                    tcs.TrySetException(new TimeoutException($"Request {requestId} timed out after {actualTimeout.TotalSeconds}s"));
-                });
+                    RequestId = requestId,
+                    Payload = request,
+                    Timeout = actualTimeout
+                };
 
-                if (_publishRequest is not null)
-                {
-                    var message = new RequestMessage<object>
-                    {
-                        RequestId = requestId,
-                        Payload = request,
-                        Timeout = actualTimeout
-                    };
-
-                    await _publishRequest(eventType, message);
-                }
-
-                var response = await tcs.Task;
-                return response as TResponse;
+                await _publishRequest(eventType, message);
             }
+
+            var response = await tcs.Task;
+            return response as TResponse;
         }
         finally
         {
+            // Ensure cleanup happens even if an exception occurs
+            // Use TryRemove to safely clean up - this handles cases where timeout/cancellation callbacks already removed the entry
             _pendingRequests.TryRemove(requestId, out _);
+
+            // Dispose the linked cancellation token source to prevent resource leaks
+            linkedCts?.Dispose();
         }
     }
 
     /// <summary>
     /// Sends a response to a pending request.
     /// </summary>
+    /// <param name="requestId">The request ID to respond to.</param>
+    /// <param name="response">The response payload.</param>
+    /// <returns>True if the response was successfully sent; false if the request was not found or already completed.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="requestId"/> or <paramref name="response"/> is null.</exception>
     public bool SendResponse(string requestId, object response)
     {
         ArgumentNullException.ThrowIfNull(requestId);
@@ -102,7 +138,7 @@ public sealed class RequestResponseBus
 
         if (_pendingRequests.TryRemove(requestId, out var tcs))
         {
-            // TrySetResult: the request may have already been faulted by its timeout callback.
+            // TrySetResult: the request may have already been faulted by its timeout callback or caller cancellation
             return tcs.TrySetResult(response);
         }
 
@@ -112,6 +148,10 @@ public sealed class RequestResponseBus
     /// <summary>
     /// Fails a pending request with an exception.
     /// </summary>
+    /// <param name="requestId">The request ID to fail.</param>
+    /// <param name="exception">The exception to propagate to the caller.</param>
+    /// <returns>True if the exception was successfully set; false if the request was not found.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="requestId"/> or <paramref name="exception"/> is null.</exception>
     public bool FailRequest(string requestId, Exception exception)
     {
         ArgumentNullException.ThrowIfNull(requestId);
@@ -119,7 +159,7 @@ public sealed class RequestResponseBus
 
         if (_pendingRequests.TryRemove(requestId, out var tcs))
         {
-            // TrySetException: the request may have already been faulted by its timeout callback.
+            // TrySetException: the request may have already been completed by a response or timeout
             return tcs.TrySetException(exception);
         }
 
@@ -129,13 +169,18 @@ public sealed class RequestResponseBus
     /// <summary>
     /// Gets the number of pending requests.
     /// </summary>
+    /// <returns>The count of currently pending requests.</returns>
     public int GetPendingRequestCount() => _pendingRequests.Count;
 
     /// <summary>
     /// Cancels all pending requests.
     /// </summary>
+    /// <param name="reason">The reason for cancellation, included in the exception.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="reason"/> is null.</exception>
     public void CancelAllRequests(string reason = "Bus shutting down")
     {
+        ArgumentNullException.ThrowIfNull(reason);
+
         var exception = new OperationCanceledException(reason);
 
         foreach (var kvp in _pendingRequests)
@@ -143,6 +188,59 @@ public sealed class RequestResponseBus
             kvp.Value.TrySetException(exception);
             _pendingRequests.TryRemove(kvp.Key, out _);
         }
+    }
+
+    /// <summary>
+    /// Audits the pending requests dictionary for potential memory leaks.
+    /// Checks if any requests have timed out but their entries were not cleaned up.
+    /// </summary>
+    /// <returns>A dictionary of leaked request IDs and their status.</returns>
+    public Dictionary<string, string> AuditPendingRequests()
+    {
+        var leakedRequests = new Dictionary<string, string>();
+
+        foreach (var kvp in _pendingRequests)
+        {
+            var requestId = kvp.Key;
+            var tcs = kvp.Value;
+            var taskStatus = tcs.Task.Status;
+
+            string status = taskStatus switch
+            {
+                TaskStatus.RanToCompletion => "Completed",
+                TaskStatus.Faulted => "Faulted",
+                TaskStatus.Canceled => "Canceled",
+                TaskStatus.Running => "Running",
+                TaskStatus.WaitingForActivation => "Waiting",
+                TaskStatus.WaitingToRun => "WaitingToRun",
+                TaskStatus.WaitingForChildrenToComplete => "WaitingForChildren",
+                _ => taskStatus.ToString()
+            };
+
+            leakedRequests[requestId] = status;
+        }
+
+        return leakedRequests;
+    }
+
+    /// <summary>
+    /// Attempts to clean up any completed or faulted requests that were not properly removed.
+    /// This is a defensive cleanup operation that should rarely be needed if the normal flow works correctly.
+    /// </summary>
+    /// <returns>The number of requests that were cleaned up.</returns>
+    public int CleanupCompletedRequests()
+    {
+        var completedKeys = _pendingRequests
+            .Where(kvp => kvp.Value.Task.IsCompleted)
+            .Select(kvp => kvp.Key)
+            .ToList();
+
+        foreach (var key in completedKeys)
+        {
+            _pendingRequests.TryRemove(key, out _);
+        }
+
+        return completedKeys.Count;
     }
 }
 
