@@ -60,6 +60,22 @@ public sealed class EventBusOptions
     public bool ThrowOnHandlerFailure { get; set; } = false;
 
     /// <summary>
+    /// Whether publishing an event with no registered handlers should throw
+    /// <see cref="NoHandlersRegisteredException"/>. When <see langword="false"/> (the default),
+    /// the situation is logged and, if <see cref="DeadLetterOnNoHandlers"/> is enabled,
+    /// recorded to the dead letter queue instead.
+    /// </summary>
+    public bool ThrowOnNoHandlers { get; set; } = false;
+
+    /// <summary>
+    /// Whether an event published with no registered handlers should be recorded in the
+    /// dead letter queue for later inspection or replay. Has no effect if
+    /// <see cref="EnableDeadLetterQueue"/> is <see langword="false"/> or if
+    /// <see cref="ThrowOnNoHandlers"/> is <see langword="true"/> (the throw takes precedence).
+    /// </summary>
+    public bool DeadLetterOnNoHandlers { get; set; } = false;
+
+    /// <summary>
     /// Whether this is a distributed event bus.
     /// </summary>
     public bool IsDistributed { get; set; } = false;
@@ -140,6 +156,8 @@ public sealed class EventBusOptions
             MaxConcurrentHandlers = MaxConcurrentHandlers,
             EnableDeadLetterQueue = EnableDeadLetterQueue,
             ThrowOnHandlerFailure = ThrowOnHandlerFailure,
+            ThrowOnNoHandlers = ThrowOnNoHandlers,
+            DeadLetterOnNoHandlers = DeadLetterOnNoHandlers,
             IsDistributed = IsDistributed,
             DistributedTransportType = DistributedTransportType,
             DistributedTransportConnectionString = DistributedTransportConnectionString,

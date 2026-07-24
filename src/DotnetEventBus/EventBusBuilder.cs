@@ -134,6 +134,27 @@ public sealed class EventBusBuilder
     }
 
     /// <summary>
+    /// Configures whether publishing an event with no registered handlers throws
+    /// <see cref="Exceptions.NoHandlersRegisteredException"/> instead of being logged (and
+    /// optionally dead-lettered).
+    /// </summary>
+    public EventBusBuilder WithThrowOnNoHandlers(bool throwExceptions)
+    {
+        _options.ThrowOnNoHandlers = throwExceptions;
+        return this;
+    }
+
+    /// <summary>
+    /// Configures whether events published with no registered handlers are recorded in the
+    /// dead letter queue instead of being silently logged.
+    /// </summary>
+    public EventBusBuilder WithDeadLetterOnNoHandlers(bool enabled)
+    {
+        _options.DeadLetterOnNoHandlers = enabled;
+        return this;
+    }
+
+    /// <summary>
     /// Configures distributed event bus settings.
     /// </summary>
     public EventBusBuilder AsDistributed(string transportType, string? connectionString = null)
@@ -175,6 +196,8 @@ public sealed class EventBusBuilder
                     opt.MaxConcurrentHandlers = _options.MaxConcurrentHandlers;
                     opt.EnableDeadLetterQueue = _options.EnableDeadLetterQueue;
                     opt.ThrowOnHandlerFailure = _options.ThrowOnHandlerFailure;
+                    opt.ThrowOnNoHandlers = _options.ThrowOnNoHandlers;
+                    opt.DeadLetterOnNoHandlers = _options.DeadLetterOnNoHandlers;
                     opt.IsDistributed = _options.IsDistributed;
                     opt.DistributedTransportType = _options.DistributedTransportType;
                     opt.DistributedTransportConnectionString = _options.DistributedTransportConnectionString;
@@ -193,6 +216,8 @@ public sealed class EventBusBuilder
                 opt.MaxConcurrentHandlers = _options.MaxConcurrentHandlers;
                 opt.EnableDeadLetterQueue = _options.EnableDeadLetterQueue;
                 opt.ThrowOnHandlerFailure = _options.ThrowOnHandlerFailure;
+                opt.ThrowOnNoHandlers = _options.ThrowOnNoHandlers;
+                opt.DeadLetterOnNoHandlers = _options.DeadLetterOnNoHandlers;
                 opt.IsDistributed = _options.IsDistributed;
                 opt.DistributedTransportType = _options.DistributedTransportType;
                 opt.DistributedTransportConnectionString = _options.DistributedTransportConnectionString;

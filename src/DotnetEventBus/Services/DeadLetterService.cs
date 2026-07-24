@@ -50,6 +50,19 @@ public interface IDeadLetterService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Reprocesses every pending dead letter entry matching the given predicate.
+    /// Processing continues even if individual entries fail.
+    /// </summary>
+    /// <param name="predicate">Filter applied to pending entries to select which ones to replay.</param>
+    /// <param name="maxEntries">Optional upper limit on how many matching entries to replay in one call.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="predicate"/> is null.</exception>
+    Task<BatchReprocessResult> ReplayAsync(
+        Func<DeadLetterEntry, bool> predicate,
+        int? maxEntries = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Marks a dead letter entry as reviewed but not reprocessed.
     /// </summary>
     Task MarkAsReviewedAsync(string entryId, string? reason = null, CancellationToken cancellationToken = default);
@@ -264,6 +277,44 @@ public sealed class DeadLetterService : IDeadLetterService
         _logger?.LogInformation(
             "Batch reprocess for {EventType} complete: {Succeeded} succeeded, {Failed} failed",
             eventType, batchResult.SucceededCount, batchResult.FailedCount);
+
+        return batchResult;
+    }
+
+    public async Task<BatchReprocessResult> ReplayAsync(
+        Func<DeadLetterEntry, bool> predicate,
+        int? maxEntries = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(predicate);
+
+        var pending = await _repository.GetPendingAsync(cancellationToken);
+        var matching = pending.Where(predicate).ToList();
+
+        if (maxEntries.HasValue)
+            matching = matching.Take(maxEntries.Value).ToList();
+
+        var batchResult = new BatchReprocessResult();
+
+        _logger?.LogInformation(
+            "Starting replay for {Count} dead letter entries matching predicate",
+            matching.Count);
+
+        foreach (var entry in matching)
+        {
+            var succeeded = await ReprocessEntryAsync(entry.Id, cancellationToken);
+            if (succeeded)
+                batchResult.SucceededCount++;
+            else
+            {
+                batchResult.FailedCount++;
+                batchResult.FailedEntryIds.Add(entry.Id);
+            }
+        }
+
+        _logger?.LogInformation(
+            "Replay complete: {Succeeded} succeeded, {Failed} failed",
+            batchResult.SucceededCount, batchResult.FailedCount);
 
         return batchResult;
     }

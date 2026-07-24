@@ -170,7 +170,21 @@ public sealed class EventBus : IEventBus
 
             if (applicableSubscriptions.Count == 0)
             {
+                if (_options.ThrowOnNoHandlers)
+                    throw new NoHandlersRegisteredException(eventTypeName);
+
                 _logger?.LogWarning("No handlers registered for event type: {EventType}", eventTypeName);
+
+                if (_options.EnableDeadLetterQueue && _options.DeadLetterOnNoHandlers)
+                {
+                    await _deadLetterService.AddDeadLetterEntryAsync(
+                        eventTypeName,
+                        payload,
+                        new NoHandlersRegisteredException(eventTypeName),
+                        correlationId,
+                        "NoHandlersRegistered",
+                        cancellationToken);
+                }
             }
 
             var result = new PublishResult(message.MessageId);
