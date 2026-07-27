@@ -76,6 +76,14 @@ public sealed class EventBusOptions
     public bool DeadLetterOnNoHandlers { get; set; } = false;
 
     /// <summary>
+    /// Maximum number of entries the default in-memory dead letter store retains before it
+    /// starts evicting the oldest entry to make room for a new one (ring buffer semantics).
+    /// Has no effect on custom <see cref="Repositories.IDeadLetterRepository"/> implementations
+    /// supplied by the caller. Must be at least 1.
+    /// </summary>
+    public int MaxDeadLetterEntries { get; set; } = 1000;
+
+    /// <summary>
     /// Whether this is a distributed event bus.
     /// </summary>
     public bool IsDistributed { get; set; } = false;
@@ -124,6 +132,9 @@ public sealed class EventBusOptions
         if (IsDistributed && string.IsNullOrWhiteSpace(DistributedTransportType))
             throw new ValidationException(
                 "DistributedTransportType must be specified when IsDistributed is true");
+
+        if (MaxDeadLetterEntries < 1)
+            throw new ValidationException("MaxDeadLetterEntries must be at least 1");
     }
 
     /// <summary>
@@ -158,6 +169,7 @@ public sealed class EventBusOptions
             ThrowOnHandlerFailure = ThrowOnHandlerFailure,
             ThrowOnNoHandlers = ThrowOnNoHandlers,
             DeadLetterOnNoHandlers = DeadLetterOnNoHandlers,
+            MaxDeadLetterEntries = MaxDeadLetterEntries,
             IsDistributed = IsDistributed,
             DistributedTransportType = DistributedTransportType,
             DistributedTransportConnectionString = DistributedTransportConnectionString,

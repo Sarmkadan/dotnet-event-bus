@@ -179,7 +179,7 @@ public sealed class EventBusBuilder
         {
             _messageRepository ??= new InMemoryEventMessageRepository();
             _subscriptionRepository ??= new InMemorySubscriptionRepository();
-            _deadLetterRepository ??= new InMemoryDeadLetterRepository();
+            _deadLetterRepository ??= new InMemoryDeadLetterRepository(_options.MaxDeadLetterEntries);
 
             _services.AddEventBus(
                 _messageRepository,
@@ -198,6 +198,7 @@ public sealed class EventBusBuilder
                     opt.ThrowOnHandlerFailure = _options.ThrowOnHandlerFailure;
                     opt.ThrowOnNoHandlers = _options.ThrowOnNoHandlers;
                     opt.DeadLetterOnNoHandlers = _options.DeadLetterOnNoHandlers;
+                    opt.MaxDeadLetterEntries = _options.MaxDeadLetterEntries;
                     opt.IsDistributed = _options.IsDistributed;
                     opt.DistributedTransportType = _options.DistributedTransportType;
                     opt.DistributedTransportConnectionString = _options.DistributedTransportConnectionString;
@@ -218,6 +219,7 @@ public sealed class EventBusBuilder
                 opt.ThrowOnHandlerFailure = _options.ThrowOnHandlerFailure;
                 opt.ThrowOnNoHandlers = _options.ThrowOnNoHandlers;
                 opt.DeadLetterOnNoHandlers = _options.DeadLetterOnNoHandlers;
+                opt.MaxDeadLetterEntries = _options.MaxDeadLetterEntries;
                 opt.IsDistributed = _options.IsDistributed;
                 opt.DistributedTransportType = _options.DistributedTransportType;
                 opt.DistributedTransportConnectionString = _options.DistributedTransportConnectionString;

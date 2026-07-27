@@ -5,6 +5,7 @@
 // CTO & Software Architect
 // =============================================================================
 
+using System.Collections.Concurrent;
 using DotnetEventBus.Models;
 
 namespace DotnetEventBus.Repositories;
@@ -64,10 +65,61 @@ public interface IDeadLetterRepository : IRepository<DeadLetterEntry>
 }
 
 /// <summary>
-/// In-memory implementation of the dead letter repository.
+/// In-memory implementation of the dead letter repository. Behaves as a bounded ring
+/// buffer: once <see cref="_maxEntries"/> entries are stored, adding a new one evicts the
+/// oldest entry (by insertion order) to make room, so a runaway stream of failing events
+/// cannot grow the store without bound.
 /// </summary>
 public sealed class InMemoryDeadLetterRepository : InMemoryRepository<DeadLetterEntry>, IDeadLetterRepository
 {
+    private readonly int _maxEntries;
+    private readonly ConcurrentQueue<string> _insertionOrder = new();
+    private readonly SemaphoreSlim _evictionLock = new(1, 1);
+
+    /// <summary>
+    /// Initializes a new in-memory dead letter repository.
+    /// </summary>
+    /// <param name="maxEntries">
+    /// Maximum number of entries retained before the oldest entry is evicted to make room
+    /// for a new one. Must be at least 1.
+    /// </param>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="maxEntries"/> is less than 1.</exception>
+    public InMemoryDeadLetterRepository(int maxEntries = 1000)
+    {
+        if (maxEntries < 1)
+            throw new ArgumentOutOfRangeException(nameof(maxEntries), maxEntries, "maxEntries must be at least 1");
+
+        _maxEntries = maxEntries;
+    }
+
+    /// <summary>
+    /// Adds a dead letter entry, evicting the oldest stored entry first if the store is
+    /// already at capacity.
+    /// </summary>
+    /// <param name="entity">The dead letter entry to add.</param>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>The added entry.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="entity"/> is null.</exception>
+    public override async Task<DeadLetterEntry> AddAsync(DeadLetterEntry entity, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(entity);
+
+        await _evictionLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (await CountAsync(cancellationToken) >= _maxEntries && _insertionOrder.TryDequeue(out var oldestId))
+                await DeleteAsync(oldestId, cancellationToken);
+
+            var added = await base.AddAsync(entity, cancellationToken);
+            _insertionOrder.Enqueue(entity.Id);
+            return added;
+        }
+        finally
+        {
+            _evictionLock.Release();
+        }
+    }
+
     public async Task<IEnumerable<DeadLetterEntry>> GetPendingAsync(CancellationToken cancellationToken = default)
     {
         return await GetByStatusAsync(DeadLetterStatus.Pending, cancellationToken);

@@ -54,7 +54,7 @@ public class InMemoryRepository<T> : IRepository<T> where T : class
     /// <summary>
     /// Adds a new entity.
     /// </summary>
-    public async Task<T> AddAsync(T entity, CancellationToken cancellationToken = default)
+    public virtual async Task<T> AddAsync(T entity, CancellationToken cancellationToken = default)
     {
         if (entity is null)
             throw new ArgumentNullException(nameof(entity));

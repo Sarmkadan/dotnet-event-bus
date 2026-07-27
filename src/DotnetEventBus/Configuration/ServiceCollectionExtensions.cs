@@ -41,7 +41,7 @@ public static class ServiceCollectionExtensions
         RegisterConfiguredMiddleware(services, options);
         services.AddSingleton<IEventMessageRepository, InMemoryEventMessageRepository>();
         services.AddSingleton<ISubscriptionRepository, InMemorySubscriptionRepository>();
-        services.AddSingleton<IDeadLetterRepository, InMemoryDeadLetterRepository>();
+        services.AddSingleton<IDeadLetterRepository>(_ => new InMemoryDeadLetterRepository(options.MaxDeadLetterEntries));
         services.AddSingleton<EventFormatterFactory>();
         services.AddSingleton<IEventFormatter, Formatters.JsonEventFormatter>();
         services.AddSingleton<IEventBus>(sp =>
