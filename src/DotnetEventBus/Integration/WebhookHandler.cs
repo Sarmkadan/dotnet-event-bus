@@ -189,7 +189,10 @@ public sealed class WebhookHandler
         object eventData,
         string eventType)
     {
-        using var httpClient = new HttpClient();
+        ValidateUrl(subscription.Url);
+
+        using var handler = new HttpClientHandler { AllowAutoRedirect = false };
+        using var httpClient = new HttpClient(handler);
 
         // Add custom headers
         if (subscription.Headers is not null)
@@ -257,6 +260,70 @@ public sealed class WebhookHandler
             _logger?.LogWarning(ex, "Webhook delivery failed to {Url}, will retry", subscription.Url);
             throw;
         }
+    }
+
+    /// <summary>
+    /// Validates the webhook URL to prevent SSRF and ensure it uses a secure scheme.
+    /// </summary>
+    /// <param name="url">The URL to validate.</param>
+    /// <exception cref="ArgumentException">Thrown when the URL is invalid, uses an insecure scheme, or points to an internal/loopback address.</exception>
+    private static void ValidateUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            throw new ArgumentException("URL cannot be null or empty.", nameof(url));
+        }
+
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            throw new ArgumentException("Invalid URL format.", nameof(url));
+        }
+
+        if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+        {
+            throw new ArgumentException("Only http and https schemes are allowed.", nameof(url));
+        }
+
+        // Basic SSRF protection: Check for loopback and private IP addresses
+        if (uri.HostNameType == UriHostNameType.IPv4 || uri.HostNameType == UriHostNameType.IPv6)
+        {
+            if (System.Net.IPAddress.TryParse(uri.DnsSafeHost, out var ipAddress))
+            {
+                if (System.Net.IPAddress.IsLoopback(ipAddress) || IsPrivateIP(ipAddress))
+                {
+                    throw new ArgumentException("Internal or loopback IP addresses are not allowed.", nameof(url));
+                }
+            }
+        }
+        else if (string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("localhost is not allowed.", nameof(url));
+        }
+    }
+
+    /// <summary>
+    /// Determines if an IP address is in a private network range.
+    /// </summary>
+    private static bool IsPrivateIP(System.Net.IPAddress ipAddress)
+    {
+        if (ipAddress.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+        {
+            var bytes = ipAddress.GetAddressBytes();
+            // RFC 1918
+            if (bytes[0] == 10) return true;
+            if (bytes[0] == 172 && (bytes[1] >= 16 && bytes[1] <= 31)) return true;
+            if (bytes[0] == 192 && bytes[1] == 168) return true;
+            // Link-local
+            if (bytes[0] == 169 && bytes[1] == 254) return true;
+        }
+        else if (ipAddress.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
+        {
+            // Check for unique local address (fc00::/7) or link-local (fe80::/10)
+            var bytes = ipAddress.GetAddressBytes();
+            if ((bytes[0] & 0xFE) == 0xFC) return true; // Unique local
+            if ((bytes[0] == 0xFE) && (bytes[1] & 0xC0) == 0x80) return true; // Link-local
+        }
+        return false;
     }
 
     private bool IsTransientFailure(Exception ex)
