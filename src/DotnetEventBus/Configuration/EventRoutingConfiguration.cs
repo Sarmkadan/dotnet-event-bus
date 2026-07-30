@@ -16,7 +16,7 @@ namespace DotnetEventBus.Configuration;
 /// Allows events to be routed to different handlers based on content or metadata.
 /// Why: Enables sophisticated event routing without handler modifications.
 /// </summary>
-public sealed class EventRoutingConfiguration
+public sealed class EventRoutingConfiguration : IEquatable<EventRoutingConfiguration>
 {
     private readonly Dictionary<string, List<RoutingRule>> _routes = [];
 
@@ -86,6 +86,85 @@ public sealed class EventRoutingConfiguration
     {
         _routes.Clear();
     }
+
+    #region Equality members
+
+    public bool Equals(EventRoutingConfiguration? other)
+    {
+        if (ReferenceEquals(this, other))
+            return true;
+        if (other is null)
+            return false;
+
+        if (_routes.Count != other._routes.Count)
+            return false;
+
+        // Compare each event type and its routing rules
+        foreach (var kvp in _routes)
+        {
+            if (!other._routes.TryGetValue(kvp.Key, out var otherRules))
+                return false;
+
+            var thisRules = kvp.Value;
+            if (thisRules.Count != otherRules.Count)
+                return false;
+
+            // Compare rules in order; order is significant for priority handling
+            for (int i = 0; i < thisRules.Count; i++)
+            {
+                var a = thisRules[i];
+                var b = otherRules[i];
+
+                if (!RoutingRuleEquals(a, b))
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool RoutingRuleEquals(RoutingRule a, RoutingRule b)
+    {
+        if (ReferenceEquals(a, b))
+            return true;
+        if (a is null || b is null)
+            return false;
+
+        return string.Equals(a.TargetHandler, b.TargetHandler, StringComparison.Ordinal) &&
+               Equals(a.Condition, b.Condition) && // delegate equality (reference)
+               a.Priority == b.Priority &&
+               a.ContinueEvaluation == b.ContinueEvaluation;
+    }
+
+    public override bool Equals(object? obj) => Equals(obj as EventRoutingConfiguration);
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+
+        // Ensure deterministic order
+        foreach (var kvp in _routes.OrderBy(k => k.Key))
+        {
+            hash.Add(kvp.Key);
+            foreach (var rule in kvp.Value)
+            {
+                hash.Add(rule.TargetHandler);
+                hash.Add(rule.Condition);
+                hash.Add(rule.Priority);
+                hash.Add(rule.ContinueEvaluation);
+            }
+        }
+
+        return hash.ToHashCode();
+    }
+
+    public static bool operator ==(EventRoutingConfiguration? left, EventRoutingConfiguration? right)
+        => Equals(left, right);
+
+    public static bool operator !=(EventRoutingConfiguration? left, EventRoutingConfiguration? right)
+        => !Equals(left, right);
+
+    #endregion
 }
 
 /// <summary>
