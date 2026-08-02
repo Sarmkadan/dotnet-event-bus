@@ -6,6 +6,9 @@ using Xunit;
 
 namespace DotnetEventBus.Tests;
 
+/// <summary>
+/// Contains unit tests for validating the configuration of PredicateSubscriptionBuilder.
+/// </summary>
 public class PredicateSubscriptionBuilderValidationTests
 {
     private class TestEvent
@@ -14,6 +17,9 @@ public class PredicateSubscriptionBuilderValidationTests
         public int Value { get; set; }
     }
 
+    /// <summary>
+    /// Tests that Validate throws ArgumentNullException when the builder is null.
+    /// </summary>
     [Fact]
     public void Validate_WithNullBuilder_ThrowsArgumentNullException()
     {
@@ -24,6 +30,9 @@ public class PredicateSubscriptionBuilderValidationTests
         Assert.Throws<ArgumentNullException>(() => builder!.Validate<TestEvent>());
     }
 
+    /// <summary>
+    /// Tests that Validate returns an empty list when the builder is valid.
+    /// </summary>
     [Fact]
     public void Validate_WithValidBuilder_ReturnsEmptyList()
     {
@@ -39,6 +48,9 @@ public class PredicateSubscriptionBuilderValidationTests
         errors.Should().BeEmpty();
     }
 
+    /// <summary>
+    /// Tests that Validate returns an error when no handler is configured.
+    /// </summary>
     [Fact]
     public void Validate_WithHandlerNotConfigured_ReturnsError()
     {
@@ -54,6 +66,9 @@ public class PredicateSubscriptionBuilderValidationTests
         errors[0].Should().Be("No handler configured. Call WithHandler before calling Register.");
     }
 
+    /// <summary>
+    /// Tests that Validate returns an error when the handler name is empty.
+    /// </summary>
     [Fact]
     public void Validate_WithEmptyHandlerName_ReturnsError()
     {
@@ -71,6 +86,9 @@ public class PredicateSubscriptionBuilderValidationTests
         errors[0].Should().Be("Handler name cannot be empty or whitespace.");
     }
 
+    /// <summary>
+    /// Tests that Validate returns an error when the handler name is null.
+    /// </summary>
     [Fact]
     public void Validate_WithNullHandlerName_ReturnsError()
     {
@@ -88,6 +106,9 @@ public class PredicateSubscriptionBuilderValidationTests
         errors[0].Should().Be("Handler name cannot be empty or whitespace.");
     }
 
+    /// <summary>
+    /// Tests that Validate returns an error when the priority is below the minimum allowed value.
+    /// </summary>
     [Fact]
     public void Validate_WithPriorityBelowMinimum_ReturnsError()
     {
@@ -105,6 +126,9 @@ public class PredicateSubscriptionBuilderValidationTests
         errors[0].Should().Be("Priority must be between -1000 and 1000.");
     }
 
+    /// <summary>
+    /// Tests that Validate returns an error when the priority is above the maximum allowed value.
+    /// </summary>
     [Fact]
     public void Validate_WithPriorityAboveMaximum_ReturnsError()
     {
@@ -122,6 +146,9 @@ public class PredicateSubscriptionBuilderValidationTests
         errors[0].Should().Be("Priority must be between -1000 and 1000.");
     }
 
+    /// <summary>
+    /// Tests that Validate returns an empty list when the priority is valid.
+    /// </summary>
     [Fact]
     public void Validate_WithValidPriority_ReturnsEmptyList()
     {
@@ -138,6 +165,9 @@ public class PredicateSubscriptionBuilderValidationTests
         errors.Should().BeEmpty();
     }
 
+    /// <summary>
+    /// Tests that Validate returns an empty list when the priority is within the valid boundaries.
+    /// </summary>
     [Fact]
     public void Validate_WithValidPriorityBoundaries_ReturnsEmptyList()
     {
@@ -163,6 +193,9 @@ public class PredicateSubscriptionBuilderValidationTests
         errors.Should().BeEmpty();
     }
 
+    /// <summary>
+    /// Tests that Validate returns all errors when there are multiple configuration issues.
+    /// </summary>
     [Fact]
     public void Validate_WithMultipleErrors_ReturnsAllErrors()
     {
@@ -181,6 +214,9 @@ public class PredicateSubscriptionBuilderValidationTests
         errors.Should().Contain("Priority must be between -1000 and 1000.");
     }
 
+    /// <summary>
+    /// Tests that Validate returns a read-only list of errors.
+    /// </summary>
     [Fact]
     public void Validate_ReturnsReadOnlyList()
     {
@@ -196,6 +232,9 @@ public class PredicateSubscriptionBuilderValidationTests
         errors.Should().BeAssignableTo<IReadOnlyList<string>>();
     }
 
+    /// <summary>
+    /// Tests that IsValid throws ArgumentNullException when the builder is null.
+    /// </summary>
     [Fact]
     public void IsValid_WithNullBuilder_ThrowsArgumentNullException()
     {
@@ -206,6 +245,9 @@ public class PredicateSubscriptionBuilderValidationTests
         Assert.Throws<ArgumentNullException>(() => builder!.IsValid<TestEvent>());
     }
 
+    /// <summary>
+    /// Tests that IsValid returns true when the builder is valid.
+    /// </summary>
     [Fact]
     public void IsValid_WithValidBuilder_ReturnsTrue()
     {
@@ -221,6 +263,9 @@ public class PredicateSubscriptionBuilderValidationTests
         isValid.Should().BeTrue();
     }
 
+    /// <summary>
+    /// Tests that IsValid returns false when no handler is configured.
+    /// </summary>
     [Fact]
     public void IsValid_WithHandlerNotConfigured_ReturnsFalse()
     {
@@ -235,6 +280,9 @@ public class PredicateSubscriptionBuilderValidationTests
         isValid.Should().BeFalse();
     }
 
+    /// <summary>
+    /// Tests that IsValid returns false when the handler name is empty.
+    /// </summary>
     [Fact]
     public void IsValid_WithEmptyHandlerName_ReturnsFalse()
     {
@@ -251,6 +299,9 @@ public class PredicateSubscriptionBuilderValidationTests
         isValid.Should().BeFalse();
     }
 
+    /// <summary>
+    /// Tests that IsValid returns false when the priority is out of the valid range.
+    /// </summary>
     [Fact]
     public void IsValid_WithPriorityOutOfRange_ReturnsFalse()
     {
@@ -267,6 +318,9 @@ public class PredicateSubscriptionBuilderValidationTests
         isValid.Should().BeFalse();
     }
 
+    /// <summary>
+    /// Tests that EnsureValid throws ArgumentNullException when the builder is null.
+    /// </summary>
     [Fact]
     public void EnsureValid_WithNullBuilder_ThrowsArgumentNullException()
     {
@@ -277,6 +331,9 @@ public class PredicateSubscriptionBuilderValidationTests
         Assert.Throws<ArgumentNullException>(() => builder!.EnsureValid<TestEvent>());
     }
 
+    /// <summary>
+    /// Tests that EnsureValid does not throw an exception when the builder is valid.
+    /// </summary>
     [Fact]
     public void EnsureValid_WithValidBuilder_DoesNotThrow()
     {
@@ -292,6 +349,9 @@ public class PredicateSubscriptionBuilderValidationTests
         act.Should().NotThrow();
     }
 
+    /// <summary>
+    /// Tests that EnsureValid throws an ArgumentException when no handler is configured.
+    /// </summary>
     [Fact]
     public void EnsureValid_WithHandlerNotConfigured_ThrowsArgumentException()
     {
@@ -307,6 +367,9 @@ public class PredicateSubscriptionBuilderValidationTests
             .WithMessage("*No handler configured. Call WithHandler before calling Register.*");
     }
 
+    /// <summary>
+    /// Tests that EnsureValid throws an ArgumentException when the handler name is empty.
+    /// </summary>
     [Fact]
     public void EnsureValid_WithEmptyHandlerName_ThrowsArgumentException()
     {
@@ -324,6 +387,9 @@ public class PredicateSubscriptionBuilderValidationTests
             .WithMessage("*Handler name cannot be empty or whitespace*");
     }
 
+    /// <summary>
+    /// Tests that EnsureValid throws an ArgumentException when the priority is out of the valid range.
+    /// </summary>
     [Fact]
     public void EnsureValid_WithPriorityOutOfRange_ThrowsArgumentException()
     {
@@ -341,6 +407,9 @@ public class PredicateSubscriptionBuilderValidationTests
             .WithMessage("*Priority must be between -1000 and 1000.*");
     }
 
+    /// <summary>
+    /// Tests that EnsureValid throws an ArgumentException with all errors when there are multiple configuration issues.
+    /// </summary>
     [Fact]
     public void EnsureValid_WithMultipleErrors_ThrowsArgumentExceptionWithAllErrors()
     {
