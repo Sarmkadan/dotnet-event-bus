@@ -36,12 +36,14 @@ public sealed class RateLimitingMiddleware
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _requestsPerWindow = requestsPerWindow;
         _timeWindow = timeWindow ?? TimeSpan.FromSeconds(60);
+        _logger.LogInformation("RateLimitingMiddleware initialized with {RequestsPerWindow} requests per {TimeWindow}", _requestsPerWindow, _timeWindow);
     }
 
     public EventBusMiddleware Create(EventBusMiddleware next)
     {
         return async (context) =>
         {
+            _logger.LogInformation("Rate limiting check started for {EventType}", context.EventType);
             if (!await IsAllowed(context.EventType))
             {
                 _logger.LogWarning(
@@ -57,6 +59,7 @@ public sealed class RateLimitingMiddleware
 
             // Proceed to next middleware
             await next(context);
+            _logger.LogInformation("Rate limiting check finished for {EventType}", context.EventType);
         };
     }
 
