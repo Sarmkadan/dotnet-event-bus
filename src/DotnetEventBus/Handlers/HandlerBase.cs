@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 namespace DotnetEventBus.Handlers;
 
 /// <summary>
-/// Base class for implementing event handlers with built-in logging.
+/// Base class for implementing event handlers with built‑in logging.
 /// </summary>
 public abstract class EventHandlerBase<TEvent> : IEventHandler<TEvent>
     where TEvent : class
@@ -25,12 +25,21 @@ public abstract class EventHandlerBase<TEvent> : IEventHandler<TEvent>
     /// <summary>
     /// Gets the type of event this handler processes.
     /// </summary>
-    public virtual Type GetEventType() => typeof(TEvent);
+    public virtual Type GetEventType()
+    {
+        Logger?.LogInformation("GetEventType called, returning {EventType}", typeof(TEvent));
+        return typeof(TEvent);
+    }
 
     /// <summary>
     /// Gets a display name for this handler.
     /// </summary>
-    public virtual string GetHandlerName() => GetType().Name;
+    public virtual string GetHandlerName()
+    {
+        var name = GetType().Name;
+        Logger?.LogInformation("GetHandlerName called, returning {HandlerName}", name);
+        return name;
+    }
 
     /// <summary>
     /// Handles the event. Override this method to implement your handler logic.
@@ -67,14 +76,17 @@ public abstract class EventHandlerBase<TEvent> : IEventHandler<TEvent>
     /// </summary>
     protected async Task ExecuteWithHooks(TEvent @event, CancellationToken cancellationToken)
     {
+        Logger?.LogInformation("ExecuteWithHooks started for event {EventType}", typeof(TEvent).Name);
         try
         {
             await OnBeforeHandle(@event, cancellationToken);
             await Handle(@event, cancellationToken);
             await OnAfterHandle(@event, cancellationToken);
+            Logger?.LogInformation("ExecuteWithHooks completed for event {EventType}", typeof(TEvent).Name);
         }
         catch (Exception ex)
         {
+            Logger?.LogError(ex, "ExecuteWithHooks failed for event {EventType}", typeof(TEvent).Name);
             await OnError(@event, ex, cancellationToken);
             throw;
         }
@@ -94,9 +106,18 @@ public abstract class NotificationHandlerBase<TNotification> : INotificationHand
         Logger = logger;
     }
 
-    public virtual Type GetEventType() => typeof(TNotification);
+    public virtual Type GetEventType()
+    {
+        Logger?.LogInformation("GetEventType called, returning {EventType}", typeof(TNotification));
+        return typeof(TNotification);
+    }
 
-    public virtual string GetHandlerName() => GetType().Name;
+    public virtual string GetHandlerName()
+    {
+        var name = GetType().Name;
+        Logger?.LogInformation("GetHandlerName called, returning {HandlerName}", name);
+        return name;
+    }
 
     public abstract Task Handle(TNotification notification, CancellationToken cancellationToken = default);
 }
@@ -115,9 +136,18 @@ public abstract class RequestHandlerBase<TRequest, TResponse> : IRequestHandler<
         Logger = logger;
     }
 
-    public virtual Type GetEventType() => typeof(TRequest);
+    public virtual Type GetEventType()
+    {
+        Logger?.LogInformation("GetEventType called, returning {EventType}", typeof(TRequest));
+        return typeof(TRequest);
+    }
 
-    public virtual string GetHandlerName() => GetType().Name;
+    public virtual string GetHandlerName()
+    {
+        var name = GetType().Name;
+        Logger?.LogInformation("GetHandlerName called, returning {HandlerName}", name);
+        return name;
+    }
 
     public abstract Task<TResponse> Handle(TRequest request, CancellationToken cancellationToken = default);
 
@@ -144,15 +174,29 @@ public abstract class PolymorphicHandlerBase : IPolymorphicHandler
         Logger = logger;
     }
 
-    public virtual Type GetEventType() => typeof(object);
+    public virtual Type GetEventType()
+    {
+        Logger?.LogInformation("GetEventType called, returning {EventType}", typeof(object));
+        return typeof(object);
+    }
 
-    public virtual string GetHandlerName() => GetType().Name;
+    public virtual string GetHandlerName()
+    {
+        var name = GetType().Name;
+        Logger?.LogInformation("GetHandlerName called, returning {HandlerName}", name);
+        return name;
+    }
 
     public abstract Task HandleDynamic(object @event, CancellationToken cancellationToken = default);
 
     public virtual bool CanHandle(Type eventType)
     {
-        return SupportedTypes.Contains(eventType) || SupportedTypes.Any(t => t.IsAssignableFrom(eventType));
+        var canHandle = SupportedTypes.Contains(eventType) || SupportedTypes.Any(t => t.IsAssignableFrom(eventType));
+        if (!canHandle)
+        {
+            Logger?.LogWarning("CanHandle called for unsupported event type {EventType}", eventType);
+        }
+        return canHandle;
     }
 
     public virtual IEnumerable<Type> GetSupportedEventTypes() => SupportedTypes.AsReadOnly();
@@ -165,6 +209,7 @@ public abstract class PolymorphicHandlerBase : IPolymorphicHandler
         if (eventType is null)
             throw new ArgumentNullException(nameof(eventType));
 
+        Logger?.LogInformation("RegisterHandledType called for {EventType}", eventType);
         SupportedTypes.Add(eventType);
     }
 
@@ -173,6 +218,8 @@ public abstract class PolymorphicHandlerBase : IPolymorphicHandler
     /// </summary>
     protected void RegisterHandledTypes(params Type[] eventTypes)
     {
+        var count = eventTypes?.Length ?? 0;
+        Logger?.LogInformation("RegisterHandledTypes called for {Count} types", count);
         foreach (var type in eventTypes ?? Array.Empty<Type>())
         {
             RegisterHandledType(type);
