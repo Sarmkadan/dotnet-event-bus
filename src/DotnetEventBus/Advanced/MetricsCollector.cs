@@ -41,6 +41,8 @@ public sealed class MetricsCollector
     /// </summary>
     public void RecordEventPublished(string eventType, long durationMs)
     {
+        ArgumentException.ThrowIfNullOrEmpty(eventType);
+
         Interlocked.Increment(ref _totalEventsPublished);
 
         var metrics = _metrics.GetOrAdd(eventType, _ => new EventMetrics { EventType = eventType });
@@ -76,6 +78,10 @@ public sealed class MetricsCollector
     /// </summary>
     public void RecordEventFailed(string eventType, string handlerName, Exception exception)
     {
+        ArgumentException.ThrowIfNullOrEmpty(eventType);
+        ArgumentException.ThrowIfNullOrEmpty(handlerName);
+        ArgumentNullException.ThrowIfNull(exception);
+
         Interlocked.Increment(ref _totalEventsFailed);
 
         var metrics = _metrics.GetOrAdd(eventType, _ => new EventMetrics { EventType = eventType });
@@ -96,6 +102,9 @@ public sealed class MetricsCollector
     /// </summary>
     public void RecordHandlerExecution(string handlerName, string eventType, long durationMs, bool success)
     {
+        ArgumentException.ThrowIfNullOrEmpty(handlerName);
+        ArgumentException.ThrowIfNullOrEmpty(eventType);
+
         var key = $"{handlerName}:{eventType}";
         var metrics = _handlerMetrics.GetOrAdd(key, _ => new HandlerMetrics
         {
@@ -124,6 +133,7 @@ public sealed class MetricsCollector
     /// </summary>
     public EventMetrics? GetEventMetrics(string eventType)
     {
+        ArgumentException.ThrowIfNullOrEmpty(eventType);
         _metrics.TryGetValue(eventType, out var metrics);
         return metrics;
     }
@@ -141,6 +151,7 @@ public sealed class MetricsCollector
     /// </summary>
     public IEnumerable<HandlerMetrics> GetHandlerMetrics(string handlerName)
     {
+        ArgumentException.ThrowIfNullOrEmpty(handlerName);
         return _handlerMetrics.Values
         .Where(m => m.HandlerName == handlerName)
         .OrderByDescending(m => m.ExecutionCount);
@@ -152,6 +163,8 @@ public sealed class MetricsCollector
     /// </summary>
     public HandlerMetrics? GetHandlerMetrics(string handlerName, string eventType)
     {
+        ArgumentException.ThrowIfNullOrEmpty(handlerName);
+        ArgumentException.ThrowIfNullOrEmpty(eventType);
         var key = $"{handlerName}:{eventType}";
         _handlerMetrics.TryGetValue(key, out var metrics);
         return metrics;
