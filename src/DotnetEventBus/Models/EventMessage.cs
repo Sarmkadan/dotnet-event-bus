@@ -124,6 +124,7 @@ public sealed class EventMessage
     /// </summary>
     public void AddHeader(string key, string value)
     {
+        ArgumentException.ThrowIfNullOrEmpty(value);
         if (string.IsNullOrWhiteSpace(key))
             throw new ArgumentException("Header key cannot be empty", nameof(key));
 
