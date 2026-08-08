@@ -97,6 +97,8 @@ public sealed class EventEnvelope
     /// </summary>
     public static EventEnvelope Create(string eventType, object payload)
     {
+        ArgumentException.ThrowIfNullOrEmpty(eventType);
+        ArgumentNullException.ThrowIfNull(payload);
         return new EventEnvelope
         {
             EventType = eventType,
@@ -115,6 +117,9 @@ public sealed class EventEnvelope
         string causationId,
         string? correlationId = null)
     {
+        ArgumentException.ThrowIfNullOrEmpty(eventType);
+        ArgumentNullException.ThrowIfNull(payload);
+        ArgumentException.ThrowIfNullOrEmpty(causationId);
         return new EventEnvelope
         {
             EventType = eventType,
