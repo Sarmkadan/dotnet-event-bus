@@ -24,6 +24,7 @@ public static class ReflectionHelper
     /// </summary>
     public static IEnumerable<Type> FindImplementationsOf<TInterface>(Assembly assembly) where TInterface : class
     {
+        ArgumentNullException.ThrowIfNull(assembly);
         return assembly.GetTypes()
             .Where(t => typeof(TInterface).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
     }
@@ -49,6 +50,8 @@ public static class ReflectionHelper
         Type? returnType = null,
         Type[]? parameterTypes = null)
     {
+        ArgumentNullException.ThrowIfNull(type);
+        ArgumentException.ThrowIfNullOrEmpty(methodName);
         var bindingFlags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase;
         var methods = type.GetMethods(bindingFlags).Where(m => m.Name.Equals(methodName, StringComparison.OrdinalIgnoreCase));
 
@@ -71,6 +74,7 @@ public static class ReflectionHelper
     /// </summary>
     public static T? TryCreateInstance<T>(Type type) where T : class
     {
+        ArgumentNullException.ThrowIfNull(type);
         try
         {
             var instance = Activator.CreateInstance(type);
@@ -88,6 +92,7 @@ public static class ReflectionHelper
     public static IEnumerable<TAttribute> GetCustomAttributes<TAttribute>(ICustomAttributeProvider member)
         where TAttribute : Attribute
     {
+        ArgumentNullException.ThrowIfNull(member);
         return member.GetCustomAttributes(typeof(TAttribute), false).Cast<TAttribute>();
     }
 
@@ -96,6 +101,7 @@ public static class ReflectionHelper
     /// </summary>
     public static bool HasAttribute<TAttribute>(Type type) where TAttribute : Attribute
     {
+        ArgumentNullException.ThrowIfNull(type);
         return type.GetCustomAttributes(typeof(TAttribute), false).Length > 0;
     }
 
@@ -105,6 +111,8 @@ public static class ReflectionHelper
     /// </summary>
     public static object? GetPropertyValue(object obj, string propertyName)
     {
+        ArgumentNullException.ThrowIfNull(obj);
+        ArgumentException.ThrowIfNullOrEmpty(propertyName);
         var property = obj.GetType().GetProperty(propertyName, BindingFlags.Public | BindingFlags.IgnoreCase);
         return property?.GetValue(obj);
     }
@@ -115,6 +123,8 @@ public static class ReflectionHelper
     /// </summary>
     public static void SetPropertyValue(object obj, string propertyName, object? value)
     {
+        ArgumentNullException.ThrowIfNull(obj);
+        ArgumentException.ThrowIfNullOrEmpty(propertyName);
         var property = obj.GetType().GetProperty(propertyName, BindingFlags.Public | BindingFlags.IgnoreCase);
         property?.SetValue(obj, value);
     }
@@ -125,6 +135,7 @@ public static class ReflectionHelper
     /// </summary>
     public static Dictionary<string, object?> GetAllPropertyValues(object obj)
     {
+        ArgumentNullException.ThrowIfNull(obj);
         return obj.GetType()
             .GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .ToDictionary(p => p.Name, p => p.GetValue(obj));
@@ -136,6 +147,9 @@ public static class ReflectionHelper
     /// </summary>
     public static object? InvokeMethod(object obj, string methodName, params object[] parameters)
     {
+        ArgumentNullException.ThrowIfNull(obj);
+        ArgumentException.ThrowIfNullOrEmpty(methodName);
+        ArgumentNullException.ThrowIfNull(parameters);
         var parameterTypes = parameters.Select(p => p?.GetType() ?? typeof(object)).ToArray();
         var method = obj.GetType().GetMethod(methodName, BindingFlags.Public | BindingFlags.Instance, null, parameterTypes, null);
 
@@ -150,6 +164,7 @@ public static class ReflectionHelper
     /// </summary>
     public static Type[] GetGenericArguments(Type type)
     {
+        ArgumentNullException.ThrowIfNull(type);
         return type.IsGenericType ? type.GetGenericArguments() : Type.EmptyTypes;
     }
 }
