@@ -55,6 +55,8 @@ public sealed class InMemoryEventMessageRepository : InMemoryRepository<EventMes
 {
     public async Task<IEnumerable<EventMessage>> GetByEventTypeAsync(string eventType, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(eventType);
+        ArgumentException.ThrowIfNullOrEmpty(eventType);
         if (string.IsNullOrWhiteSpace(eventType))
             throw new ArgumentException("Event type cannot be empty", nameof(eventType));
 
@@ -67,6 +69,8 @@ public sealed class InMemoryEventMessageRepository : InMemoryRepository<EventMes
         DateTime endUtc,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(startUtc);
+        ArgumentNullException.ThrowIfNull(endUtc);
         if (endUtc < startUtc)
             throw new ArgumentException("End time must be after start time");
 
@@ -78,6 +82,8 @@ public sealed class InMemoryEventMessageRepository : InMemoryRepository<EventMes
 
     public async Task<IEnumerable<EventMessage>> GetByCorrelationIdAsync(string correlationId, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(correlationId);
+        ArgumentException.ThrowIfNullOrEmpty(correlationId);
         if (string.IsNullOrWhiteSpace(correlationId))
             throw new ArgumentException("Correlation ID cannot be empty", nameof(correlationId));
 
@@ -87,6 +93,8 @@ public sealed class InMemoryEventMessageRepository : InMemoryRepository<EventMes
 
     public async Task<IEnumerable<EventMessage>> GetBySourceAsync(string source, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentException.ThrowIfNullOrEmpty(source);
         if (string.IsNullOrWhiteSpace(source))
             throw new ArgumentException("Source cannot be empty", nameof(source));
 
@@ -105,6 +113,7 @@ public sealed class InMemoryEventMessageRepository : InMemoryRepository<EventMes
 
     public async Task<int> DeleteOldMessagesAsync(TimeSpan retentionPeriod, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(retentionPeriod);
         if (retentionPeriod <= TimeSpan.Zero)
             throw new ArgumentException("Retention period must be greater than zero", nameof(retentionPeriod));
 
