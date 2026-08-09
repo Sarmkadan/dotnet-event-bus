@@ -127,8 +127,7 @@ public sealed class InMemoryDeadLetterRepository : InMemoryRepository<DeadLetter
 
     public async Task<IEnumerable<DeadLetterEntry>> GetByHandlerAsync(string handlerName, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(handlerName))
-            throw new ArgumentException("Handler name cannot be empty", nameof(handlerName));
+        ArgumentException.ThrowIfNullOrEmpty(handlerName);
 
         var entries = await GetAllAsync(cancellationToken);
         return entries.Where(e => e.FailedHandlerName == handlerName).ToList();
@@ -136,8 +135,7 @@ public sealed class InMemoryDeadLetterRepository : InMemoryRepository<DeadLetter
 
     public async Task<IEnumerable<DeadLetterEntry>> GetByEventTypeAsync(string eventType, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(eventType))
-            throw new ArgumentException("Event type cannot be empty", nameof(eventType));
+        ArgumentException.ThrowIfNullOrEmpty(eventType);
 
         var entries = await GetAllAsync(cancellationToken);
         return entries.Where(e => e.Message.EventType == eventType).ToList();
