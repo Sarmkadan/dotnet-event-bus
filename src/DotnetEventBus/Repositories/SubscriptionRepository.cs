@@ -67,8 +67,7 @@ public sealed class InMemorySubscriptionRepository : InMemoryRepository<Subscrip
 {
     public async Task<IEnumerable<Subscription>> GetByEventTypeAsync(string eventType, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(eventType))
-            throw new ArgumentException("Event type cannot be empty", nameof(eventType));
+        ArgumentException.ThrowIfNullOrEmpty(eventType);
 
         var subscriptions = await GetAllAsync(cancellationToken);
         return subscriptions.Where(s => s.EventType == eventType).ToList();
@@ -76,8 +75,7 @@ public sealed class InMemorySubscriptionRepository : InMemoryRepository<Subscrip
 
     public async Task<IEnumerable<Subscription>> GetActiveByEventTypeAsync(string eventType, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(eventType))
-            throw new ArgumentException("Event type cannot be empty", nameof(eventType));
+        ArgumentException.ThrowIfNullOrEmpty(eventType);
 
         var subscriptions = await GetAllAsync(cancellationToken);
         return subscriptions.Where(s => s.EventType == eventType && s.IsActive).ToList();
@@ -85,8 +83,7 @@ public sealed class InMemorySubscriptionRepository : InMemoryRepository<Subscrip
 
     public async Task<IEnumerable<Subscription>> GetByHandlerNameAsync(string handlerName, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(handlerName))
-            throw new ArgumentException("Handler name cannot be empty", nameof(handlerName));
+        ArgumentException.ThrowIfNullOrEmpty(handlerName);
 
         var subscriptions = await GetAllAsync(cancellationToken);
         return subscriptions.Where(s => s.HandlerName == handlerName).ToList();
@@ -108,8 +105,7 @@ public sealed class InMemorySubscriptionRepository : InMemoryRepository<Subscrip
         string eventType,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(eventType))
-            throw new ArgumentException("Event type cannot be empty", nameof(eventType));
+        ArgumentException.ThrowIfNullOrEmpty(eventType);
 
         var subscriptions = await GetByEventTypeAsync(eventType, cancellationToken);
         return subscriptions.OrderByDescending(s => s.Priority).ToList();
@@ -117,8 +113,7 @@ public sealed class InMemorySubscriptionRepository : InMemoryRepository<Subscrip
 
     public async Task<int> CountByEventTypeAsync(string eventType, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(eventType))
-            throw new ArgumentException("Event type cannot be empty", nameof(eventType));
+        ArgumentException.ThrowIfNullOrEmpty(eventType);
 
         var subscriptions = await GetByEventTypeAsync(eventType, cancellationToken);
         return subscriptions.Count();
@@ -126,8 +121,7 @@ public sealed class InMemorySubscriptionRepository : InMemoryRepository<Subscrip
 
     public async Task DisableHandlerAsync(string handlerName, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(handlerName))
-            throw new ArgumentException("Handler name cannot be empty", nameof(handlerName));
+        ArgumentException.ThrowIfNullOrEmpty(handlerName);
 
         var subscriptions = await GetByHandlerNameAsync(handlerName, cancellationToken);
         foreach (var sub in subscriptions)
