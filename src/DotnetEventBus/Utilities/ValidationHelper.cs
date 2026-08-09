@@ -26,6 +26,8 @@ public sealed class ValidationHelper
     /// </summary>
     public ValidationHelper RequireNotEmpty(string? value, string fieldName)
     {
+        ArgumentException.ThrowIfNullOrEmpty(value);
+        ArgumentException.ThrowIfNullOrEmpty(fieldName);
         if (string.IsNullOrWhiteSpace(value))
         {
             _errors.Add($"{fieldName} is required and cannot be empty");
@@ -39,6 +41,8 @@ public sealed class ValidationHelper
     /// </summary>
     public ValidationHelper RequireNotNull<T>(T? value, string fieldName) where T : class
     {
+        ArgumentNullException.ThrowIfNull(value);
+        ArgumentException.ThrowIfNullOrEmpty(fieldName);
         if (value is null)
         {
             _errors.Add($"{fieldName} is required and cannot be null");
@@ -52,6 +56,10 @@ public sealed class ValidationHelper
     /// </summary>
     public ValidationHelper RequirePattern(string? value, string pattern, string fieldName, string message)
     {
+        ArgumentException.ThrowIfNullOrEmpty(value);
+        ArgumentException.ThrowIfNullOrEmpty(pattern);
+        ArgumentException.ThrowIfNullOrEmpty(fieldName);
+        ArgumentException.ThrowIfNullOrEmpty(message);
         if (!string.IsNullOrEmpty(value) && !Regex.IsMatch(value, pattern))
         {
             _errors.Add($"{fieldName}: {message}");
@@ -65,6 +73,8 @@ public sealed class ValidationHelper
     /// </summary>
     public ValidationHelper RequireLength(string? value, int minLength, int maxLength, string fieldName)
     {
+        ArgumentException.ThrowIfNullOrEmpty(value);
+        ArgumentException.ThrowIfNullOrEmpty(fieldName);
         if (value is not null)
         {
             if (value.Length < minLength || value.Length > maxLength)
@@ -81,6 +91,10 @@ public sealed class ValidationHelper
     /// </summary>
     public ValidationHelper RequireRange<T>(T value, T minimum, T maximum, string fieldName) where T : IComparable<T>
     {
+        ArgumentNullException.ThrowIfNull(value);
+        ArgumentNullException.ThrowIfNull(minimum);
+        ArgumentNullException.ThrowIfNull(maximum);
+        ArgumentNullException.ThrowIfNullOrEmpty(fieldName);
         if (value.CompareTo(minimum) < 0 || value.CompareTo(maximum) > 0)
         {
             _errors.Add($"{fieldName} must be between {minimum} and {maximum}");
@@ -94,6 +108,9 @@ public sealed class ValidationHelper
     /// </summary>
     public ValidationHelper RequireMinimumItems<T>(IEnumerable<T>? items, int minimum, string fieldName)
     {
+        ArgumentNullException.ThrowIfNull(items);
+        ArgumentNullException.ThrowIfNull(minimum);
+        ArgumentNullException.ThrowIfNullOrEmpty(fieldName);
         var count = items?.Count() ?? 0;
         if (count < minimum)
         {
@@ -108,6 +125,9 @@ public sealed class ValidationHelper
     /// </summary>
     public ValidationHelper RequireMaximumItems<T>(IEnumerable<T>? items, int maximum, string fieldName)
     {
+        ArgumentNullException.ThrowIfNull(items);
+        ArgumentNullException.ThrowIfNull(maximum);
+        ArgumentNullException.ThrowIfNullOrEmpty(fieldName);
         var count = items?.Count() ?? 0;
         if (count > maximum)
         {
