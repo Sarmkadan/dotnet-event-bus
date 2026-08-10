@@ -30,6 +30,7 @@ public static class BasicPubSubExample
     {
         public override async Task Handle(UserRegisteredEvent @event, CancellationToken cancellationToken = default)
         {
+            ArgumentNullException.ThrowIfNull(@event);
             Console.WriteLine($"📧 Sending welcome email to {0}", @event.Email);
             await Task.Delay(100); // Simulate email sending
             Console.WriteLine($"✓ Welcome email sent to {0}", @event.Email);
@@ -41,6 +42,7 @@ public static class BasicPubSubExample
     {
         public override async Task Handle(UserRegisteredEvent @event, CancellationToken cancellationToken = default)
         {
+            ArgumentNullException.ThrowIfNull(@event);
             Console.WriteLine($"👤 Updating user profile for {0}", @event.FullName);
             await Task.Delay(50); // Simulate DB update
             Console.WriteLine($"✓ User profile updated");
