@@ -150,6 +150,7 @@ public static class ECommerceOrderProcessingExample
 
     public static async Task Main(string[] args)
     {
+        ArgumentNullException.ThrowIfNull(args);
         Console.WriteLine("=== DotnetEventBus: E-Commerce Order Processing ===\n");
 
         var services = new ServiceCollection();
