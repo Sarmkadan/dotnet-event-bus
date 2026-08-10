@@ -39,6 +39,7 @@ public static class BatchPublishingOptimizationExample
 
         public override async Task Handle(LogEntryEvent @event, CancellationToken cancellationToken = default)
         {
+            ArgumentNullException.ThrowIfNull(@event);
             Interlocked.Increment(ref _processedCount);
             await Task.Delay(5); // Simulate processing
         }
@@ -52,6 +53,7 @@ public static class BatchPublishingOptimizationExample
 
         public override async Task Handle(AnalyticsEvent @event, CancellationToken cancellationToken = default)
         {
+            ArgumentNullException.ThrowIfNull(@event);
             Interlocked.Increment(ref _processedCount);
             await Task.Delay(10); // Simulate analytics processing
         }
@@ -61,6 +63,7 @@ public static class BatchPublishingOptimizationExample
 
     public static async Task Main(string[] args)
     {
+        ArgumentNullException.ThrowIfNull(args);
         Console.WriteLine("=== DotnetEventBus: Batch Publishing Optimization ===\n");
 
         var services = new ServiceCollection();
