@@ -30,6 +30,7 @@ public static class PerformanceMetricsMonitoringExample
     {
         public override async Task Handle(DataProcessingEvent @event, CancellationToken cancellationToken = default)
         {
+            ArgumentNullException.ThrowIfNull(@event);
             await Task.Delay(10); // Quick processing
         }
     }
@@ -39,6 +40,8 @@ public static class PerformanceMetricsMonitoringExample
     {
         public override async Task Handle(DataProcessingEvent @event, CancellationToken cancellationToken = default)
         {
+            ArgumentNullException.ThrowIfNull(@event);
+            ArgumentNullException.ThrowIfNull(cancellationToken);
             await Task.Delay(50); // Medium processing
         }
     }
@@ -48,12 +51,15 @@ public static class PerformanceMetricsMonitoringExample
     {
         public override async Task Handle(DataProcessingEvent @event, CancellationToken cancellationToken = default)
         {
+            ArgumentNullException.ThrowIfNull(@event);
+            ArgumentNullException.ThrowIfNull(cancellationToken);
             await Task.Delay(100); // Slower processing
         }
     }
 
     public static async Task Main(string[] args)
     {
+        ArgumentNullException.ThrowIfNull(args);
         Console.WriteLine("=== DotnetEventBus: Performance Metrics & Monitoring ===\n");
 
         var services = new ServiceCollection();
