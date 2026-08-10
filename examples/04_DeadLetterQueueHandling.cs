@@ -74,6 +74,7 @@ public static class DeadLetterQueueHandlingExample
 
     public static async Task Main(string[] args)
     {
+        ArgumentNullException.ThrowIfNull(args);
         Console.WriteLine("=== DotnetEventBus: Dead Letter Queue Handling ===\n");
 
         var services = new ServiceCollection();
