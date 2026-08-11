@@ -61,6 +61,11 @@ public sealed class PredicateFilteredHandler<TEvent> : IEventHandler<TEvent>
     {
         cancellationToken.ThrowIfCancellationRequested();
 
+        _logger?.LogInformation(
+            "PredicateFilteredHandler {HandlerName} processing event {EventType}",
+            _handlerName,
+            typeof(TEvent).Name);
+
         if (!_predicate(@event))
         {
             _logger?.LogDebug(
@@ -71,5 +76,10 @@ public sealed class PredicateFilteredHandler<TEvent> : IEventHandler<TEvent>
         }
 
         await _inner.Handle(@event, cancellationToken);
+
+        _logger?.LogInformation(
+            "PredicateFilteredHandler {HandlerName} finished processing event {EventType}",
+            _handlerName,
+            typeof(TEvent).Name);
     }
 }
