@@ -68,6 +68,7 @@ public sealed class PredicateSubscriptionBuilder<TEvent>
     /// <param name="predicate">The condition to negate.</param>
     public PredicateSubscriptionBuilder<TEvent> WhereNot(Func<TEvent, bool> predicate)
     {
+        _logger?.LogInformation("WhereNot called with {predicate}", predicate);
         ArgumentNullException.ThrowIfNull(predicate);
         _filter.Not(predicate);
         return this;
@@ -84,6 +85,7 @@ public sealed class PredicateSubscriptionBuilder<TEvent>
         Func<TEvent, TProperty> propertySelector,
         TProperty expectedValue)
     {
+        _logger?.LogInformation("WhereProperty called with {propertySelector} and {expectedValue}", propertySelector, expectedValue);
         ArgumentNullException.ThrowIfNull(propertySelector);
         _filter.WhereProperty(propertySelector, expectedValue);
         return this;
@@ -99,6 +101,7 @@ public sealed class PredicateSubscriptionBuilder<TEvent>
         Func<TEvent, string?> propertySelector,
         string value)
     {
+        _logger?.LogInformation("WherePropertyContains called with {propertySelector} and {value}", propertySelector, value);
         ArgumentNullException.ThrowIfNull(propertySelector);
         ArgumentNullException.ThrowIfNull(value);
         _filter.WherePropertyContains(propertySelector, value);
@@ -111,6 +114,7 @@ public sealed class PredicateSubscriptionBuilder<TEvent>
     /// <param name="handler">The async delegate that processes the event.</param>
     public PredicateSubscriptionBuilder<TEvent> WithHandler(Func<TEvent, CancellationToken, Task> handler)
     {
+        _logger?.LogInformation("WithHandler called");
         _asyncHandler = handler ?? throw new ArgumentNullException(nameof(handler));
         return this;
     }
@@ -121,6 +125,7 @@ public sealed class PredicateSubscriptionBuilder<TEvent>
     /// <param name="name">A descriptive name that identifies this subscription.</param>
     public PredicateSubscriptionBuilder<TEvent> WithHandlerName(string name)
     {
+        _logger?.LogInformation("WithHandlerName called with {name}", name);
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Handler name cannot be empty.", nameof(name));
 
@@ -135,6 +140,7 @@ public sealed class PredicateSubscriptionBuilder<TEvent>
     /// <param name="priority">The priority value (default is 0).</param>
     public PredicateSubscriptionBuilder<TEvent> WithPriority(int priority)
     {
+        _logger?.LogInformation("WithPriority called with {priority}", priority);
         _priority = priority;
         return this;
     }
@@ -145,6 +151,7 @@ public sealed class PredicateSubscriptionBuilder<TEvent>
     /// <param name="logger">The logger instance.</param>
     public PredicateSubscriptionBuilder<TEvent> WithLogger(ILogger logger)
     {
+        _logger?.LogInformation("WithLogger called");
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         return this;
     }
@@ -160,9 +167,14 @@ public sealed class PredicateSubscriptionBuilder<TEvent>
     /// </exception>
     public IDisposable Register()
     {
+        _logger?.LogInformation("Register called");
         if (_asyncHandler is null)
-            throw new InvalidOperationException(
+        {
+            var ex = new InvalidOperationException(
                 $"No handler configured. Call {nameof(WithHandler)} before calling {nameof(Register)}.");
+            _logger?.LogError(ex, "Registration failed");
+            throw ex;
+        }
 
         var capturedFilter = _filter;
         var capturedLogger = _logger;
@@ -181,9 +193,19 @@ public sealed class PredicateSubscriptionBuilder<TEvent>
                 return;
             }
 
-            await capturedHandler(@event, ct);
+            try
+            {
+                await capturedHandler(@event, ct);
+            }
+            catch (Exception ex)
+            {
+                capturedLogger?.LogError(ex, "Error processing event {EventType} in handler {HandlerName}", typeof(TEvent).Name, capturedName ?? "unnamed");
+                throw;
+            }
         }
 
-        return _eventBus.Subscribe<TEvent>(FilteredDelegate, _handlerName, _priority);
+        var result = _eventBus.Subscribe<TEvent>(FilteredDelegate, _handlerName, _priority);
+        _logger?.LogInformation("Subscription registered for {HandlerName}", _handlerName ?? "unnamed");
+        return result;
     }
 }
