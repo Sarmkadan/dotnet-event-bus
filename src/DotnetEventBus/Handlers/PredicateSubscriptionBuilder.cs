@@ -55,6 +55,7 @@ public sealed class PredicateSubscriptionBuilder<TEvent>
     /// <param name="predicate">The condition to evaluate against each published event.</param>
     public PredicateSubscriptionBuilder<TEvent> Where(Func<TEvent, bool> predicate)
     {
+        _logger?.LogInformation("Where called with {predicate}", predicate);
         ArgumentNullException.ThrowIfNull(predicate);
         _filter.Where(predicate);
         return this;
