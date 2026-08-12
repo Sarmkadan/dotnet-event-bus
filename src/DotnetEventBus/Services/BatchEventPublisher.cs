@@ -186,6 +186,12 @@ public sealed class BatchEventPublisher
         }
     }
 
+    public override string ToString()
+    {
+        var stats = GetStats();
+        return $"BatchEventPublisher {{ BufferedEventCount = {stats.BufferedEventCount}, BufferedEventSize = {stats.BufferedEventSize}, LastFlushTime = {stats.LastFlushTime} }}";
+    }
+
     private async Task FlushBatchAsync(EventBatch batch)
     {
         if (_perEventHandler is not null)
