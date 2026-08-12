@@ -145,4 +145,10 @@ public sealed class PublishResult
         result.MarkSuccess(handlersInvoked);
         return result;
     }
+
+    /// <summary>
+    /// Returns a concise string representation of the publish result.
+    /// </summary>
+    public override string ToString()
+        => $"PublishResult {{ MessageId = {MessageId}, Success = {Success}, HandlersInvoked = {HandlersInvoked}, FailedHandlers = {FailedHandlers}, ErrorMessage = {ErrorMessage}, Exception = {Exception} }}";
 }
