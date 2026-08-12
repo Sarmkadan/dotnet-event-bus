@@ -178,4 +178,10 @@ public sealed class EventBusOptions
         clone.MiddlewareTypes.AddRange(MiddlewareTypes);
         return clone;
     }
+
+    /// <summary>
+    /// Returns a concise string representation of the most relevant configuration options.
+    /// </summary>
+    public override string ToString()
+        => $"EventBusOptions {{ DefaultHandlerTimeout = {DefaultHandlerTimeout}, MaxRetryAttempts = {MaxRetryAttempts}, RetryDelay = {RetryDelay}, RetryDelayMultiplier = {RetryDelayMultiplier}, MaxRetryDelay = {MaxRetryDelay}, AllowParallelHandling = {AllowParallelHandling} }}";
 }
