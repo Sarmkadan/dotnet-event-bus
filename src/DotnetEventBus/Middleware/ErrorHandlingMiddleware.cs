@@ -37,8 +37,10 @@ public sealed class ErrorHandlingMiddleware
 
     public EventBusMiddleware Create(EventBusMiddleware next)
     {
+        _logger.LogInformation("Creating ErrorHandlingMiddleware with {MaxRetries} retries and {RetryDelay} delay", _maxRetries, _retryDelay);
         return async (context) =>
         {
+            _logger.LogInformation("Started processing event {EventType}", context.EventType);
             int attemptCount = 0;
             Exception? lastException = null;
 
@@ -49,6 +51,7 @@ public sealed class ErrorHandlingMiddleware
                     attemptCount++;
                     await next(context);
                     context.IsProcessed = true;
+                    _logger.LogInformation("Successfully processed event {EventType}", context.EventType);
                     return;
                 }
                 catch (Exception ex)
@@ -76,6 +79,7 @@ public sealed class ErrorHandlingMiddleware
                 {
                     context.IsProcessed = true;
                     context.Metadata["recoveredByHandler"] = true;
+                    _logger.LogInformation("Event {EventType} recovered by custom handler", context.EventType);
                     return;
                 }
             }
@@ -84,6 +88,7 @@ public sealed class ErrorHandlingMiddleware
             context.IsProcessed = false;
             if (lastException is not null)
             {
+                _logger.LogError(lastException, "Failed to process event {EventType} after {MaxRetries} retries", context.EventType, _maxRetries);
                 throw new EventProcessingException(
                     $"Event {context.EventType} failed after {_maxRetries} retries",
                     lastException);
