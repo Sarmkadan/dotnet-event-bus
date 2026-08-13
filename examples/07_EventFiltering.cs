@@ -24,6 +24,8 @@ public static class EventFilteringExample
         public decimal Amount { get; set; }
         public string CustomerSegment { get; set; }
         public DateTime Timestamp { get; set; }
+
+        public override string ToString() => $"EventFilteringExample {{ OrderId = {OrderId}, Region = {Region}, Amount = {Amount}, CustomerSegment = {CustomerSegment}, Timestamp = {Timestamp} }}";
     }
 
     public sealed class AlertEvent
@@ -32,6 +34,8 @@ public static class EventFilteringExample
         public string Severity { get; set; } // Critical, High, Medium, Low
         public string Source { get; set; }
         public string Message { get; set; }
+
+        public override string ToString() => $"EventFilteringExample {{ AlertId = {AlertId} }}";
     }
 
     public static async Task Main(string[] args)
