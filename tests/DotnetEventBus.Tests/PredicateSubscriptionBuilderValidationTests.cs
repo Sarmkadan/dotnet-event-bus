@@ -15,7 +15,11 @@ public class PredicateSubscriptionBuilderValidationTests
     {
         public string? Name { get; set; }
         public int Value { get; set; }
+
+        public override string ToString() => $"TestEvent {{ Name = {Name}, Value = {Value} }}";
     }
+
+    public override string ToString() => $"PredicateSubscriptionBuilderValidationTests {{ Name = {nameof(PredicateSubscriptionBuilderValidationTests)}, Value = {typeof(TestEvent).Name} }}";
 
     /// <summary>
     /// Tests that Validate throws ArgumentNullException when the builder is null.
