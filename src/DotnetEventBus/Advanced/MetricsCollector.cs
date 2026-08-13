@@ -295,6 +295,21 @@ public sealed class MetricsCollector
             metrics.FailureCount++;
         }
     }
+
+    /// <summary>
+    /// Returns a concise string representation of the collector's current state.
+    /// Includes the first recorded event type's core metrics for quick inspection.
+    /// </summary>
+    public override string ToString()
+    {
+        var first = _metrics.Values.FirstOrDefault();
+        if (first == null)
+        {
+            return "MetricsCollector { No metrics recorded }";
+        }
+
+        return $"MetricsCollector {{ EventType = {first.EventType}, PublishCount = {first.PublishCount}, FailureCount = {first.FailureCount}, TotalDurationMs = {first.TotalDurationMs}, AverageDurationMs = {first.AverageDurationMs}, MinDurationMs = {first.MinDurationMs} }}";
+    }
 }
 
 public sealed class EventMetrics
