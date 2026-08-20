@@ -35,6 +35,7 @@ public sealed class BatchEventPublisherTests
 	/// </summary>
     public async Task AddEventAsync_WithValidEnvelope_ShouldAddToBatch()
     {
+        _mockLogger.Object.LogInformation("Method {MethodName} called", nameof(AddEventAsync_WithValidEnvelope_ShouldAddToBatch));
         // Arrange
         var publisher = new BatchEventPublisher(_mockLogger.Object, batchSize: 10);
         var envelope = new EventEnvelope { EventType = "TestEvent", Payload = "payload" };
@@ -83,6 +84,7 @@ public sealed class BatchEventPublisherTests
 	/// </summary>
     public async Task SetFlushHandler_ShouldBeInvokedWhenBatchIsFull()
     {
+        _mockLogger.Object.LogInformation("Method {MethodName} called", nameof(SetFlushHandler_ShouldBeInvokedWhenBatchIsFull));
         // Arrange
         var publisher = new BatchEventPublisher(_mockLogger.Object, batchSize: 3);
         var flushedBatches = new List<EventBatch>();
