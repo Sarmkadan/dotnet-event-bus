@@ -125,6 +125,13 @@ public abstract class EventSourcedAggregate
             State = state
         };
     }
+
+    public override string ToString()
+    {
+        var snapshot = CreateSnapshot();
+        var options = new EventSourcingOptions();
+        return $"EventSourcedAggregate {{ AggregateId = {snapshot.AggregateId}, AggregateType = {snapshot.AggregateType}, Version = {snapshot.Version}, CreatedAt = {snapshot.CreatedAt}, State = {snapshot.State}, SnapshotInterval = {options.SnapshotInterval} }}";
+    }
 }
 
 /// <summary>
