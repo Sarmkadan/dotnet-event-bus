@@ -23,6 +23,8 @@ public static class BasicPubSubExample
         public string Email { get; set; }
         public string FullName { get; set; }
         public DateTime RegisteredAt { get; set; }
+
+        public override string ToString() => $"UserRegisteredEvent {{ UserId = {UserId}, Email = {Email}, FullName = {FullName}, RegisteredAt = {RegisteredAt} }}";
     }
 
     // Handler 1: Send welcome email
