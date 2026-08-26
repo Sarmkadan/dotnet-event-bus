@@ -22,6 +22,8 @@ public static class SubscriptionManagementExample
         public string UserId { get; set; }
         public string Action { get; set; }
         public DateTime Timestamp { get; set; }
+
+        public override string ToString() => $"UserActionEvent {{ UserId = {UserId}, Action = {Action}, Timestamp = {Timestamp} }}";
     }
 
     public static async Task Main(string[] args)
