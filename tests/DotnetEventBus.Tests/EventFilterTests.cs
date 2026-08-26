@@ -32,6 +32,12 @@ public sealed class TestFilterEvent
 	/// Can be null for events without a specific region.
 	/// </summary>
 	public string? Region { get; set; }
+
+	/// <summary>
+	/// Returns a concise, informative representation of this event.
+	/// </summary>
+	public override string ToString() =>
+		$"TestFilterEvent {{ OrderId = {OrderId}, Amount = {Amount}, Status = {Status}, Region = {Region} }}";
 }
 
 public sealed class EventFilterTests
