@@ -62,6 +62,19 @@ public sealed class InMemoryEventCache : IEventCache, IDisposable
         _cleanupCts.Dispose();
     }
 
+    /// <summary>
+    /// Returns a concise summary of the cache, surfacing the most recent
+    /// entry's value along with its creation and expiration timestamps.
+    /// </summary>
+    public override string ToString()
+    {
+        var newest = _cache.Values
+            .OrderByDescending(entry => entry.CreatedAt)
+            .FirstOrDefault();
+
+        return $"InMemoryEventCache {{ Value = {newest?.Value}, CreatedAt = {newest?.CreatedAt:O}, ExpiresAt = {newest?.ExpiresAt:O} }}";
+    }
+
     public async Task<T?> GetAsync<T>(string key) where T : class
     {
         ArgumentNullException.ThrowIfNull(key);
