@@ -78,4 +78,6 @@ public sealed class EventContext
     public string? CorrelationId { get; set; }
     public bool IsProcessed { get; set; }
     public Exception? ProcessingException { get; set; }
+
+    public override string ToString() => $"EventContext {{ EventType = {EventType}, EventData = {EventData}, Metadata = {Metadata}, CreatedAt = {CreatedAt}, CorrelationId = {CorrelationId}, IsProcessed = {IsProcessed} }}";
 }
