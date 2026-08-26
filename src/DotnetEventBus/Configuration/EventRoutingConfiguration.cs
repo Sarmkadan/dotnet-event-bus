@@ -165,6 +165,8 @@ public sealed class EventRoutingConfiguration : IEquatable<EventRoutingConfigura
         => !Equals(left, right);
 
     #endregion
+
+    public override string ToString() => $"EventRoutingConfiguration {{ TargetHandler = {TargetHandler}, Condition = {Condition}, Priority = {Priority}, ContinueEvaluation = {ContinueEvaluation} }}";
 }
 
 /// <summary>
