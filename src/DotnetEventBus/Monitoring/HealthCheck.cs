@@ -83,6 +83,12 @@ public sealed class HealthCheck
     /// Gets the time of the last health check.
     /// </summary>
     public DateTime GetLastCheckTime() => _lastCheckTime;
+
+    /// <summary>
+    /// Returns a concise, informative representation of the health check state.
+    /// </summary>
+    public override string ToString() =>
+        $"HealthCheck {{ OverallStatus = {_lastStatus}, CheckedAt = {_lastCheckTime}, RegisteredProbes = {_probes.Count} }}";
 }
 
 /// <summary>
