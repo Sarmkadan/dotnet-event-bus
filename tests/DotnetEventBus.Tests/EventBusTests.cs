@@ -21,6 +21,12 @@ public sealed class TestEvent
 {
     public string Data { get; set; } = string.Empty;
     public int Value { get; set; }
+
+    /// <summary>
+    /// Returns a concise, informative representation of this event.
+    /// </summary>
+    public override string ToString() =>
+        $"TestEvent {{ Data = {Data}, Value = {Value} }}";
 }
 
 /// <summary>
