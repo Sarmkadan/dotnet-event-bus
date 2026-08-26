@@ -166,7 +166,14 @@ public sealed class EventRoutingConfiguration : IEquatable<EventRoutingConfigura
 
     #endregion
 
-    public override string ToString() => $"EventRoutingConfiguration {{ TargetHandler = {TargetHandler}, Condition = {Condition}, Priority = {Priority}, ContinueEvaluation = {ContinueEvaluation} }}";
+    public override string ToString()
+    {
+        var ruleDescriptions = _routes
+            .SelectMany(kvp => kvp.Value)
+            .Select(rule => $"TargetHandler = {rule.TargetHandler}, Condition = {(rule.Condition is null ? "none" : "configured")}, Priority = {rule.Priority}, ContinueEvaluation = {rule.ContinueEvaluation}");
+
+        return $"EventRoutingConfiguration {{ Rules = [{string.Join("; ", ruleDescriptions)}] }}";
+    }
 }
 
 /// <summary>
