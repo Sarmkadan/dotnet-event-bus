@@ -22,6 +22,11 @@ public static class DeadLetterQueueHandlingExample
         public string OrderId { get; set; }
         public decimal Amount { get; set; }
         public string PaymentMethod { get; set; }
+
+        public override string ToString()
+        {
+            return $"PaymentProcessingEvent {{ OrderId = {OrderId}, Amount = {Amount}, PaymentMethod = {PaymentMethod} }}";
+        }
     }
 
     public sealed class NotificationEvent
@@ -29,6 +34,11 @@ public static class DeadLetterQueueHandlingExample
         public string RecipientId { get; set; }
         public string Message { get; set; }
         public string Channel { get; set; } // Email, SMS, Push
+
+        public override string ToString()
+        {
+            return $"NotificationEvent {{ RecipientId = {RecipientId}, Message = {Message}, Channel = {Channel} }}";
+        }
     }
 
     // Handler that sometimes fails (simulates external service failures)
