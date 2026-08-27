@@ -8,8 +8,14 @@ using Xunit;
 
 namespace DotnetEventBus.Tests;
 
+/// <summary>
+/// Contains unit tests for the EventBusBuilder class, verifying its configuration methods and fluent interface.
+/// </summary>
 public class EventBusBuilderTests
 {
+    /// <summary>
+    /// Tests that constructing an EventBusBuilder with a null service collection throws an ArgumentNullException.
+    /// </summary>
     [Fact]
     public void Constructor_WithNullServiceCollection_ThrowsArgumentNullException()
     {
@@ -17,6 +23,9 @@ public class EventBusBuilderTests
         Assert.Throws<ArgumentNullException>(() => new EventBusBuilder(null!));
     }
 
+    /// <summary>
+    /// Tests that calling WithOptions with a null action throws an ArgumentNullException.
+    /// </summary>
     [Fact]
     public void WithOptions_WithNullAction_ThrowsArgumentNullException()
     {
@@ -28,6 +37,9 @@ public class EventBusBuilderTests
         Assert.Throws<ArgumentNullException>(() => builder.WithOptions(null!));
     }
 
+    /// <summary>
+    /// Tests that calling WithOptions with a valid action correctly configures the EventBus options.
+    /// </summary>
     [Fact]
     public void WithOptions_WithValidAction_ConfiguresOptions()
     {
@@ -55,6 +67,9 @@ public class EventBusBuilderTests
         options.DefaultHandlerTimeout.Should().Be(TimeSpan.FromSeconds(30));
     }
 
+    /// <summary>
+    /// Tests that calling WithMessageRepository with a null repository throws an ArgumentNullException.
+    /// </summary>
     [Fact]
     public void WithMessageRepository_WithNullRepository_ThrowsArgumentNullException()
     {
@@ -66,6 +81,9 @@ public class EventBusBuilderTests
         Assert.Throws<ArgumentNullException>(() => builder.WithMessageRepository(null!));
     }
 
+    /// <summary>
+    /// Tests that calling WithMessageRepository with a valid repository sets the repository correctly.
+    /// </summary>
     [Fact]
     public void WithMessageRepository_WithValidRepository_SetsRepository()
     {
@@ -85,6 +103,9 @@ public class EventBusBuilderTests
         serviceProvider.GetService<IEventMessageRepository>().Should().Be(mockRepository.Object);
     }
 
+    /// <summary>
+    /// Tests that calling WithSubscriptionRepository with a null repository throws an ArgumentNullException.
+    /// </summary>
     [Fact]
     public void WithSubscriptionRepository_WithNullRepository_ThrowsArgumentNullException()
     {
@@ -96,6 +117,9 @@ public class EventBusBuilderTests
         Assert.Throws<ArgumentNullException>(() => builder.WithSubscriptionRepository(null!));
     }
 
+    /// <summary>
+    /// Tests that calling WithSubscriptionRepository with a valid repository sets the repository correctly.
+    /// </summary>
     [Fact]
     public void WithSubscriptionRepository_WithValidRepository_SetsRepository()
     {
@@ -113,6 +137,9 @@ public class EventBusBuilderTests
         serviceProvider.GetService<ISubscriptionRepository>().Should().Be(mockRepository.Object);
     }
 
+    /// <summary>
+    /// Tests that calling WithDeadLetterRepository with a null repository throws an ArgumentNullException.
+    /// </summary>
     [Fact]
     public void WithDeadLetterRepository_WithNullRepository_ThrowsArgumentNullException()
     {
@@ -124,6 +151,9 @@ public class EventBusBuilderTests
         Assert.Throws<ArgumentNullException>(() => builder.WithDeadLetterRepository(null!));
     }
 
+    /// <summary>
+    /// Tests that calling WithDeadLetterRepository with a valid repository sets the repository correctly.
+    /// </summary>
     [Fact]
     public void WithDeadLetterRepository_WithValidRepository_SetsRepository()
     {
@@ -141,6 +171,10 @@ public class EventBusBuilderTests
         serviceProvider.GetService<IDeadLetterRepository>().Should().Be(mockRepository.Object);
     }
 
+    /// <summary>
+    /// Tests that calling WithMaxRetries with a negative value throws an ArgumentException.
+    /// </summary>
+    /// <param name="negativeValue">The negative value to test.</param>
     [Theory]
     [InlineData(-1)]
     [InlineData(-100)]
@@ -155,6 +189,10 @@ public class EventBusBuilderTests
         exception.Message.Should().Contain("Max retry attempts cannot be negative");
     }
 
+    /// <summary>
+    /// Tests that calling WithMaxRetries with a valid value sets the max retry attempts correctly.
+    /// </summary>
+    /// <param name="maxAttempts">The max retry attempts value to test.</param>
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
@@ -179,6 +217,9 @@ public class EventBusBuilderTests
         options.MaxRetryAttempts.Should().Be(maxAttempts);
     }
 
+    /// <summary>
+    /// Tests that calling WithHandlerTimeout with a zero timeout throws an ArgumentException.
+    /// </summary>
     [Fact]
     public void WithHandlerTimeout_WithZeroTimeout_ThrowsArgumentException()
     {
@@ -191,6 +232,9 @@ public class EventBusBuilderTests
         exception.Message.Should().Contain("Timeout must be greater than zero");
     }
 
+    /// <summary>
+    /// Tests that calling WithHandlerTimeout with a negative timeout throws an ArgumentException.
+    /// </summary>
     [Fact]
     public void WithHandlerTimeout_WithNegativeTimeout_ThrowsArgumentException()
     {
@@ -203,6 +247,10 @@ public class EventBusBuilderTests
         exception.Message.Should().Contain("Timeout must be greater than zero");
     }
 
+    /// <summary>
+    /// Tests that calling WithHandlerTimeout with a valid timeout sets the default handler timeout correctly.
+    /// </summary>
+    /// <param name="timeout">The timeout value to test.</param>
     [Fact]
     public void WithHandlerTimeout_WithValidTimeout_SetsDefaultHandlerTimeout()
     {
@@ -224,6 +272,9 @@ public class EventBusBuilderTests
         options.DefaultHandlerTimeout.Should().Be(timeout);
     }
 
+    /// <summary>
+    /// Tests that calling WithParallelHandling with true enables parallel handling.
+    /// </summary>
     [Fact]
     public void WithParallelHandling_WithTrue_EnablesParallelHandling()
     {
@@ -244,6 +295,9 @@ public class EventBusBuilderTests
         options.AllowParallelHandling.Should().BeTrue();
     }
 
+    /// <summary>
+    /// Tests that calling WithParallelHandling with false disables parallel handling.
+    /// </summary>
     [Fact]
     public void WithParallelHandling_WithFalse_DisablesParallelHandling()
     {
@@ -265,6 +319,10 @@ public class EventBusBuilderTests
         options.AllowParallelHandling.Should().BeFalse();
     }
 
+    /// <summary>
+    /// Tests that calling WithMaxConcurrentHandlers with an invalid value throws an ArgumentException.
+    /// </summary>
+    /// <param name="invalidValue">The invalid value to test.</param>
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
@@ -280,6 +338,10 @@ public class EventBusBuilderTests
         exception.Message.Should().Contain("Max concurrent handlers must be at least 1");
     }
 
+    /// <summary>
+    /// Tests that calling WithMaxConcurrentHandlers with a valid value sets the max concurrent handlers correctly.
+    /// </summary>
+    /// <param name="maxConcurrent">The max concurrent handlers value to test.</param>
     [Theory]
     [InlineData(1)]
     [InlineData(5)]
@@ -303,6 +365,9 @@ public class EventBusBuilderTests
         options.MaxConcurrentHandlers.Should().Be(maxConcurrent);
     }
 
+    /// <summary>
+    /// Tests that calling WithDeadLetterQueue with true enables the dead letter queue.
+    /// </summary>
     [Fact]
     public void WithDeadLetterQueue_WithTrue_EnablesDeadLetterQueue()
     {
@@ -323,6 +388,9 @@ public class EventBusBuilderTests
         options.EnableDeadLetterQueue.Should().BeTrue();
     }
 
+    /// <summary>
+    /// Tests that calling WithDeadLetterQueue with false disables the dead letter queue.
+    /// </summary>
     [Fact]
     public void WithDeadLetterQueue_WithFalse_DisablesDeadLetterQueue()
     {
@@ -344,6 +412,9 @@ public class EventBusBuilderTests
         options.EnableDeadLetterQueue.Should().BeFalse();
     }
 
+    /// <summary>
+    /// Tests that calling WithThrowOnHandlerFailure with true enables throwing on handler failure.
+    /// </summary>
     [Fact]
     public void WithThrowOnHandlerFailure_WithTrue_EnablesThrowOnFailure()
     {
@@ -364,6 +435,9 @@ public class EventBusBuilderTests
         options.ThrowOnHandlerFailure.Should().BeTrue();
     }
 
+    /// <summary>
+    /// Tests that calling WithThrowOnHandlerFailure with false disables throwing on handler failure.
+    /// </summary>
     [Fact]
     public void WithThrowOnHandlerFailure_WithFalse_DisablesThrowOnFailure()
     {
@@ -385,6 +459,9 @@ public class EventBusBuilderTests
         options.ThrowOnHandlerFailure.Should().BeFalse();
     }
 
+    /// <summary>
+    /// Tests that calling AsDistributed with a null transport type throws an ArgumentException.
+    /// </summary>
     [Fact]
     public void AsDistributed_WithNullTransportType_ThrowsArgumentException()
     {
@@ -397,6 +474,9 @@ public class EventBusBuilderTests
         exception.Message.Should().Contain("Transport type cannot be empty");
     }
 
+    /// <summary>
+    /// Tests that calling AsDistributed with an empty transport type throws an ArgumentException.
+    /// </summary>
     [Fact]
     public void AsDistributed_WithEmptyTransportType_ThrowsArgumentException()
     {
@@ -409,6 +489,9 @@ public class EventBusBuilderTests
         exception.Message.Should().Contain("Transport type cannot be empty");
     }
 
+    /// <summary>
+    /// Tests that calling AsDistributed with a whitespace-only transport type throws an ArgumentException.
+    /// </summary>
     [Fact]
     public void AsDistributed_WithWhitespaceTransportType_ThrowsArgumentException()
     {
@@ -421,6 +504,9 @@ public class EventBusBuilderTests
         exception.Message.Should().Contain("Transport type cannot be empty");
     }
 
+    /// <summary>
+    /// Tests that calling AsDistributed with a valid transport type and connection string sets the distributed configuration correctly.
+    /// </summary>
     [Fact]
     public void AsDistributed_WithValidTransportType_SetsDistributedConfiguration()
     {
@@ -445,6 +531,9 @@ public class EventBusBuilderTests
         options.DistributedTransportConnectionString.Should().Be(connectionString);
     }
 
+    /// <summary>
+    /// Tests that calling AsDistributed with a valid transport type but no connection string sets the distributed configuration correctly.
+    /// </summary>
     [Fact]
     public void AsDistributed_WithValidTransportTypeWithoutConnectionString_SetsDistributedConfiguration()
     {
@@ -468,6 +557,9 @@ public class EventBusBuilderTests
         options.DistributedTransportConnectionString.Should().BeNull();
     }
 
+    /// <summary>
+    /// Tests that calling Build with no repositories returns the service collection.
+    /// </summary>
     [Fact]
     public void Build_WithNoRepositories_ReturnsServiceCollection()
     {
@@ -492,6 +584,9 @@ public class EventBusBuilderTests
         serviceProvider.GetService<EventBusOptions>().Should().NotBeNull();
     }
 
+    /// <summary>
+    /// Tests that calling Build with custom repositories returns the service collection.
+    /// </summary>
     [Fact]
     public void Build_WithCustomRepositories_ReturnsServiceCollection()
     {
@@ -519,6 +614,9 @@ public class EventBusBuilderTests
         serviceProvider.GetService<IDeadLetterRepository>().Should().Be(mockDeadLetterRepo.Object);
     }
 
+    /// <summary>
+    /// Tests that all methods in the fluent interface return the builder instance to enable method chaining.
+    /// </summary>
     [Fact]
     public void FluentInterface_AllMethodsReturnBuilder_EnablesMethodChaining()
     {
