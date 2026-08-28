@@ -1666,3 +1666,48 @@ var result = await eventBus.PublishAsync(order);
 
 Console.WriteLine($"Order processing completed: {result.HandlersInvoked} handlers invoked");
 ```
+
+## EventBusExceptionTests
+
+The `EventBusExceptionTests` class provides comprehensive unit tests for the `EventBusException` hierarchy, validating constructor behavior, property initialization, and null/empty string handling across all derived exception types. These tests ensure that custom exceptions like `NoHandlersRegisteredException`, `HandlerInvocationException`, `InvalidHandlerException`, `MessageSerializationException`, `DistributedBusNotConfiguredException`, and `RequestTimeoutException` are instantiated correctly and carry the expected diagnostic information.
+
+Example usage:
+```csharp
+using DotnetEventBus.Exceptions;
+using System;
+
+try
+{
+    // Instantiate base exception with message and inner exception
+    var baseException = new EventBusException("Event bus operation failed", new InvalidOperationException("Root cause"));
+    Console.WriteLine(baseException.Message);
+
+    // Handle scenarios where no handlers are registered
+    var noHandlersException = new NoHandlersRegisteredException("OrderCreated");
+    Console.WriteLine($"Event type: {noHandlersException.EventType}");
+
+    // Handle handler invocation failures
+    var invocationException = new HandlerInvocationException("OrderHandler", "OrderCreated", new TimeoutException("Handler timed out"));
+    Console.WriteLine($"Handler: {invocationException.HandlerName}, Event: {invocationException.EventType}");
+
+    // Handle invalid handler types
+    var invalidHandlerException = new InvalidHandlerException(typeof(object));
+    Console.WriteLine($"Invalid handler type: {invalidHandlerException.HandlerType}");
+
+    // Handle message serialization failures
+    var serializationException = new MessageSerializationException(typeof(object));
+    Console.WriteLine($"Failed message type: {serializationException.MessageType}");
+
+    // Handle distributed bus configuration errors
+    var distributedException = new DistributedBusNotConfiguredException();
+    Console.WriteLine(distributedException.Message);
+
+    // Handle request timeout scenarios
+    var timeoutException = new RequestTimeoutException(typeof(object), TimeSpan.FromSeconds(30));
+    Console.WriteLine($"Request type: {timeoutException.RequestType}, Timeout: {timeoutException.Timeout}");
+}
+catch (EventBusException ex)
+{
+    Console.WriteLine($"Caught EventBusException: {ex.Message}");
+}
+```
