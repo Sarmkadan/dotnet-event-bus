@@ -1711,3 +1711,43 @@ catch (EventBusException ex)
     Console.WriteLine($"Caught EventBusException: {ex.Message}");
 }
 ```
+
+## EventBusBuilderValidationTests
+
+The `EventBusBuilderValidationTests` class provides comprehensive unit tests for the validation logic of the `EventBusBuilder`. It verifies that the builder correctly validates configuration options such as request timeout, retry attempts, and distributed transport settings, returning appropriate validation errors or throwing exceptions for invalid inputs.
+
+Example usage:
+```csharp
+using DotnetEventBus;
+using DotnetEventBus.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+
+// Create a service collection and builder
+var services = new ServiceCollection();
+var builder = services.AddEventBusBuilder();
+
+// Validate a valid builder (should return empty list)
+var errors = builder.Validate();
+if (errors.Count == 0)
+{
+    Console.WriteLine("Builder is valid.");
+}
+
+// Validate with invalid options (e.g., zero request timeout)
+builder.WithOptions(options => options.RequestTimeout = TimeSpan.Zero);
+errors = builder.Validate();
+if (errors.Count > 0)
+{
+    Console.WriteLine($"Validation errors: {string.Join(", ", errors)}");
+}
+
+// Using EnsureValid to throw on invalid builder
+try
+{
+    builder.EnsureValid();
+}
+catch (ArgumentException ex)
+{
+    Console.WriteLine($"Validation failed: {ex.Message}");
+}
+```
