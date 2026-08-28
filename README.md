@@ -1603,7 +1603,7 @@ catch (CircuitBreakerOpenException)
 // A successful operation in HalfOpen state closes the circuit again
 await Task.Delay(TimeSpan.FromSeconds(10));
 var recoveryResult = await breaker.ExecuteAsync(async () => "recovery attempt");
-Assert.Equal("recovery attempt", recoveryResult);
+Assert.Equal("recovery attempt", result);
 Assert.Equal(CircuitBreakerState.Closed, breaker.State);
 
 // Execute a void operation (no return value)
@@ -1786,4 +1786,51 @@ builder.WithMessageRepository(mockMessageRepo.Object)
 // Build the service collection
 var serviceProvider = builder.Build().BuildServiceProvider();
 var eventBus = serviceProvider.GetRequiredService<IEventBus>();
+```
+
+## PredicateSubscriptionBuilderValidationTests
+
+The `PredicateSubscriptionBuilderValidationTests` class provides comprehensive unit tests for the `PredicateSubscriptionBuilder` validation logic. It verifies that the builder correctly validates configuration constraints such as handler configuration, handler name requirements, and priority boundaries, returning appropriate validation errors or throwing exceptions for invalid inputs. The tests cover scenarios including null checks, empty or null handler names, out-of-range priorities, multiple simultaneous errors, and the read-only nature of the returned error list.
+
+Example usage:
+```csharp
+using DotnetEventBus.Advanced;
+using Microsoft.Extensions.DependencyInjection;
+
+// Create a service collection and configure event bus
+var services = new ServiceCollection();
+services.AddEventBus();
+var serviceProvider = services.BuildServiceProvider();
+
+// Create a predicate subscription builder
+var builder = new PredicateSubscriptionBuilder<MyEvent>(serviceProvider);
+
+// Validate configuration constraints
+var errors = builder.Validate();
+if (errors.Count == 0)
+{
+    Console.WriteLine("Builder is valid.");
+}
+
+// Validate with invalid handler name
+builder.WithHandlerName("");
+errors = builder.Validate();
+if (errors.Count > 0)
+{
+    Console.WriteLine($"Validation errors: {string.Join(", ", errors)}");
+}
+
+// Check validity
+bool isValid = builder.IsValid();
+Console.WriteLine($"Is valid: {isValid}");
+
+// Using EnsureValid to throw on invalid builder
+try
+{
+    builder.EnsureValid();
+}
+catch (ArgumentException ex)
+{
+    Console.WriteLine($"Validation failed: {ex.Message}");
+}
 ```
