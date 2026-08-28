@@ -1751,3 +1751,39 @@ catch (ArgumentException ex)
     Console.WriteLine($"Validation failed: {ex.Message}");
 }
 ```
+
+## EventBusBuilderTests
+
+The `EventBusBuilderTests` class provides comprehensive unit tests for the `EventBusBuilder` configuration API, verifying that all builder methods correctly apply settings, validate inputs, and support fluent chaining. It ensures that options like retry policies, timeouts, parallel handling, and custom repositories are properly registered in the service collection.
+
+Example usage:
+```csharp
+using DotnetEventBus;
+using DotnetEventBus.Repositories;
+using Microsoft.Extensions.DependencyInjection;
+using Moq;
+
+var services = new ServiceCollection();
+var builder = services.AddEventBusBuilder();
+
+// Configure core options with validation
+builder.WithOptions(o => o.RequestTimeout = TimeSpan.FromSeconds(30))
+       .WithMaxRetries(3)
+       .WithHandlerTimeout(TimeSpan.FromSeconds(10))
+       .WithParallelHandling(true)
+       .WithMaxConcurrentHandlers(5)
+       .WithDeadLetterQueue(true);
+
+// Register custom repositories
+var mockMessageRepo = new Mock<IEventMessageRepository>();
+var mockSubRepo = new Mock<ISubscriptionRepository>();
+var mockDlqRepo = new Mock<IDeadLetterRepository>();
+
+builder.WithMessageRepository(mockMessageRepo.Object)
+       .WithSubscriptionRepository(mockSubRepo.Object)
+       .WithDeadLetterRepository(mockDlqRepo.Object);
+
+// Build the service collection
+var serviceProvider = builder.Build().BuildServiceProvider();
+var eventBus = serviceProvider.GetRequiredService<IEventBus>();
+```
