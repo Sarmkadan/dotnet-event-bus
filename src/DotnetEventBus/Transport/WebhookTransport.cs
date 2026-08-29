@@ -18,6 +18,11 @@ namespace DotnetEventBus.Transport;
 /// </summary>
 public sealed class WebhookTransport : IEventTransport
 {
+    private const string TransportIdValue = "webhook-transport";
+    private const string TransportTypeValue = "webhook";
+    private const string OperationalStatusMessage = "Webhook transport is operational";
+    private const int ZeroMetricValue = 0;
+
     private readonly WebhookHandler _webhookHandler;
     private readonly ILogger<WebhookTransport>? _logger;
     private readonly ConcurrentCounter _metrics = new ConcurrentCounter();
@@ -34,10 +39,10 @@ public sealed class WebhookTransport : IEventTransport
     }
 
     /// <inheritdoc/>
-    public string TransportId => "webhook-transport";
+    public string TransportId => TransportIdValue;
 
     /// <inheritdoc/>
-    public string TransportType => "webhook";
+    public string TransportType => TransportTypeValue;
 
     /// <inheritdoc/>
     public TransportCapabilities Capabilities => TransportCapabilities.SupportsFireAndForget
@@ -184,7 +189,7 @@ public sealed class WebhookTransport : IEventTransport
         return true;
     }
 
-    private string? StatusMessage => "Webhook transport is operational";
+    private string? StatusMessage => OperationalStatusMessage;
 
     /// <summary>
     /// Simple thread-safe counter for transport metrics.
@@ -198,7 +203,9 @@ public sealed class WebhookTransport : IEventTransport
 
         public long MessagesPublished => Interlocked.Read(ref _messagesPublished);
         public long FailedPublishes => Interlocked.Read(ref _failedPublishes);
-        public double AveragePublishTimeMs => _publishCount > 0 ? _totalPublishTimeMs / _publishCount : 0;
+        public double AveragePublishTimeMs => _publishCount > ZeroMetricValue
+            ? _totalPublishTimeMs / _publishCount
+            : ZeroMetricValue;
 
         public void IncrementMessagesPublished() => Interlocked.Increment(ref _messagesPublished);
         public void IncrementFailedPublishes() => Interlocked.Increment(ref _failedPublishes);
