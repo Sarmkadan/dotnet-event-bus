@@ -102,7 +102,7 @@ public sealed class SubscriptionManager : ISubscriptionManager
 
         var subscriptions = await _repository.GetByEventTypeOrderedByPriorityAsync(eventType, cancellationToken);
 
-        return subscriptions.Select(s => new SubscriptionInfo
+        var subscriptionInfos = subscriptions.Select(s => new SubscriptionInfo
         {
             Id = s.Id,
             EventType = s.EventType,
@@ -113,13 +113,20 @@ public sealed class SubscriptionManager : ISubscriptionManager
             Timeout = s.Timeout,
             CreatedAtUtc = s.CreatedAtUtc
         }).ToList();
+
+        _logger?.LogDebug(
+            "Retrieved {SubscriptionCount} subscriptions for event type {EventType}",
+            subscriptionInfos.Count,
+            eventType);
+
+        return subscriptionInfos;
     }
 
     public async Task<IEnumerable<SubscriptionInfo>> GetAllSubscriptionsAsync(CancellationToken cancellationToken = default)
     {
         var subscriptions = await _repository.GetAllAsync(cancellationToken);
 
-        return subscriptions.Select(s => new SubscriptionInfo
+        var subscriptionInfos = subscriptions.Select(s => new SubscriptionInfo
         {
             Id = s.Id,
             EventType = s.EventType,
@@ -130,6 +137,12 @@ public sealed class SubscriptionManager : ISubscriptionManager
             Timeout = s.Timeout,
             CreatedAtUtc = s.CreatedAtUtc
         }).ToList();
+
+        _logger?.LogDebug(
+            "Retrieved {SubscriptionCount} subscriptions across all event types",
+            subscriptionInfos.Count);
+
+        return subscriptionInfos;
     }
 
     public async Task<int> GetSubscriptionCountAsync(string eventType, CancellationToken cancellationToken = default)
@@ -145,9 +158,16 @@ public sealed class SubscriptionManager : ISubscriptionManager
         if (string.IsNullOrWhiteSpace(handlerName))
             throw new ArgumentException("Handler name cannot be empty", nameof(handlerName));
 
+        var subscriptions = await _repository.GetByHandlerNameAsync(handlerName, cancellationToken);
+        if (!subscriptions.Any())
+        {
+            _logger?.LogWarning("No subscriptions found for handler {HandlerName} to disable", handlerName);
+            return;
+        }
+
         await _repository.DisableHandlerAsync(handlerName, cancellationToken);
 
-        _logger?.LogInformation("Disabled handler {HandlerName}", handlerName);
+        _logger?.LogInformation("Handler {HandlerName} disabled", handlerName);
     }
 
     public async Task EnableHandlerAsync(string handlerName, CancellationToken cancellationToken = default)
@@ -155,9 +175,16 @@ public sealed class SubscriptionManager : ISubscriptionManager
         if (string.IsNullOrWhiteSpace(handlerName))
             throw new ArgumentException("Handler name cannot be empty", nameof(handlerName));
 
+        var subscriptions = await _repository.GetByHandlerNameAsync(handlerName, cancellationToken);
+        if (!subscriptions.Any())
+        {
+            _logger?.LogWarning("No subscriptions found for handler {HandlerName} to enable", handlerName);
+            return;
+        }
+
         await _repository.EnableHandlerAsync(handlerName, cancellationToken);
 
-        _logger?.LogInformation("Enabled handler {HandlerName}", handlerName);
+        _logger?.LogInformation("Handler {HandlerName} enabled", handlerName);
     }
 
     public async Task<SubscriptionStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
