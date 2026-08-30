@@ -72,17 +72,16 @@ public sealed class EventBus : IEventBus
         IServiceProvider serviceProvider, // Add IServiceProvider
         EventBusOptions? options = null,
         ILogger<EventBus>? logger = null)
+        : this(
+            options,
+            logger,
+            deadLetterService ?? throw new ArgumentNullException(nameof(deadLetterService)),
+            eventFormatter ?? throw new ArgumentNullException(nameof(eventFormatter)),
+            serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider)),
+            messageRepository ?? throw new ArgumentNullException(nameof(messageRepository)),
+            subscriptionRepository ?? throw new ArgumentNullException(nameof(subscriptionRepository)),
+            deadLetterRepository ?? throw new ArgumentNullException(nameof(deadLetterRepository)))
     {
-        _options = options ?? new EventBusOptions();
-        _options.Validate();
-        _logger = logger;
-        _messageRepository = messageRepository ?? throw new ArgumentNullException(nameof(messageRepository));
-        _subscriptionRepository = subscriptionRepository ?? throw new ArgumentNullException(nameof(subscriptionRepository));
-        _deadLetterRepository = deadLetterRepository ?? throw new ArgumentNullException(nameof(deadLetterRepository));
-        _deadLetterService = deadLetterService ?? throw new ArgumentNullException(nameof(deadLetterService));
-        _eventFormatter = eventFormatter ?? throw new ArgumentNullException(nameof(eventFormatter));
-        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider)); // Assign serviceProvider
-        _concurrencyLimiter = new SemaphoreSlim(_options.MaxConcurrentHandlers);
     }
 
     public async Task<PublishResult> PublishAsync<TEvent>(
