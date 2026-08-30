@@ -132,6 +132,11 @@ public sealed class BatchEventPublisher
 
         foreach (var envelope in envelopes)
         {
+            if (envelope is null)
+            {
+                throw new ArgumentException("Collection cannot contain null elements.", nameof(envelopes));
+            }
+
             await AddEventAsync(envelope);
         }
     }
