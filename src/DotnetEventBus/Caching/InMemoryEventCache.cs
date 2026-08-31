@@ -23,6 +23,8 @@ public sealed class InMemoryEventCache : IEventCache, IDisposable
     private readonly ConcurrentDictionary<string, CacheEntry> _cache = [];
     private readonly object _statsLock = new();
     private readonly CancellationTokenSource _cleanupCts = new();
+    private readonly Task _cleanupTask;
+    private int _disposed;
     private long _hits = 0;
     private long _misses = 0;
 
@@ -36,19 +38,25 @@ public sealed class InMemoryEventCache : IEventCache, IDisposable
         _maxCapacity = maxCapacity;
 
         // Start cleanup task that runs every minute until disposed.
-        _ = Task.Run(async () =>
+        var cleanupToken = _cleanupCts.Token;
+        _cleanupTask = Task.Run(async () =>
         {
-            try
+            while (!cleanupToken.IsCancellationRequested)
             {
-                while (!_cleanupCts.IsCancellationRequested)
+                try
                 {
-                    await Task.Delay(TimeSpan.FromMinutes(1), _cleanupCts.Token);
+                    await Task.Delay(TimeSpan.FromMinutes(1), cleanupToken);
                     CleanupExpiredEntries();
                 }
-            }
-            catch (OperationCanceledException)
-            {
-                // Expected on dispose.
+                catch (OperationCanceledException) when (cleanupToken.IsCancellationRequested)
+                {
+                    // Expected on dispose.
+                }
+                catch (Exception exception)
+                {
+                    System.Diagnostics.Trace.TraceError(
+                        $"Failed to clean up expired cache entries: {exception}");
+                }
             }
         });
     }
@@ -58,7 +66,13 @@ public sealed class InMemoryEventCache : IEventCache, IDisposable
     /// </summary>
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+        {
+            return;
+        }
+
         _cleanupCts.Cancel();
+        Task.WaitAny([_cleanupTask], TimeSpan.FromSeconds(1));
         _cleanupCts.Dispose();
     }
 
