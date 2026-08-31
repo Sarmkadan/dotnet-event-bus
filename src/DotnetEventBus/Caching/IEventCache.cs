@@ -65,6 +65,7 @@ public sealed class CacheStats
 {
     public long Hits { get; set; }
     public long Misses { get; set; }
+    public long Evictions { get; set; }
     public int TotalItems { get; set; }
     public long TotalMemoryBytes { get; set; }
 

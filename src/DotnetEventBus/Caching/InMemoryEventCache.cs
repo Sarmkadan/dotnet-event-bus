@@ -27,11 +27,17 @@ public sealed class InMemoryEventCache : IEventCache, IDisposable
     private int _disposed;
     private long _hits = 0;
     private long _misses = 0;
+    private long _evictions = 0;
 
     /// <summary>
     /// Maximum number of items to keep in cache before eviction.
     /// </summary>
     private readonly int _maxCapacity;
+
+    /// <summary>
+    /// Gets the maximum capacity of the cache.
+    /// </summary>
+    public int Capacity => _maxCapacity;
 
     public InMemoryEventCache(int maxCapacity = 10000)
     {
@@ -105,6 +111,8 @@ public sealed class InMemoryEventCache : IEventCache, IDisposable
                 return null;
             }
 
+            // Update last accessed time for LRU
+            entry.LastAccessed = DateTime.UtcNow;
             RecordHit();
             return entry.Value as T;
         }
@@ -126,11 +134,13 @@ public sealed class InMemoryEventCache : IEventCache, IDisposable
             EvictOldest();
         }
 
+        var now = DateTime.UtcNow;
         var entry = new CacheEntry
         {
             Value = value,
-            CreatedAt = DateTime.UtcNow,
-            ExpiresAt = expiration.HasValue ? DateTime.UtcNow.Add(expiration.Value) : null
+            CreatedAt = now,
+            LastAccessed = now,
+            ExpiresAt = expiration.HasValue ? now.Add(expiration.Value) : null
         };
 
         _cache[key] = entry;
@@ -213,6 +223,7 @@ public sealed class InMemoryEventCache : IEventCache, IDisposable
             {
                 Hits = _hits,
                 Misses = _misses,
+                Evictions = _evictions,
                 TotalItems = _cache.Count,
                 TotalMemoryBytes = EstimateMemoryUsage()
             };
@@ -250,14 +261,18 @@ public sealed class InMemoryEventCache : IEventCache, IDisposable
 
     private void EvictOldest()
     {
-        // Simple LRU: remove oldest entry by creation time
+        // LRU: remove least recently accessed entry
         var oldestKey = _cache
-            .OrderBy(kvp => kvp.Value.CreatedAt)
+            .OrderBy(kvp => kvp.Value.LastAccessed)
             .FirstOrDefault().Key;
 
         if (!string.IsNullOrEmpty(oldestKey))
         {
             _cache.TryRemove(oldestKey, out _);
+            lock (_statsLock)
+            {
+                _evictions++;
+            }
         }
     }
 
@@ -288,6 +303,7 @@ public sealed class InMemoryEventCache : IEventCache, IDisposable
     {
         public required object Value { get; set; }
         public DateTime CreatedAt { get; set; }
+        public DateTime LastAccessed { get; set; }
         public DateTime? ExpiresAt { get; set; }
 
         public bool IsExpired => ExpiresAt.HasValue && DateTime.UtcNow > ExpiresAt.Value;
