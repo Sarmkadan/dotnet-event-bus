@@ -67,6 +67,25 @@ public static class EventMessageExtensions
     }
 
     /// <summary>
+    /// Returns a copy of the message with the specified header set, leaving the original unchanged.
+    /// </summary>
+    /// <param name="message">The message to derive from.</param>
+    /// <param name="key">Header key.</param>
+    /// <param name="value">Header value.</param>
+    /// <returns>A new message with the header applied.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="message"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="key"/> is <see langword="null"/>, empty, or whitespace.</exception>
+    public static EventMessage WithHeader(this EventMessage message, string key, string value)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+
+        var copy = message.Clone();
+        copy.AddHeader(key, value);
+        return copy;
+    }
+
+    /// <summary>
     /// Gets a header value by key, returning a default value if not found.
     /// </summary>
     /// <param name="message">The message to get header from.</param>
