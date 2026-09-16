@@ -1,111 +1,115 @@
 # InMemoryEventCache
 
-`InMemoryEventCache` provides an in-process, dictionary-backed cache for storing serialized event payloads and associated metadata. It is designed for short-lived caching scenarios where distributed persistence is not required, offering type-safe get/set operations with optional expiration and basic statistical tracking.
+`src/DotnetEventBus/Caching/InMemoryEventCache.cs`
+
+In-memory implementation of [`IEventCache`](src/DotnetEventBus/Caching/IEventCache.cs).
+It provides fast, local, thread-safe caching for frequently retrieved events and
+subscriptions without any external dependency, making it suitable for
+single-instance deployments.
+
+## Overview
+
+- **Thread-safe** — backed by a `ConcurrentDictionary<string, CacheEntry>`.
+- **Automatic expiration** — entries can carry a `TimeSpan` TTL; expired entries
+  are removed lazily on access and by a background cleanup loop.
+- **LRU eviction** — when the cache reaches its configured capacity, the least
+  recently accessed entry is evicted before a new one is inserted.
+- **Observability** — hit/miss/eviction counters and a memory-usage estimate are
+  exposed through `GetStatsAsync()`.
+
+The class is `sealed` and implements `IDisposable` to stop the background cleanup
+task.
+
+## Constructor
+
+```csharp
+public InMemoryEventCache(int maxCapacity = 10000)
+```
+
+| Parameter     | Default | Description                                                |
+| ------------- | ------- | ---------------------------------------------------------- |
+| `maxCapacity` | `10000` | Maximum number of items kept before LRU eviction kicks in. |
+
+The constructor starts a background task that runs every minute and calls
+`CleanupExpiredEntries()` to remove expired entries. The loop is cancelled on
+`Dispose()`.
+
+## Capacity & LRU eviction
+
+`Capacity` exposes the configured `maxCapacity`.
+
+On every `SetAsync`, the cache checks whether `_cache.Count >= _maxCapacity`. If
+so, it calls `EvictOldest()`, which removes the entry with the smallest
+`LastAccessed` timestamp (the least recently used entry) and increments the
+`_evictions` counter. This keeps the cache bounded at the configured capacity.
+
+`LastAccessed` is refreshed to `DateTime.UtcNow` on every successful `GetAsync`
+hit, so frequently used entries are retained while idle ones are evicted first.
+
+## Statistics
+
+`GetStatsAsync()` returns a `CacheStats` snapshot:
+
+| Field              | Type     | Description                                                       |
+| ------------------ | -------- | ----------------------------------------------------------------- |
+| `Hits`             | `long`   | Number of successful lookups (non-expired entry found).           |
+| `Misses`           | `long`   | Number of lookups that found nothing or an expired entry.         |
+| `Evictions`        | `long`   | Number of entries evicted by LRU capacity pressure.               |
+| `TotalItems`       | `int`    | Current number of entries in the cache.                           |
+| `TotalMemoryBytes` | `long`   | Estimated managed memory footprint of the cache.                  |
+| `HitRate` (derived)| `double` | `Hits / (Hits + Misses)`, or `0` when no lookups have occurred.   |
+
+`Hits`, `Misses`, and `Evictions` are monotonic counters guarded by a lock and
+are never reset by `ClearAsync()`.
+
+### Memory estimation
+
+`EstimateMemoryUsage()` approximates the managed footprint per entry:
+
+- A fixed per-entry overhead of `88` bytes (dictionary bucket + entry object).
+- UTF-16 key characters (`key.Length * sizeof(char)`).
+- A payload estimate based on value type:
+  - `string` — `length * sizeof(char) + 26`
+  - `byte[]` — `LongLength + 24`
+  - anything else — a flat `64` bytes.
+
+This is an estimate, not an exact measurement.
 
 ## API
 
-### `public InMemoryEventCache()`
-Initializes a new instance of the cache with empty internal storage and zeroed statistics. No external dependencies or configuration are required.
+| Method | Description |
+| ------ | ----------- |
+| `GetAsync<T>(string key)` | Returns the cached value, or `null` when absent or expired. Expired entries are removed and counted as a miss. Refreshes `LastAccessed` on a hit. |
+| `SetAsync<T>(string key, T value, TimeSpan? expiration = null)` | Stores a value with an optional TTL. Evicts the LRU entry first if at capacity. |
+| `RemoveAsync(string key)` | Removes a single entry. |
+| `ExistsAsync(string key)` | Returns `true` for a present, non-expired entry; otherwise `false` (removing an expired entry if found). |
+| `GetManyAsync<T>(IEnumerable<string> keys)` | Returns a dictionary of present, non-expired values. |
+| `RemoveManyAsync(IEnumerable<string> keys)` | Removes multiple entries. |
+| `ClearAsync()` | Removes all entries. |
+| `GetStatsAsync()` | Returns a `CacheStats` snapshot. |
+| `ToString()` | Returns a summary of the most recently created entry (value, `CreatedAt`, `ExpiresAt`). |
 
-### `public async Task<T?> GetAsync<T>(string key)`
-Retrieves a cached value by its unique key and deserializes it to the requested type.
+All methods are `async` and begin with `await Task.Yield()` to preserve the async
+contract while performing in-memory work synchronously.
 
-- **Parameters:** `key` — the string identifier under which the value was stored.
-- **Returns:** the deserialized value of type `T`, or `null` if the key is not found or the entry has expired.
-- **Exceptions:** throws `ArgumentNullException` when `key` is null; throws `InvalidCastException` or `JsonException` if the stored payload cannot be deserialized to `T`.
+## Expiration
 
-### `public async Task SetAsync<T>(string key, T value, TimeSpan? ttl = null)`
-Stores a value in the cache under the specified key, optionally with a time-to-live duration.
+Each `CacheEntry` records `CreatedAt`, `LastAccessed`, and an optional
+`ExpiresAt`. An entry is considered expired when `ExpiresAt` is set and the
+current UTC time is past it (`IsExpired`). Expired entries are removed:
 
-- **Parameters:**
-  - `key` — the string identifier for the cached entry.
-  - `value` — the object to serialize and store.
-  - `ttl` — optional `TimeSpan` after which the entry is considered expired and will be ignored by `GetAsync` and `ExistsAsync`.
-- **Returns:** a completed task.
-- **Exceptions:** throws `ArgumentNullException` when `key` or `value` is null.
+- lazily, when touched by `GetAsync` / `ExistsAsync` / `GetManyAsync`, and
+- periodically, by the background cleanup loop every minute.
 
-### `public async Task RemoveAsync(string key)`
-Removes a single entry from the cache by its key. If the key does not exist, the operation completes without error.
+## Thread safety
 
-- **Parameters:** `key` — the string identifier of the entry to remove.
-- **Returns:** a completed task.
-- **Exceptions:** throws `ArgumentNullException` when `key` is null.
+The backing dictionary is a `ConcurrentDictionary`, so concurrent reads and
+writes are safe. The statistics counters are updated under `_statsLock` to keep
+`Hits`/`Misses`/`Evictions` consistent. `Dispose()` is idempotent and waits up to
+one second for the cleanup task to stop.
 
-### `public async Task<bool> ExistsAsync(string key)`
-Checks whether a non-expired entry exists for the given key.
+## Disposal
 
-- **Parameters:** `key` — the string identifier to check.
-- **Returns:** `true` if the key exists and its expiration time (if set) has not passed; `false` otherwise.
-- **Exceptions:** throws `ArgumentNullException` when `key` is null.
-
-### `public async Task<Dictionary<string, T>> GetManyAsync<T>(IEnumerable<string> keys)`
-Retrieves multiple entries at once, returning only those that exist and have not expired.
-
-- **Parameters:** `keys` — a collection of string identifiers to fetch.
-- **Returns:** a dictionary mapping each found key to its deserialized value of type `T`. Keys that are missing or expired are omitted from the result.
-- **Exceptions:** throws `ArgumentNullException` when `keys` is null; individual deserialization failures for a key cause that key to be excluded rather than throwing.
-
-### `public async Task RemoveManyAsync(IEnumerable<string> keys)`
-Removes all specified entries from the cache. Missing keys are silently ignored.
-
-- **Parameters:** `keys` — a collection of string identifiers to remove.
-- **Returns:** a completed task.
-- **Exceptions:** throws `ArgumentNullException` when `keys` is null.
-
-### `public async Task ClearAsync()`
-Removes every entry from the cache and resets all statistics counters to zero.
-
-- **Returns:** a completed task.
-
-### `public async Task<CacheStats> GetStatsAsync()`
-Returns a snapshot of current cache statistics.
-
-- **Returns:** a `CacheStats` object containing:
-  - `public required object Value` — the total number of hits (successful retrievals).
-  - `public DateTime CreatedAt` — the timestamp when the cache instance was created.
-  - `public DateTime? ExpiresAt` — always `null` for the cache itself (instance-level expiration is not supported; this field is reserved for future use or per-entry reflection).
-
-## Usage
-
-### Example 1: Cache an event payload and retrieve it
-```csharp
-var cache = new InMemoryEventCache();
-
-var orderEvent = new OrderPlaced { OrderId = Guid.NewGuid(), Amount = 99.95m };
-await cache.SetAsync("event:order:123", orderEvent, TimeSpan.FromMinutes(5));
-
-// Later in the pipeline
-var cached = await cache.GetAsync<OrderPlaced>("event:order:123");
-if (cached is not null)
-{
-    Console.WriteLine($"Replaying order {cached.OrderId} with amount {cached.Amount}");
-}
-```
-
-### Example 2: Batch check and eviction of stale correlation IDs
-```csharp
-var cache = new InMemoryEventCache();
-var correlationIds = new[] { "corr:a", "corr:b", "corr:c" };
-
-// Store several entries
-foreach (var id in correlationIds)
-{
-    await cache.SetAsync(id, new CorrelationRecord { ProcessedAt = DateTime.UtcNow }, TimeSpan.FromSeconds(30));
-}
-
-// Later, fetch only those still valid
-var stillValid = await cache.GetManyAsync<CorrelationRecord>(correlationIds);
-Console.WriteLine($"{stillValid.Count} of {correlationIds.Length} correlations still active");
-
-// Clean up processed ones
-var toRemove = correlationIds.Except(stillValid.Keys);
-await cache.RemoveManyAsync(toRemove);
-```
-
-## Notes
-
-- **Expiration is lazy:** entries with a TTL are not proactively evicted. They are checked at retrieval time (`GetAsync`, `GetManyAsync`, `ExistsAsync`) and treated as missing if expired. Expired entries remain in internal storage until explicitly removed or cleared.
-- **Thread safety:** all public methods are asynchronous and return tasks, but the underlying dictionary operations are not guarded by a synchronization primitive unless the implementation internally uses locks or concurrent collections. Callers should avoid concurrent mutations from multiple threads unless the implementation guarantees safety.
-- **Statistics:** the `CacheStats.Value` field tracks cumulative hits. A hit is counted each time `GetAsync` or `GetManyAsync` successfully returns a non-expired entry. Misses, removals, and clears do not decrement the counter.
-- **Type safety:** `GetAsync<T>` and `GetManyAsync<T>` perform deserialization at call time. Storing incompatible types under the same key and retrieving with a different type parameter will cause deserialization errors.
-- **Null keys:** all methods accepting a `key` or `keys` parameter throw `ArgumentNullException` for null arguments. Empty strings are allowed as keys but may lead to collisions if used unintentionally.
+`Dispose()` cancels the background cleanup loop, waits up to one second for it to
+finish, and disposes the `CancellationTokenSource`. It is safe to call multiple
+times.
