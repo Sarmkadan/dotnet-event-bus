@@ -1875,3 +1875,58 @@ bool isMatch = predicate(order);
 var all = FilterBuilder.CreateWildcardFilter<OrderEvent>();
 var none = FilterBuilder.CreateEmptyFilter<OrderEvent>();
 ```
+
+## EventTransformer
+
+The types in `DotnetEventBus.Advanced.EventTransformer.cs` provide reusable mappings between reference-type events. `EventTransformer<TSource, TTarget>` applies an initial mapping and can add ordered post-transformation steps or chain the result into another target type. `EventTransformerBuilder` supplies factory methods for custom mappings, matching-property copies, and dictionary conversion.
+
+Public API:
+
+- `EventTransformer(Func<TSource, TTarget>)` — creates a transformer from a mapping function.
+- `Then(Func<TTarget, TTarget>)` — appends a post-transformation step and returns the same transformer for fluent configuration. Steps run in registration order.
+- `Transform(TSource)` — transforms one event and applies every registered post-transformation.
+- `TransformMany(IEnumerable<TSource>)` — returns a lazily evaluated sequence of transformed events.
+- `Chain<TIntermediate>(Func<TTarget, TIntermediate>)` — creates a new transformer that runs the current transformation pipeline before mapping to another reference type.
+- `EventTransformerBuilder.CreateTransformer<TSource, TTarget>(mapFunc)` — creates a transformer with a custom mapping.
+- `EventTransformerBuilder.CreatePropertyCopyTransformer<TSource, TTarget>()` — creates a transformer that copies same-named public properties to a target with a parameterless constructor. Properties that cannot be assigned are skipped.
+- `EventTransformerBuilder.CreateDictionaryTransformer<T>()` — creates a transformer that maps public property names and values into a `Dictionary<string, object?>`.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Advanced;
+
+var transformer = EventTransformerBuilder
+    .CreateTransformer<OrderSubmitted, OrderSummary>(order => new OrderSummary
+    {
+        OrderId = order.OrderId,
+        Total = order.Total,
+        Label = order.CustomerName
+    })
+    .Then(summary =>
+    {
+        summary.Label = summary.Label.Trim();
+        return summary;
+    });
+
+var notificationTransformer = transformer.Chain(summary => new OrderNotification
+{
+    Message = $"Order {summary.OrderId}: {summary.Label} ({summary.Total:C})"
+});
+
+OrderSummary summary = transformer.Transform(
+    new OrderSubmitted { OrderId = 42, CustomerName = "  Ada  ", Total = 125m });
+
+IEnumerable<OrderSummary> summaries = transformer.TransformMany(pendingOrders);
+OrderNotification notification = notificationTransformer.Transform(pendingOrders.First());
+
+// Copy compatible, same-named properties to a new target instance.
+var copyTransformer = EventTransformerBuilder
+    .CreatePropertyCopyTransformer<OrderSubmitted, OrderArchiveEntry>();
+OrderArchiveEntry archiveEntry = copyTransformer.Transform(pendingOrders.First());
+
+// Convert all public properties to name/value pairs.
+var dictionaryTransformer = EventTransformerBuilder
+    .CreateDictionaryTransformer<OrderSubmitted>();
+Dictionary<string, object?> values = dictionaryTransformer.Transform(pendingOrders.First());
+```
