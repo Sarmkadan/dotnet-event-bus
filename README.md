@@ -1470,82 +1470,96 @@ await eventBus.PublishAsync(new AlertEvent {
 });
 ```
 
-## MetricsCollectorTests
+## MetricsCollector
 
-The `MetricsCollectorTests` class provides comprehensive unit tests for the metrics collection functionality within the DotnetEventBus library. It validates metrics tracking for event publishing operations including publish counts, durations, failure tracking, handler execution metrics, success rates, and provides methods to retrieve and reset collected metrics.
+`MetricsCollector` (namespace `DotnetEventBus.Advanced`) records event publication, failure, handler execution, latency, throughput, and uptime metrics in memory. Create it directly, optionally passing an `ILogger<MetricsCollector>`, and call its recording methods from the event publication and handler paths you want to observe. Durations are expressed in milliseconds and success rates are percentages from `0` to `100`.
+
+Public API:
+
+- `MetricsCollector(ILogger<MetricsCollector>? logger = null)` creates an empty collector with optional diagnostic logging.
+- `RecordEventPublished(string eventType, long durationMs)` records a publication and its duration.
+- `RecordEventFailed(string eventType, string handlerName, Exception exception)` records an event failure and associates it with a handler.
+- `RecordHandlerExecution(string handlerName, string eventType, long durationMs, bool success)` records a handler invocation.
+- `GetEventMetrics(string eventType)` returns `EventMetrics` for one event type, or `null` when it has not been recorded.
+- `GetAllEventMetrics()` returns all event metrics ordered by descending publication count.
+- `GetHandlerMetrics(string handlerName)` returns that handler's metrics for every recorded event type, ordered by descending execution count.
+- `GetHandlerMetrics(string handlerName, string eventType)` returns one handler/event pair, or `null` when it has not been recorded.
+- `GetAllHandlerMetrics()` returns every handler/event pair ordered by descending execution count.
+- `GetSuccessRate(string handlerName, string eventType)` and `GetAverageDuration(string handlerName, string eventType)` return `0` when the pair has not been recorded.
+- `GetSystemMetrics()` returns totals, success rate, event and handler counts, uptime, and throughput per second.
+- `GetLatencyStats(string eventType)` returns minimum, maximum, average, and p95 latency, or `null` when the event type has not been recorded. The p95 calculation uses up to the 1,000 most recent duration samples.
+- `GetAllLatencyStats()` returns latency statistics for all recorded event types.
+- `Reset()` clears all collected data and restarts the uptime measurement.
+- `ToString()` returns a concise diagnostic summary of the current state.
+
+The returned public models expose the following data:
+
+- `EventMetrics`: `EventType`, publication and failure counts, total/average/minimum/maximum duration, last publication and failure timestamps, last error, and computed `SuccessRate`.
+- `HandlerMetrics`: `HandlerName`, `EventType`, execution/failure/total-duration/average-duration values, and computed `SuccessCount` and `SuccessRate`.
+- `SystemMetrics`: start time, uptime, published and failed totals, success rate, event-type and handler counts, and throughput per second.
+- `LatencyStats`: event type, minimum/maximum/average/p95 latency in milliseconds, and total recorded `SampleCount`.
 
 Example usage:
 
 ```csharp
-using DotnetEventBus.Metrics;
-using Microsoft.Extensions.DependencyInjection;
-using Xunit;
+using DotnetEventBus.Advanced;
 
-// Create service collection and configure event bus with metrics
-var services = new ServiceCollection();
-services.AddEventBus(options => {
-    options.EnableMetricsCollection = true;
-});
+var metrics = new MetricsCollector();
 
-var provider = services.BuildServiceProvider();
-var metricsCollector = provider.GetRequiredService<IMetricsCollector>();
+// Record the publication and each handler execution independently.
+metrics.RecordEventPublished("OrderCreated", durationMs: 150);
+metrics.RecordHandlerExecution(
+    handlerName: "OrderCreatedHandler",
+    eventType: "OrderCreated",
+    durationMs: 120,
+    success: true);
 
-// Record successful event publishing with duration
-metricsCollector.RecordEventPublished("OrderCreated", TimeSpan.FromMilliseconds(150));
-metricsCollector.RecordEventPublished("PaymentProcessed", TimeSpan.FromMilliseconds(80));
-metricsCollector.RecordEventPublished("InventoryUpdated", TimeSpan.FromMilliseconds(200));
+metrics.RecordEventPublished("OrderCreated", durationMs: 210);
+metrics.RecordHandlerExecution(
+    handlerName: "AuditHandler",
+    eventType: "OrderCreated",
+    durationMs: 25,
+    success: false);
+metrics.RecordEventFailed(
+    eventType: "OrderCreated",
+    handlerName: "AuditHandler",
+    exception: new InvalidOperationException("Audit store unavailable"));
 
-// Record failed event publishing with error message
-metricsCollector.RecordEventFailed("OrderCreated", new InvalidOperationException("Database timeout"));
-metricsCollector.RecordEventFailed("PaymentProcessed", new InvalidOperationException("Payment gateway unavailable"));
-
-// Record handler execution metrics
-metricsCollector.RecordHandlerExecution("OrderCreatedHandler", TimeSpan.FromMilliseconds(120), true);
-metricsCollector.RecordHandlerExecution("PaymentProcessedHandler", TimeSpan.FromMilliseconds(60), true);
-metricsCollector.RecordHandlerExecution("InventoryUpdatedHandler", TimeSpan.FromMilliseconds(180), false);
-
-// Retrieve all event metrics
-var allEventMetrics = metricsCollector.GetAllEventMetrics();
-foreach (var metric in allEventMetrics)
+EventMetrics? orderMetrics = metrics.GetEventMetrics("OrderCreated");
+if (orderMetrics is not null)
 {
-    Console.WriteLine($"Event: {metric.EventType}, Published: {metric.PublishCount}, " +
-                     $"Avg Duration: {metric.AverageDuration.TotalMilliseconds}ms, " +
-                     $"Failures: {metric.FailureCount}, Last Failure: {metric.LastFailureTime}");
+    Console.WriteLine(
+        $"Published: {orderMetrics.PublishCount}; " +
+        $"failures: {orderMetrics.FailureCount}; " +
+        $"average: {orderMetrics.AverageDurationMs:F1} ms");
 }
 
-// Retrieve all handler metrics
-var allHandlerMetrics = metricsCollector.GetAllHandlerMetrics();
-foreach (var metric in allHandlerMetrics)
+HandlerMetrics? auditMetrics = metrics.GetHandlerMetrics("AuditHandler", "OrderCreated");
+Console.WriteLine($"Audit success rate: {metrics.GetSuccessRate("AuditHandler", "OrderCreated"):F1}%");
+Console.WriteLine($"Audit average duration: {metrics.GetAverageDuration("AuditHandler", "OrderCreated"):F1} ms");
+
+foreach (HandlerMetrics handler in metrics.GetHandlerMetrics("OrderCreatedHandler"))
 {
-    Console.WriteLine($"Handler: {metric.HandlerName}, Executions: {metric.ExecutionCount}, " +
-                     $"Avg Duration: {metric.AverageDuration.TotalMilliseconds}ms, " +
-                     $"Success Rate: {metric.SuccessRate:P}, Last Failure: {metric.LastFailureTime}");
+    Console.WriteLine($"{handler.EventType}: {handler.ExecutionCount} executions");
 }
 
-// Calculate success rate for a specific event type
-var orderSuccessRate = metricsCollector.GetSuccessRate("OrderCreated");
-Console.WriteLine($"OrderCreated success rate: {orderSuccessRate:P}");
+LatencyStats? latency = metrics.GetLatencyStats("OrderCreated");
+if (latency is not null)
+{
+    Console.WriteLine($"Latency p95: {latency.P95Ms} ms ({latency.SampleCount} publications)");
+}
 
-// Calculate average duration for a specific handler
-var handlerAvgDuration = metricsCollector.GetAverageDuration("OrderCreatedHandler");
-Console.WriteLine($"OrderCreatedHandler average duration: {handlerAvgDuration.TotalMilliseconds}ms");
+SystemMetrics system = metrics.GetSystemMetrics();
+Console.WriteLine(
+    $"Published: {system.TotalEventsPublished}; " +
+    $"throughput: {system.ThroughputPerSecond:F2}/s; uptime: {system.UpTime}");
 
-// Get last failure time for an event type
-var lastFailure = metricsCollector.GetLastFailureTime("PaymentProcessed");
-Console.WriteLine($"Last PaymentProcessed failure: {lastFailure}");
+IEnumerable<EventMetrics> events = metrics.GetAllEventMetrics();
+IEnumerable<HandlerMetrics> handlers = metrics.GetAllHandlerMetrics();
+IEnumerable<LatencyStats> latencies = metrics.GetAllLatencyStats();
 
-// Get last published time for an event type
-var lastPublished = metricsCollector.GetLastPublishedTime("InventoryUpdated");
-Console.WriteLine($"Last InventoryUpdated publish: {lastPublished}");
-
-// Reset all metrics (useful for testing scenarios)
-metricsCollector.Reset();
-
-// Verify metrics were cleared
-var emptyEventMetrics = metricsCollector.GetAllEventMetrics();
-var emptyHandlerMetrics = metricsCollector.GetAllHandlerMetrics();
-Console.WriteLine($"Event metrics after reset: {emptyEventMetrics.Count}");
-Console.WriteLine($"Handler metrics after reset: {emptyHandlerMetrics.Count}");
+Console.WriteLine(metrics);
+metrics.Reset();
 ```
 
 ## CircuitBreakerTests
