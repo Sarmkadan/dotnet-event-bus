@@ -1834,3 +1834,44 @@ catch (ArgumentException ex)
     Console.WriteLine($"Validation failed: {ex.Message}");
 }
 ```
+
+## EventFilter
+
+The `EventFilter<T>` class (namespace `DotnetEventBus.Advanced`) provides a fluent API for filtering events before they are processed by handlers. It lets you register one or more predicates and compile them into a single optimized predicate function, reducing unnecessary handler invocations by filtering at the bus level. The companion `FilterBuilder` static class offers factory methods for creating filters, including wildcard (match-all) and empty (match-none) variants.
+
+Key members:
+- `Where(Func<T, bool>)` — adds a predicate filter (AND semantics).
+- `WhereProperty(selector, expectedValue)` — matches when a property equals a value.
+- `WherePropertyInRange(selector, min, max)` — matches when a comparable property falls within an inclusive range.
+- `WherePropertyContains(selector, value)` — case-insensitive substring match on a string property.
+- `Not(Func<T, bool>)` — inverts a predicate.
+- `Compile()` — combines all registered predicates into a single cached predicate function (match-all when empty, the single predicate when only one is registered).
+- `Matches(T)` — evaluates all filters against a single event.
+- `FilterCollection(IEnumerable<T>)` — filters a collection of events.
+- `FilterCount` — number of registered filters.
+- `Clear()` — removes all filters and resets the compiled cache.
+
+Example usage:
+```csharp
+using DotnetEventBus.Advanced;
+
+// Build a filter that matches orders over $100 for a specific user
+var filter = FilterBuilder.CreateFilter<OrderEvent>()
+    .WhereProperty(e => e.UserId, 42)
+    .WherePropertyInRange(e => e.Amount, 100m, 10_000m)
+    .WherePropertyContains(e => e.Status, "pending");
+
+// Evaluate a single event
+bool matches = filter.Matches(new OrderEvent { UserId = 42, Amount = 250m, Status = "Pending" });
+
+// Filter a collection of events
+var filtered = filter.FilterCollection(orders);
+
+// Compile once and reuse the predicate
+Func<OrderEvent, bool> predicate = filter.Compile();
+bool isMatch = predicate(order);
+
+// Wildcard (match all) and empty (match none) helpers
+var all = FilterBuilder.CreateWildcardFilter<OrderEvent>();
+var none = FilterBuilder.CreateEmptyFilter<OrderEvent>();
+```
