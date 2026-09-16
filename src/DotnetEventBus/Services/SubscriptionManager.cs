@@ -52,13 +52,44 @@ public interface ISubscriptionManager
 /// </summary>
 public sealed class SubscriptionInfo
 {
+    /// <summary>
+    /// Gets or sets the unique identifier of the subscription.
+    /// </summary>
     public string Id { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the event type the subscription is registered for.
+    /// </summary>
     public string EventType { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the name of the handler that processes the subscription.
+    /// </summary>
     public string HandlerName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the subscription is active.
+    /// </summary>
     public bool IsActive { get; set; }
+
+    /// <summary>
+    /// Gets or sets the priority of the subscription.
+    /// </summary>
     public int Priority { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the subscription is processed asynchronously.
+    /// </summary>
     public bool IsAsync { get; set; }
+
+    /// <summary>
+    /// Gets or sets the timeout for processing the subscription, if any.
+    /// </summary>
     public TimeSpan? Timeout { get; set; }
+
+    /// <summary>
+    /// Gets or sets the UTC timestamp when the subscription was created.
+    /// </summary>
     public DateTime CreatedAtUtc { get; set; }
 }
 
@@ -67,13 +98,44 @@ public sealed class SubscriptionInfo
 /// </summary>
 public sealed class SubscriptionStatistics
 {
+    /// <summary>
+    /// Gets or sets the total number of subscriptions.
+    /// </summary>
     public int TotalSubscriptions { get; set; }
+
+    /// <summary>
+    /// Gets or sets the number of active subscriptions.
+    /// </summary>
     public int ActiveSubscriptions { get; set; }
+
+    /// <summary>
+    /// Gets or sets the number of inactive subscriptions.
+    /// </summary>
     public int InactiveSubscriptions { get; set; }
+
+    /// <summary>
+    /// Gets or sets the number of unique event types with subscriptions.
+    /// </summary>
     public int UniqueEventTypes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the number of unique handlers with subscriptions.
+    /// </summary>
     public int UniqueHandlers { get; set; }
+
+    /// <summary>
+    /// Gets or sets the number of subscriptions grouped by event type.
+    /// </summary>
     public Dictionary<string, int> SubscriptionsByEventType { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the number of subscriptions grouped by handler.
+    /// </summary>
     public Dictionary<string, int> SubscriptionsByHandler { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the number of active subscriptions grouped by event type.
+    /// </summary>
     public Dictionary<string, int> ActiveSubscriptionsByEventType { get; set; } = new();
 }
 
@@ -85,6 +147,11 @@ public sealed class SubscriptionManager : ISubscriptionManager
     private readonly ISubscriptionRepository _repository;
     private readonly ILogger<SubscriptionManager>? _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SubscriptionManager"/> class.
+    /// </summary>
+    /// <param name="repository">The subscription repository used to persist and query subscriptions.</param>
+    /// <param name="logger">Optional logger used to record diagnostic information.</param>
     public SubscriptionManager(
         ISubscriptionRepository repository,
         ILogger<SubscriptionManager>? logger = null)
@@ -93,6 +160,12 @@ public sealed class SubscriptionManager : ISubscriptionManager
         _logger = logger;
     }
 
+    /// <summary>
+    /// Gets all subscriptions for an event type.
+    /// </summary>
+    /// <param name="eventType">The event type to filter subscriptions by.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>The subscriptions registered for the specified event type.</returns>
     public async Task<IEnumerable<SubscriptionInfo>> GetSubscriptionsAsync(
         string eventType,
         CancellationToken cancellationToken = default)
@@ -122,6 +195,11 @@ public sealed class SubscriptionManager : ISubscriptionManager
         return subscriptionInfos;
     }
 
+    /// <summary>
+    /// Gets all subscriptions.
+    /// </summary>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>All subscriptions across all event types.</returns>
     public async Task<IEnumerable<SubscriptionInfo>> GetAllSubscriptionsAsync(CancellationToken cancellationToken = default)
     {
         var subscriptions = await _repository.GetAllAsync(cancellationToken);
@@ -145,6 +223,12 @@ public sealed class SubscriptionManager : ISubscriptionManager
         return subscriptionInfos;
     }
 
+    /// <summary>
+    /// Gets subscription count for an event type.
+    /// </summary>
+    /// <param name="eventType">The event type to count subscriptions for.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>The number of subscriptions for the specified event type.</returns>
     public async Task<int> GetSubscriptionCountAsync(string eventType, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(eventType))
@@ -153,6 +237,11 @@ public sealed class SubscriptionManager : ISubscriptionManager
         return await _repository.CountByEventTypeAsync(eventType, cancellationToken);
     }
 
+    /// <summary>
+    /// Disables all handlers of a specific type.
+    /// </summary>
+    /// <param name="handlerName">The name of the handler to disable.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
     public async Task DisableHandlerAsync(string handlerName, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(handlerName))
@@ -170,6 +259,11 @@ public sealed class SubscriptionManager : ISubscriptionManager
         _logger?.LogInformation("Handler {HandlerName} disabled", handlerName);
     }
 
+    /// <summary>
+    /// Enables all handlers of a specific type.
+    /// </summary>
+    /// <param name="handlerName">The name of the handler to enable.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
     public async Task EnableHandlerAsync(string handlerName, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(handlerName))
@@ -187,6 +281,11 @@ public sealed class SubscriptionManager : ISubscriptionManager
         _logger?.LogInformation("Handler {HandlerName} enabled", handlerName);
     }
 
+    /// <summary>
+    /// Gets statistics about subscriptions.
+    /// </summary>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>Aggregated statistics about the current subscriptions.</returns>
     public async Task<SubscriptionStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
         var allSubscriptions = await _repository.GetAllAsync(cancellationToken);
