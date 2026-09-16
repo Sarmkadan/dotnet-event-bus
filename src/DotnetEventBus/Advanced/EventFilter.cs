@@ -147,6 +147,7 @@ public sealed class EventFilter<T> where T : class
     /// <summary>
     /// Gets the number of registered filters.
     /// </summary>
+    /// <returns>The count of filters currently registered.</returns>
     public int FilterCount => _predicates.Count;
 
     /// <summary>
