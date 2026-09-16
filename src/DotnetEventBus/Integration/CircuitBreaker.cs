@@ -18,6 +18,8 @@ namespace DotnetEventBus.Integration;
 /// </summary>
 public sealed class CircuitBreaker
 {
+    private const string OpenMessage = "Circuit breaker is open. Service is unavailable.";
+
     private CircuitBreakerState _state = CircuitBreakerState.Closed;
     private int _failureCount = 0;
     private DateTime _lastFailureTime = DateTime.MinValue;
@@ -44,13 +46,13 @@ public sealed class CircuitBreaker
     /// </summary>
     /// <param name="failureThreshold">The number of consecutive failures before the circuit opens. Must be positive.</param>
     /// <param name="timeout">The time to wait before transitioning from Open to HalfOpen. Defaults to 60 seconds.</param>
-    public CircuitBreaker(int failureThreshold = 5, TimeSpan? timeout = null)
+    public CircuitBreaker(int failureThreshold = EventBusConstants.CircuitBreaker.DefaultFailureThreshold, TimeSpan? timeout = null)
     {
         if (failureThreshold <= 0)
             throw new ArgumentException("Failure threshold must be positive", nameof(failureThreshold));
 
         _failureThreshold = failureThreshold;
-        _timeout = timeout ?? TimeSpan.FromSeconds(60);
+        _timeout = timeout ?? TimeSpan.FromSeconds(EventBusConstants.CircuitBreaker.DefaultTimeoutSeconds);
     }
 
     /// <summary>
@@ -66,7 +68,7 @@ public sealed class CircuitBreaker
 
             if (_state == CircuitBreakerState.Open)
             {
-                throw new CircuitBreakerOpenException("Circuit breaker is open. Service is unavailable.");
+                throw new CircuitBreakerOpenException(OpenMessage);
             }
         }
 
@@ -96,7 +98,7 @@ public sealed class CircuitBreaker
 
             if (_state == CircuitBreakerState.Open)
             {
-                throw new CircuitBreakerOpenException("Circuit breaker is open. Service is unavailable.");
+                throw new CircuitBreakerOpenException(OpenMessage);
             }
         }
 

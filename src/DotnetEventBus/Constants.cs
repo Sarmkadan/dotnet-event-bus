@@ -43,6 +43,22 @@ public static class EventBusConstants
     public static readonly int DefaultMaxConcurrentHandlers = Environment.ProcessorCount;
 
     /// <summary>
+    /// Defaults for the circuit breaker resilience pattern.
+    /// </summary>
+    public static class CircuitBreaker
+    {
+        /// <summary>
+        /// Default number of consecutive failures before the circuit opens.
+        /// </summary>
+        public const int DefaultFailureThreshold = 5;
+
+        /// <summary>
+        /// Default time to wait before transitioning from Open to HalfOpen, in seconds.
+        /// </summary>
+        public const int DefaultTimeoutSeconds = 60;
+    }
+
+    /// <summary>
     /// Message header keys for internal use.
     /// </summary>
     public static class MessageHeaders
