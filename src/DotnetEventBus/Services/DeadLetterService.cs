@@ -148,6 +148,12 @@ public sealed class DeadLetterService : IDeadLetterService
     // the EventBus singleton has already finished constructing.
     private IEventBus? _eventBus => _eventBusInstance ?? _serviceProvider?.GetService<IEventBus>();
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DeadLetterService"/> class.
+    /// </summary>
+    /// <param name="repository">The dead letter repository.</param>
+    /// <param name="eventBus">Optional event bus instance for reprocessing.</param>
+    /// <param name="logger">Optional logger instance.</param>
     public DeadLetterService(
         IDeadLetterRepository repository,
         IEventBus? eventBus = null,
@@ -158,6 +164,12 @@ public sealed class DeadLetterService : IDeadLetterService
         _logger = logger;
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DeadLetterService"/> class.
+    /// </summary>
+    /// <param name="repository">The dead letter repository.</param>
+    /// <param name="serviceProvider">The service provider for resolving dependencies.</param>
+    /// <param name="logger">Optional logger instance.</param>
     public DeadLetterService(
         IDeadLetterRepository repository,
         IServiceProvider serviceProvider,
