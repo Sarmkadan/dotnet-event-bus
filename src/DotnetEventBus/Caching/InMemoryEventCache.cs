@@ -20,6 +20,13 @@ namespace DotnetEventBus.Caching;
 /// </summary>
 public sealed class InMemoryEventCache : IEventCache, IDisposable
 {
+    private const int DefaultMaxCapacity = 10000;
+    private const int CleanupIntervalMinutes = 1;
+    private const int DisposeTimeoutSeconds = 1;
+    private const long StringOverheadBytes = 26;
+    private const long ByteArrayOverheadBytes = 24;
+    private const long OtherOverheadBytes = 64;
+
     private readonly ConcurrentDictionary<string, CacheEntry> _cache = [];
     private readonly object _statsLock = new();
     private readonly CancellationTokenSource _cleanupCts = new();
@@ -43,7 +50,7 @@ public sealed class InMemoryEventCache : IEventCache, IDisposable
     /// Initializes a new instance of the <see cref="InMemoryEventCache"/> class.
     /// </summary>
     /// <param name="maxCapacity">Maximum number of items to keep in cache before LRU eviction. Defaults to 10000.</param>
-    public InMemoryEventCache(int maxCapacity = 10000)
+    public InMemoryEventCache(int maxCapacity = DefaultMaxCapacity)
     {
         _maxCapacity = maxCapacity;
 
@@ -55,7 +62,7 @@ public sealed class InMemoryEventCache : IEventCache, IDisposable
             {
                 try
                 {
-                    await Task.Delay(TimeSpan.FromMinutes(1), cleanupToken);
+                    await Task.Delay(TimeSpan.FromMinutes(CleanupIntervalMinutes), cleanupToken);
                     CleanupExpiredEntries();
                 }
                 catch (OperationCanceledException) when (cleanupToken.IsCancellationRequested)
@@ -82,7 +89,7 @@ public sealed class InMemoryEventCache : IEventCache, IDisposable
         }
 
         _cleanupCts.Cancel();
-        Task.WaitAny([_cleanupTask], TimeSpan.FromSeconds(1));
+        Task.WaitAny([_cleanupTask], TimeSpan.FromSeconds(DisposeTimeoutSeconds));
         _cleanupCts.Dispose();
     }
 
@@ -336,9 +343,9 @@ public sealed class InMemoryEventCache : IEventCache, IDisposable
 
             total += kvp.Value.Value switch
             {
-                string s => (long)s.Length * sizeof(char) + 26,
-                byte[] bytes => bytes.LongLength + 24,
-                _ => 64
+                string s => (long)s.Length * sizeof(char) + StringOverheadBytes,
+                byte[] bytes => bytes.LongLength + ByteArrayOverheadBytes,
+                _ => OtherOverheadBytes
             };
         }
 
