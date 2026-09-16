@@ -1944,3 +1944,62 @@ var dictionaryTransformer = EventTransformerBuilder
     .CreateDictionaryTransformer<OrderSubmitted>();
 Dictionary<string, object?> values = dictionaryTransformer.Transform(pendingOrders.First());
 ```
+
+## SagaOrchestrator
+
+`SagaOrchestrator<TContext>` (namespace `DotnetEventBus.Advanced`) coordinates an ordered sequence of asynchronous saga steps. Each step can define a compensation action. If a forward action fails, the orchestrator marks that step as failed and compensates the previously completed steps in reverse order. The context must be a reference type and the same instance is passed to every action and compensation.
+
+Public API:
+
+- `SagaOrchestrator(string sagaId, ILogger<SagaOrchestrator<TContext>>? logger = null)` creates an orchestrator with an optional logger. `sagaId` is copied to `Name` and is returned in each execution result.
+- `Name` gets or sets the display name used to identify the saga. Changing it does not change the result's `SagaId`.
+- `AddStep(string stepName, Func<TContext, Task> action, Func<TContext, Task>? compensationAction = null)` appends a step and returns the orchestrator for fluent chaining. New steps start with `Pending` status.
+- `ExecuteAsync(TContext context)` executes steps in registration order. It returns a successful `SagaExecutionResult` when every step completes (including when no steps are registered). A forward-action failure produces an unsuccessful result after rollback. If any compensation also fails, the method throws `SagaCompensationException` containing the result and compensation failures.
+- `GetStepStatus()` returns a snapshot of the registered step sequence and its current state.
+
+Supporting public types:
+
+- `SagaStep<T>` exposes `Name`, `Action`, optional `CompensationAction`, `Status`, and optional `ErrorMessage`.
+- `SagaStepStatus` defines `Pending`, `Running`, `Completed`, `Compensating`, `Compensated`, `Failed`, and `CompensationFailed`.
+- `SagaExecutionResult` exposes `SagaId`, `Success`, `FailedStep`, `Error`, and `ExecutedAt` (initialized to the current UTC time when execution begins).
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Advanced;
+
+var saga = new SagaOrchestrator<OrderSagaContext>("order-42")
+    .AddStep(
+        "reserve-inventory",
+        context =>
+        {
+            context.InventoryReserved = true;
+            return Task.CompletedTask;
+        },
+        context =>
+        {
+            context.InventoryReserved = false;
+            return Task.CompletedTask;
+        })
+    .AddStep(
+        "charge-payment",
+        context => Task.FromException(
+            new InvalidOperationException("Payment was declined")));
+
+var context = new OrderSagaContext();
+SagaExecutionResult result = await saga.ExecuteAsync(context);
+
+Console.WriteLine(result.Success);             // False
+Console.WriteLine(result.FailedStep);          // charge-payment
+Console.WriteLine(context.InventoryReserved); // False: the first step was compensated
+
+foreach (SagaStep<OrderSagaContext> step in saga.GetStepStatus())
+{
+    Console.WriteLine($"{step.Name}: {step.Status}");
+}
+
+public sealed class OrderSagaContext
+{
+    public bool InventoryReserved { get; set; }
+}
+```
