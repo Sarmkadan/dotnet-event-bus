@@ -25,6 +25,9 @@ public sealed class CircuitBreaker
     private readonly TimeSpan _timeout;
     private readonly object _lock = new();
 
+    /// <summary>
+    /// Gets the current state of the circuit breaker.
+    /// </summary>
     public CircuitBreakerState State
     {
         get
@@ -36,6 +39,11 @@ public sealed class CircuitBreaker
         }
     }
 
+    /// <summary>
+    /// Initializes a new instance of the CircuitBreaker class.
+    /// </summary>
+    /// <param name="failureThreshold">The number of consecutive failures before the circuit opens. Must be positive.</param>
+    /// <param name="timeout">The time to wait before transitioning from Open to HalfOpen. Defaults to 60 seconds.</param>
     public CircuitBreaker(int failureThreshold = 5, TimeSpan? timeout = null)
     {
         if (failureThreshold <= 0)
@@ -161,14 +169,35 @@ public sealed class CircuitBreaker
     }
 }
 
+/// <summary>
+/// Represents the state of the circuit breaker.
+/// </summary>
 public enum CircuitBreakerState
 {
-    Closed,     // Normal operation
-    Open,       // Failing, reject all requests
-    HalfOpen    // Testing if service recovered
+    /// <summary>
+    /// Normal operation - requests are allowed through.
+    /// </summary>
+    Closed,
+
+    /// <summary>
+    /// Failing state - all requests are rejected immediately.
+    /// </summary>
+    Open,
+
+    /// <summary>
+    /// Testing state - allows a single request through to test if the service has recovered.
+    /// </summary>
+    HalfOpen
 }
 
+/// <summary>
+/// Exception thrown when the circuit breaker is open.
+/// </summary>
 public sealed class CircuitBreakerOpenException : Exception
 {
+    /// <summary>
+    /// Initializes a new instance of the CircuitBreakerOpenException class with a specified error message.
+    /// </summary>
+    /// <param name="message">The error message that explains the reason for the exception.</param>
     public CircuitBreakerOpenException(string message) : base(message) { }
 }
