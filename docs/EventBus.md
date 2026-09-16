@@ -1,297 +1,333 @@
-# EventBus
+# Dotnet EventBus Architecture
 
-`EventBus` is the central publish-subscribe and request-response mediator in the `dotnet-event-bus` library. It provides a decoupled communication channel where publishers emit events or requests without knowing the consumers, and subscribers handle those messages asynchronously or synchronously. The bus supports both in-process typed events and raw distributed event processing, with built-in subscription lifecycle management.
+## Overview
 
-## API
+The `EventBus` is an in-process event bus implementation supporting publish/subscribe and request/reply patterns. It is designed to be lightweight, extensible, and integrates with dependency injection, providing middleware support for cross-cutting concerns.
 
-### Constructors
+## Architecture
 
-```csharp
-public EventBus()
-public EventBus(EventBusOptions options)
-```
+### Key Components
 
-Creates a new instance of the event bus. The parameterless constructor uses default options. The overload accepting `EventBusOptions` allows customization of bus behavior such as error handling strategies, timeouts, or serialization settings.
+1. **EventBus Service** (`DotnetEventBus.Services.EventBus`)
+   - Core implementation of the event bus
+   - Implements `IEventBus` interface
+   - Handles publishing, subscribing, and request/reply patterns
 
-**Parameters:**
-- `options`: An `EventBusOptions` instance configuring the bus.
+2. **Repositories** (Abstracted via interfaces)
+   - `IEventMessageRepository` - Stores event messages
+   - `ISubscriptionRepository` - Manages event subscriptions
+   - `IDeadLetterRepository` - Stores failed event deliveries
 
-**Throws:**
-- `ArgumentNullException` when `options` is `null`.
+3. **Services**
+   - `IDeadLetterService` - Handles dead letter queue operations
 
----
+4. **Formatters**
+   - `IEventFormatter` - Serializes/deserializes event payloads (default: JSON)
 
-### PublishAsync
+5. **Middleware**
+   - `IEventBusMiddleware` - Pipeline for cross-cutting concerns (logging, validation, etc.)
 
-```csharp
-public async Task<PublishResult> PublishAsync<TEvent>(TEvent event)
-public async Task<PublishResult> PublishAsync<TEvent>(TEvent event, CancellationToken cancellationToken)
-```
+6. **Configuration**
+   - `EventBusOptions` - Configurable behavior (concurrency, retries, dead letter, etc.)
 
-Publishes an event of type `TEvent` to all subscribers registered for that type. Subscribers are invoked asynchronously. The method returns a `PublishResult` describing the outcome (e.g., number of handlers invoked, any errors encountered).
+### Dependency Injection
 
-**Parameters:**
-- `event`: The event payload to publish. Must not be `null`.
-- `cancellationToken`: Optional token to cancel the publish operation.
+The EventBus is designed to work with .NET's dependency injection container. Key dependencies include:
+- `IEventMessageRepository`
+- `ISubscriptionRepository`
+- `IDeadLetterRepository`
+- `IDeadLetterService`
+- `IEventFormatter`
+- `IServiceProvider` (for resolving middleware)
 
-**Returns:**
-- A `PublishResult` containing details about handler execution.
+When repositories are not provided via DI, the EventBus falls back to in-memory implementations.
 
-**Throws:**
-- `ArgumentNullException` when `event` is `null`.
-- `OperationCanceledException` when the cancellation token is triggered before completion.
+## Publish/Subscribe Flow
 
----
+### Publishing Events
 
-### SendAsync
+1. **Validation**
+   - Checks for null event
+   - Validates event message
 
-```csharp
-public async Task<TResponse> SendAsync<TRequest, TResponse>(TRequest request)
-public async Task<TResponse> SendAsync<TRequest, TResponse>(TRequest request, CancellationToken cancellationToken)
-```
+2. **Message Creation**
+   - Serializes event to JSON payload
+   - Creates `EventMessage` with metadata (MessageId, CorrelationId, Timestamp)
 
-Sends a request of type `TRequest` and expects a single response of type `TResponse`. This follows the request-response pattern where exactly one subscriber handles the request and returns a result. If zero or multiple handlers are registered, the behavior is defined by the bus configuration (typically throws or returns a default value).
+3. **Subscription Resolution**
+   - Looks up subscriptions for the event type and all base types/interfaces
+   - Orders handlers by priority (descending)
+   - Avoids duplicate handler invocation for the same handler instance
 
-**Parameters:**
-- `request`: The request payload. Must not be `null`.
-- `cancellationToken`: Optional token to cancel the send operation.
+4. **Middleware Pipeline**
+   - Constructs event context
+   - Builds middleware chain (from inside out)
+   - Executes pipeline with terminal delegate that invokes handlers
 
-**Returns:**
-- The response of type `TResponse` produced by the registered handler.
+5. **Handler Invocation**
+   - Supports parallel or sequential handling (configurable)
+   - Implements retry logic with exponential backoff
+   - Enforces concurrency limits via semaphore
+   - Handles timeouts per handler
 
-**Throws:**
-- `ArgumentNullException` when `request` is `null`.
-- `InvalidOperationException` when no handler or multiple handlers are registered for the request type (depending on configuration).
-- `OperationCanceledException` when the cancellation token is triggered.
+6. **Result Tracking**
+   - Tracks successful/failed handlers
+   - Updates publish result with timing and status
+   - Logs publication summary
 
----
+7. **Error Handling**
+   - On no handlers: logs warning, optionally throws exception or sends to dead letter
+   - On handler failure: retries configurable times, then sends to dead letter if enabled
+   - On unexpected failure: returns failed publish result or throws based on configuration
 
-### Subscribe
+### Subscribing to Events
 
-```csharp
-public IDisposable Subscribe<TEvent>(Func<TEvent, Task> handler)
-public IDisposable Subscribe<TEvent>(Func<TEvent, CancellationToken, Task> handler)
-```
+1. **Subscription Creation**
+   - Creates `Subscription` object with:
+     - Event type
+     - Handler delegate (async or sync)
+     - Handler name (auto-generated if not provided)
+     - Priority (default 0)
+     - Timeout (uses default if not specified)
 
-Registers an asynchronous handler for events of type `TEvent`. The handler is invoked each time an event of that type is published. Returns an `IDisposable` token that, when disposed, unsubscribes the handler.
+2. **Thread Safety**
+   - Uses lock on `_subscriptionLock` to ensure thread-safe subscription management
 
-**Parameters:**
-- `handler`: An async function that receives the event and optionally a cancellation token.
+3. **Disposal Pattern**
+   - Returns `IDisposable` (`SubscriptionDisposable`) for automatic unsubscription
+   - Disposal calls `UnsubscribeAsync` to remove subscription
 
-**Returns:**
-- An `IDisposable` representing the subscription. Disposing it removes the handler.
+### Request/Reply Pattern
 
-**Throws:**
-- `ArgumentNullException` when `handler` is `null`.
+> **Note**: The request/reply pattern requires distributed transport configuration and is currently not implemented (throws `NotImplementedException`). 
+> To use request/reply, you must configure distributed transport settings in `EventBusOptions`.
 
----
+## Usage Examples
 
-### SubscribeSync
-
-```csharp
-public IDisposable SubscribeSync<TEvent>(Action<TEvent> handler)
-```
-
-Registers a synchronous handler for events of type `TEvent`. The handler is invoked synchronously during publish. Returns a disposable subscription token.
-
-**Parameters:**
-- `handler`: A synchronous action that receives the event.
-
-**Returns:**
-- An `IDisposable` representing the subscription.
-
-**Throws:**
-- `ArgumentNullException` when `handler` is `null`.
-
----
-
-### SubscribeRequest
-
-```csharp
-public IDisposable SubscribeRequest<TRequest, TResponse>(Func<TRequest, Task<TResponse>> handler)
-public IDisposable SubscribeRequest<TRequest, TResponse>(Func<TRequest, CancellationToken, Task<TResponse>> handler)
-```
-
-Registers a handler for request-response messaging. The handler receives a request of type `TRequest` and returns a response of type `TResponse`. Only one handler per request type is typically allowed; subsequent registrations may replace or throw depending on configuration.
-
-**Parameters:**
-- `handler`: An async function that processes the request and returns a response.
-
-**Returns:**
-- An `IDisposable` representing the subscription.
-
-**Throws:**
-- `ArgumentNullException` when `handler` is `null`.
-- `InvalidOperationException` when a handler is already registered and the bus does not allow overwriting.
-
----
-
-### UnsubscribeAsync
+### Basic Setup with Dependency Injection
 
 ```csharp
-public async Task UnsubscribeAsync<TEvent>(IDisposable subscription)
-```
-
-Removes a previously registered subscription asynchronously. This is an alternative to disposing the subscription token directly and may perform additional cleanup.
-
-**Parameters:**
-- `subscription`: The subscription token returned from `Subscribe`, `SubscribeSync`, or `SubscribeRequest`.
-
-**Throws:**
-- `ArgumentNullException` when `subscription` is `null`.
-- `ArgumentException` when the subscription was not created by this bus instance.
-
----
-
-### GetSubscriptionsAsync
-
-```csharp
-public async Task<IEnumerable<string>> GetSubscriptionsAsync()
-```
-
-Returns a collection of strings representing the currently active subscriptions. The format and content of each string are implementation-defined, typically including the event type name and handler information.
-
-**Returns:**
-- An `IEnumerable<string>` describing active subscriptions.
-
----
-
-### ClearSubscriptionsAsync
-
-```csharp
-public async Task ClearSubscriptionsAsync()
-```
-
-Removes all active subscriptions from the bus. After calling this method, no handlers will respond to published events or requests until new subscriptions are registered.
-
----
-
-### GetOptions
-
-```csharp
-public EventBusOptions GetOptions()
-```
-
-Returns the `EventBusOptions` instance that was used to configure this bus. If the parameterless constructor was used, returns the default options.
-
-**Returns:**
-- The `EventBusOptions` associated with this bus instance.
-
----
-
-### ProcessRawDistributedEventAsync
-
-```csharp
-public async Task<PublishResult> ProcessRawDistributedEventAsync(string eventType, byte[] payload)
-public async Task<PublishResult> ProcessRawDistributedEventAsync(string eventType, byte[] payload, CancellationToken cancellationToken)
-```
-
-Processes a raw event received from an external or distributed source. The event type string is used to resolve local handlers, and the payload is deserialized according to bus configuration before being dispatched.
-
-**Parameters:**
-- `eventType`: The type name or routing key identifying the event.
-- `payload`: The raw serialized event data.
-- `cancellationToken`: Optional token to cancel processing.
-
-**Returns:**
-- A `PublishResult` describing the outcome of local handler execution.
-
-**Throws:**
-- `ArgumentNullException` when `eventType` or `payload` is `null`.
-- `ArgumentException` when `eventType` is empty or whitespace.
-- `OperationCanceledException` when the cancellation token is triggered.
-
----
-
-### SubscriptionDisposable
-
-```csharp
-public class SubscriptionDisposable : IDisposable
-```
-
-A concrete implementation of `IDisposable` returned by subscription methods. Calling `Dispose` on this object removes the associated handler from the bus.
-
-**Members:**
-- `public void Dispose()`: Unsubscribes the handler. Safe to call multiple times; subsequent calls have no effect.
-
----
-
-### Dispose
-
-```csharp
-public void Dispose()
-```
-
-Disposes the event bus, releasing all resources and clearing all subscriptions. After disposal, any attempt to publish, send, or subscribe will throw an `ObjectDisposedException`.
-
-## Usage
-
-### Example 1: In-process publish-subscribe
-
-```csharp
-// Define an event type
-public record OrderPlacedEvent(Guid OrderId, string Customer, decimal Total);
-
-// Create the bus
-var bus = new EventBus();
-
-// Subscribe an async handler
-IDisposable subscription = bus.Subscribe<OrderPlacedEvent>(async order =>
+// In Startup.cs or Program.cs
+services.AddSingleton<EventBusOptions>(options => 
 {
-    Console.WriteLine($"Processing order {order.OrderId} for {order.Customer}");
-    await Task.Delay(100); // Simulate work
+    var opts = new EventBusOptions();
+    opts.MaxConcurrentHandlers = 10;
+    opts.MaxRetryAttempts = 3;
+    opts.EnableDeadLetterQueue = true;
+    return opts;
 });
 
-// Publish an event
-var result = await bus.PublishAsync(new OrderPlacedEvent(
-    Guid.NewGuid(), "customer@example.com", 99.99m));
+services.AddSingleton<IEventBus, EventBus>();
+services.AddSingleton<IEventMessageRepository, InMemoryEventMessageRepository>();
+services.AddSingleton<ISubscriptionRepository, InMemorySubscriptionRepository>();
+services.AddSingleton<IDeadLetterRepository, InMemoryDeadLetterRepository>();
+services.AddSingleton<IDeadLetterService, DeadLetterService>();
+services.AddSingleton<IEventFormatter, JsonEventFormatter>();
 
-Console.WriteLine($"Handlers invoked: {result.HandlerCount}");
-
-// Later, unsubscribe
-subscription.Dispose();
+// Add middleware
+services.AddScoped<IEventBusMiddleware, LoggingMiddleware>();
+services.AddScoped<IEventBusMiddleware, ValidationMiddleware>();
 ```
 
-### Example 2: Request-response with cancellation
+### Publishing an Event
 
 ```csharp
-// Define request and response types
-public record GetUserRequest(string UserId);
-public record GetUserResponse(string UserId, string Name, string Email);
-
-// Create the bus with custom options
-var options = new EventBusOptions { HandlerTimeout = TimeSpan.FromSeconds(5) };
-var bus = new EventBus(options);
-
-// Register a request handler
-bus.SubscribeRequest<GetUserRequest, GetUserResponse>(async (request, ct) =>
+public class UserCreatedEvent
 {
-    // Simulate database lookup
-    await Task.Delay(200, ct);
-    return new GetUserResponse(request.UserId, "John Doe", "john@example.com");
-});
+    public string UserId { get; set; }
+    public string Username { get; set; }
+    public string Email { get; set; }
+}
 
-// Send a request with cancellation support
-using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+// In your service
+public class UserService
+{
+    private readonly IEventBus _eventBus;
+    
+    public UserService(IEventBus eventBus)
+    {
+        _eventBus = eventBus;
+    }
+    
+    public async Task CreateUserAsync(UserCreatedEvent @event)
+    {
+        // Business logic...
+        
+        // Publish event
+        await _eventBus.PublishAsync(@event);
+    }
+}
+```
+
+### Subscribing to an Event
+
+```csharp
+public class UserCreatedHandler : IEventHandler<UserCreatedEvent>
+{
+    private readonly ILogger<UserCreatedHandler> _logger;
+    
+    public UserCreatedHandler(ILogger<UserCreatedHandler> logger)
+    {
+        _logger = logger;
+    }
+    
+    public string GetHandlerName() => nameof(UserCreatedHandler);
+    
+    public Task Handle(UserCreatedEvent @event, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("User created: {UserId} ({Username})", 
+            @event.UserId, @event.Username);
+        
+        // Handle the event (send welcome email, update cache, etc.)
+        return Task.CompletedTask;
+    }
+}
+
+// In your service registration or startup
+public void ConfigureServices(IServiceCollection services)
+{
+    // ... other services
+    
+    services.AddHostedService<UserCreatedHandler>();
+}
+
+// Or manual subscription
+public class SomeService
+{
+    private readonly IEventBus _eventBus;
+    private IDisposable? _subscription;
+    
+    public SomeService(IEventBus eventBus)
+    {
+        _eventBus = eventBus;
+    }
+    
+    public void Start()
+    {
+        _subscription = _eventBus.Subscribe<UserCreatedEvent>(HandleUserCreated);
+    }
+    
+    public void Stop()
+    {
+        _subscription?.Dispose();
+    }
+    
+    private Task HandleUserCreated(UserCreatedEvent @event, CancellationToken ct)
+    {
+        // Handle event
+        return Task.CompletedTask;
+    }
+}
+```
+
+### Subscribing with Lambda Expression
+
+```csharp
+var subscription = _eventBus.Subscribe<UserCreatedEvent>(
+    async (@event, ct) => 
+    {
+        await _emailService.SendWelcomeEmailAsync(@event.UserId, @event.Email);
+    },
+    handlerName: "WelcomeEmailHandler",
+    priority: 10
+);
+
+// Remember to dispose when done
+// subscription.Dispose();
+```
+
+### Synchronous Handler Subscription
+
+```csharp
+var subscription = _eventBus.SubscribeSync<UserCreatedEvent>(@event =>
+{
+    _cache.UpdateUser(@event.UserId, @event.Username);
+}, handlerName: "CacheUpdateHandler");
+```
+
+### Handling No Subscribers
+
+```csharp
 try
 {
-    var response = await bus.SendAsync<GetUserRequest, GetUserResponse>(
-        new GetUserRequest("user-123"), cts.Token);
-    Console.WriteLine($"Retrieved user: {response.Name}");
+    var result = await _eventBus.PublishAsync(new UserCreatedEvent());
+    if (!result.Success)
+    {
+        // Handle failed handlers
+    }
 }
-catch (OperationCanceledException)
+catch (NoHandlersRegisteredException)
 {
-    Console.WriteLine("Request timed out");
+    // No handlers registered for this event type
 }
 ```
 
-## Notes
+### Configuration Options
 
-- **Thread safety:** All public methods on `EventBus` are thread-safe. Subscriptions can be added or removed concurrently with publish operations without external synchronization.
-- **Handler execution order:** Handlers for a given event type are invoked in the order they were registered. Synchronous handlers registered via `SubscribeSync` run on the publisher's thread; asynchronous handlers run on captured synchronization contexts or the thread pool depending on the bus configuration.
-- **Error handling during publish:** If a handler throws an exception, the bus captures it in the `PublishResult` and continues invoking remaining handlers. The publish operation itself does not throw unless the cancellation token is triggered or a fatal bus-level error occurs.
-- **Request-response cardinality:** By default, exactly one handler must be registered for a request type. If zero or multiple handlers are present, `SendAsync` throws `InvalidOperationException`. This behavior can be adjusted via `EventBusOptions`.
-- **Subscription disposal vs. UnsubscribeAsync:** Disposing the `IDisposable` token is the preferred way to unsubscribe. `UnsubscribeAsync` exists for scenarios where the token is not accessible and the subscription must be removed by reference.
-- **Raw distributed events:** `ProcessRawDistributedEventAsync` expects the payload to be deserializable into the type indicated by `eventType`. If deserialization fails, the error is recorded in the `PublishResult` and no handlers are invoked.
-- **Lifecycle:** Once `Dispose` is called on the bus, all subscriptions are cleared and any further operations throw `ObjectDisposedException`. Disposing the bus also disposes all outstanding `SubscriptionDisposable` instances.
-- **Cancellation tokens in handlers:** When a handler accepts a `CancellationToken`, the bus passes the token from the publish or send call. If the caller cancels the token, cooperative handlers can abort early, but the bus does not forcibly terminate non-cooperative handlers.
+```csharp
+var options = new EventBusOptions
+{
+    MaxConcurrentHandlers = 5,
+    DefaultHandlerTimeout = TimeSpan.FromSeconds(30),
+    MaxRetryAttempts = 3,
+    RetryBackoffMode = RetryBackoffMode.Exponential,
+    EnableDeadLetterQueue = true,
+    ThrowOnNoHandlers = false,
+    DeadLetterOnNoHandlers = true,
+    AllowParallelHandling = true
+};
+```
+
+## Middleware Pipeline
+
+Middleware components implement `IEventBusMiddleware` and can perform actions before and after handler execution.
+
+```csharp
+public class LoggingMiddleware : IEventBusMiddleware
+{
+    private readonly ILogger<LoggingMiddleware> _logger;
+    
+    public LoggingMiddleware(ILogger<LoggingMiddleware> logger)
+    {
+        _logger = logger;
+    }
+    
+    public async Task InvokeAsync(EventMiddlewareContext context, EventMiddlewareDelegate next)
+    {
+        _logger.LogInformation("Before handling event: {EventType}", 
+            context.EventMessage.EventType);
+        
+        await next(context);
+        
+        _logger.LogInformation("After handling event: {EventType} - Success: {Success}", 
+            context.EventMessage.EventType, 
+            context.Result?.Success ?? false);
+    }
+}
+```
+
+## Thread Safety
+
+- Subscription management is thread-safe using locks
+- Handler invocation respects concurrency limits via `SemaphoreSlim`
+- All repository operations are expected to be thread-safe (implementations should ensure this)
+
+## Error Handling and Dead Letter Queue
+
+- Failed handlers are retried according to configuration
+- After max retries, failed events are sent to dead letter queue if enabled
+- Events with no handlers can optionally be sent to dead letter queue
+- Dead letter entries contain original event, exception details, and retry count
+
+## Limitations
+
+1. **In-Process Only**: Current implementation is for in-process communication only
+2. **Request/Reply**: Requires distributed transport configuration (not implemented)
+3. **Serialization**: Default JSON formatter; custom formatters can be plugged in
+4. **Persistence**: Repositories are abstracted; in-memory implementations provided for development
+
+## Conventional Commit
+
+Type: docs
+Scope: EventBus
+Description: Document EventBus architecture, publish/subscribe flow, and usage examples
