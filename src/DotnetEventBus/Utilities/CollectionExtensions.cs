@@ -172,6 +172,29 @@ public static class CollectionExtensions
     }
 
     /// <summary>
+    /// Partitions a sequence into two lists: items matching the predicate and the rest.
+    /// </summary>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="source"/> or <paramref name="predicate"/> is null.</exception>
+    public static (List<T> Matches, List<T> Others) Split<T>(this IEnumerable<T> source, Func<T, bool> predicate)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(predicate);
+
+        var matches = new List<T>();
+        var rest = new List<T>();
+
+        foreach (var item in source)
+        {
+            if (predicate(item))
+                matches.Add(item);
+            else
+                rest.Add(item);
+        }
+
+        return (matches, rest);
+    }
+
+    /// <summary>
     /// Chunks collection into pages of specified size.
     /// </summary>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="source"/> is null.</exception>
