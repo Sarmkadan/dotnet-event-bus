@@ -32,7 +32,8 @@ public sealed class SagaOrchestrator<TContext> where TContext : class
     /// <param name="logger">Optional logger used to record saga activity.</param>
     public SagaOrchestrator(string sagaId, ILogger<SagaOrchestrator<TContext>>? logger = null)
     {
-        _sagaId = sagaId ?? throw new ArgumentNullException(nameof(sagaId));
+        ArgumentNullException.ThrowIfNull(sagaId);
+        _sagaId = sagaId;
         _logger = logger;
         Name = sagaId;
     }
