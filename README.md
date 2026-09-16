@@ -997,6 +997,67 @@ if (BatchPublishingOptimizationExampleJsonExtensions.TryFromJson(analyticsJson, 
 }
 ```
 
+## InMemoryEventCache
+
+`InMemoryEventCache` (namespace `DotnetEventBus.Caching`) implements `IEventCache` and provides a thread-safe, in-memory caching mechanism with LRU (Least Recently Used) eviction policy and automatic expiration cleanup. It uses a concurrent dictionary for storage and maintains hit/miss/eviction statistics.
+
+Public API:
+
+- `InMemoryEventCache(int maxCapacity = 10000)` creates a cache instance with the specified maximum capacity (default 10,000 items).
+- `int Capacity { get; }` gets the maximum number of items the cache can hold before eviction occurs.
+- `Task<T?> GetAsync<T>(string key)` where T : class retrieves an item by key, returning null if not found or expired. Updates the item's last accessed time for LRU tracking on hit.
+- `Task SetAsync<T>(string key, T value, TimeSpan? expiration = null)` where T : class stores an item with optional expiration time. Automatically evicts the least recently used item if at capacity.
+- `Task RemoveAsync(string key)` removes an item by key.
+- `Task<bool> ExistsAsync(string key)` checks if an item exists and is not expired.
+- `Task<Dictionary<string, T>> GetManyAsync<T>(IEnumerable<string> keys)` where T : class retrieves multiple items by their keys.
+- `Task RemoveManyAsync(IEnumerable<string> keys)` removes multiple items by their keys.
+- `Task ClearAsync()` removes all items from the cache.
+- `Task<CacheStats> GetStatsAsync()` returns cache statistics including hits, misses, evictions, total items, and estimated memory usage.
+- `void Dispose()` stops the background cleanup task and releases resources.
+
+The cache automatically removes expired entries via a background task that runs every minute. When the cache reaches its capacity limit, it evicts the least recently accessed item before adding a new one.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Caching;
+using Microsoft.Extensions.DependencyInjection;
+
+// Register the cache with DI (optional)
+var services = new ServiceCollection();
+services.AddSingleton<InMemoryEventCache>(sp => new InMemoryEventCache(capacity: 5000));
+
+var serviceProvider = services.BuildServiceProvider();
+var cache = serviceProvider.GetRequiredService<InMemoryEventCache>();
+
+// Set a value with default expiration (no expiration)
+await cache.SetAsync("user:123", new { Id = 123, Name = "John Doe" });
+
+// Set a value with explicit expiration
+await cache.SetAsync("temp:token", "abc123", TimeSpan.FromMinutes(5));
+
+// Retrieve a value
+var user = await cache.GetAsync<dynamic>("user:123");
+Console.WriteLine($"User: {user?.Name}");
+
+// Check if key exists
+bool exists = await cache.ExistsAsync("user:123");
+Console.WriteLine($"Exists: {exists}");
+
+// Get cache statistics
+var stats = await cache.GetStatsAsync();
+Console.WriteLine($"Hits: {stats.Hits}, Misses: {stats.Misses}, Evictions: {stats.Evictions}");
+
+// Remove a value
+await cache.RemoveAsync("user:123");
+
+// Clear all values
+await cache.ClearAsync();
+
+// Dispose when finished (stops background cleanup)
+cache.Dispose();
+```
+
 ## InMemoryEventCacheState
 
 The `InMemoryEventCacheState` class represents the serialized state of an `InMemoryEventCache` instance. It captures cache statistics including total items, hits, misses, and configuration details like maximum capacity. This type is primarily used with the `InMemoryEventCacheJsonExtensions` class for JSON serialization and deserialization of cache state.
