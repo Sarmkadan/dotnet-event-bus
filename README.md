@@ -1562,73 +1562,61 @@ Console.WriteLine(metrics);
 metrics.Reset();
 ```
 
-## CircuitBreakerTests
+## CircuitBreaker
 
-The `CircuitBreakerTests` class provides comprehensive unit tests for the `CircuitBreaker` class, validating circuit breaker behavior including state transitions, failure handling, and recovery mechanisms. The tests cover all circuit states (Closed, Open, HalfOpen) and verify proper exception handling.
+`CircuitBreaker` (namespace `DotnetEventBus.Integration`) protects asynchronous calls to a dependency that is repeatedly failing. It begins in the `Closed` state and records every exception thrown by the wrapped operation. After the configured number of consecutive failures, it becomes `Open` and rejects calls until the timeout has elapsed. The next call after the timeout changes the state to `HalfOpen`: a successful call closes the circuit, while a failed call immediately reopens it. Any successful call resets the accumulated failure count.
+
+Public API:
+
+- `CircuitBreaker(int failureThreshold = 5, TimeSpan? timeout = null)` creates a closed circuit. The default timeout is 60 seconds. `failureThreshold` must be greater than zero; otherwise, the constructor throws `ArgumentException`.
+- `State` returns the current `CircuitBreakerState` in a thread-safe manner.
+- `ExecuteAsync<T>(Func<Task<T>> operation)` runs an asynchronous operation and returns its result.
+- `ExecuteAsync(Func<Task> operation)` runs an asynchronous operation that has no result.
+- Both `ExecuteAsync` overloads throw `ArgumentNullException` for a null operation, propagate exceptions from the operation after recording the failure, and throw `CircuitBreakerOpenException` without invoking the operation when the circuit is still open.
+- `Reset()` manually changes the state to `Closed` and clears the accumulated failure count.
+
+Supporting public types:
+
+- `CircuitBreakerState` defines `Closed` (calls are allowed), `Open` (calls are rejected), and `HalfOpen` (recovery is being tested).
+- `CircuitBreakerOpenException` is thrown when a call is rejected by an open circuit. Its constructor accepts the exception message.
 
 Example usage:
 
 ```csharp
 using DotnetEventBus.Integration;
-using Xunit;
 
-// Create a circuit breaker with failure threshold of 5 exceptions
-var breaker = new CircuitBreaker(failureThreshold: 5);
+var breaker = new CircuitBreaker(
+    failureThreshold: 2,
+    timeout: TimeSpan.FromSeconds(30));
 
-// Execute a successful operation - circuit remains closed
-var result = await breaker.ExecuteAsync(async () => "success");
-Assert.Equal("success", result);
-Assert.Equal(CircuitBreakerState.Closed, breaker.State);
-
-// Execute operations that throw exceptions below threshold - circuit stays closed
-for (int i = 0; i < 3; i++)
+async Task<string> LoadOrderAsync()
 {
+    // Call the protected dependency here.
+    await Task.Delay(10);
+    return "order-42";
+}
+
 try
 {
-await breaker.ExecuteAsync(async () => throw new TimeoutException("Transient failure"));
-}
-catch { /* expected */ }
-}
-Assert.Equal(CircuitBreakerState.Closed, breaker.State);
+    string order = await breaker.ExecuteAsync(LoadOrderAsync);
 
-// Execute operations that exceed failure threshold - circuit opens
-for (int i = 0; i < 5; i++)
-{
-try
-{
-await breaker.ExecuteAsync(async () => throw new TimeoutException("Failure"));
-}
-catch { /* expected */ }
-}
-Assert.Equal(CircuitBreakerState.Open, breaker.State);
-
-// Attempt to execute when circuit is open - throws CircuitBreakerOpenException
-try
-{
-await breaker.ExecuteAsync(async () => "should not execute");
-Assert.Fail("Should have thrown CircuitBreakerOpenException");
+    // The overload without a result is useful for command-style operations.
+    await breaker.ExecuteAsync(() => Task.CompletedTask);
 }
 catch (CircuitBreakerOpenException)
 {
-// Expected exception
+    // The operation was not invoked; use a fallback or return a temporary error.
+}
+catch (Exception)
+{
+    // The operation failed. Its original exception is propagated to the caller.
 }
 
-// Wait for timeout to expire (10 seconds), then circuit transitions to HalfOpen
-// A successful operation in HalfOpen state closes the circuit again
-await Task.Delay(TimeSpan.FromSeconds(10));
-var recoveryResult = await breaker.ExecuteAsync(async () => "recovery attempt");
-Assert.Equal("recovery attempt", result);
-Assert.Equal(CircuitBreakerState.Closed, breaker.State);
+Console.WriteLine(breaker.State);
 
-// Execute a void operation (no return value)
-var breaker2 = new CircuitBreaker(failureThreshold: 3);
-bool wasExecuted = false;
-await breaker2.ExecuteAsync(async () => 
-{
-wasExecuted = true;
-await Task.CompletedTask;
-});
-Assert.True(wasExecuted);
+// After the timeout, the next ExecuteAsync call tests recovery in HalfOpen state.
+// Call Reset() only when the circuit should be closed manually.
+breaker.Reset();
 ```
 
 ## ECommerceOrderProcessingExample
