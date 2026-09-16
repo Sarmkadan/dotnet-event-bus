@@ -39,6 +39,10 @@ public sealed class InMemoryEventCache : IEventCache, IDisposable
     /// </summary>
     public int Capacity => _maxCapacity;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="InMemoryEventCache"/> class.
+    /// </summary>
+    /// <param name="maxCapacity">Maximum number of items to keep in cache before LRU eviction. Defaults to 10000.</param>
     public InMemoryEventCache(int maxCapacity = 10000)
     {
         _maxCapacity = maxCapacity;
@@ -95,6 +99,13 @@ public sealed class InMemoryEventCache : IEventCache, IDisposable
         return $"InMemoryEventCache {{ Value = {newest?.Value}, CreatedAt = {newest?.CreatedAt:O}, ExpiresAt = {newest?.ExpiresAt:O} }}";
     }
 
+    /// <summary>
+    /// Retrieves the value associated with the specified key, or <c>null</c> if
+    /// the key is absent or its entry has expired.
+    /// </summary>
+    /// <typeparam name="T">The type of the cached value.</typeparam>
+    /// <param name="key">The cache key to look up.</param>
+    /// <returns>The cached value, or <c>null</c> when not found or expired.</returns>
     public async Task<T?> GetAsync<T>(string key) where T : class
     {
         ArgumentNullException.ThrowIfNull(key);
@@ -121,6 +132,14 @@ public sealed class InMemoryEventCache : IEventCache, IDisposable
         return null;
     }
 
+    /// <summary>
+    /// Stores the specified value in the cache with the given key and optional expiration.
+    /// If the cache is at capacity, the least recently used item will be evicted.
+    /// </summary>
+    /// <typeparam name="T">The type of the value to cache.</typeparam>
+    /// <param name="key">The cache key.</param>
+    /// <param name="value">The value to cache.</param>
+    /// <param name="expiration">Optional expiration time. If null, the entry does not expire.</param>
     public async Task SetAsync<T>(string key, T value, TimeSpan? expiration = null) where T : class
     {
         ArgumentNullException.ThrowIfNull(key);
@@ -146,6 +165,10 @@ public sealed class InMemoryEventCache : IEventCache, IDisposable
         _cache[key] = entry;
     }
 
+    /// <summary>
+    /// Removes the entry associated with the specified key from the cache.
+    /// </summary>
+    /// <param name="key">The cache key to remove.</param>
     public async Task RemoveAsync(string key)
     {
         ArgumentNullException.ThrowIfNull(key);
@@ -154,6 +177,11 @@ public sealed class InMemoryEventCache : IEventCache, IDisposable
         _cache.TryRemove(key, out _);
     }
 
+    /// <summary>
+    /// Determines whether the cache contains a non-expired entry for the specified key.
+    /// </summary>
+    /// <param name="key">The cache key to check.</param>
+    /// <returns><c>true</c> if a non-expired entry exists; otherwise, <c>false</c>.</returns>
     public async Task<bool> ExistsAsync(string key)
     {
         ArgumentNullException.ThrowIfNull(key);
@@ -173,6 +201,12 @@ public sealed class InMemoryEventCache : IEventCache, IDisposable
         return false;
     }
 
+    /// <summary>
+    /// Retrieves the values for the specified keys that are present and not expired.
+    /// </summary>
+    /// <typeparam name="T">The type of the cached values.</typeparam>
+    /// <param name="keys">The cache keys to retrieve.</param>
+    /// <returns>A dictionary mapping each found key to its cached value.</returns>
     public async Task<Dictionary<string, T>> GetManyAsync<T>(IEnumerable<string> keys) where T : class
     {
         ArgumentNullException.ThrowIfNull(keys);
@@ -195,6 +229,10 @@ public sealed class InMemoryEventCache : IEventCache, IDisposable
         return results;
     }
 
+    /// <summary>
+    /// Removes the entries associated with the specified keys from the cache.
+    /// </summary>
+    /// <param name="keys">The cache keys to remove.</param>
     public async Task RemoveManyAsync(IEnumerable<string> keys)
     {
         ArgumentNullException.ThrowIfNull(keys);
@@ -207,12 +245,20 @@ public sealed class InMemoryEventCache : IEventCache, IDisposable
         }
     }
 
+    /// <summary>
+    /// Removes all entries from the cache.
+    /// </summary>
     public async Task ClearAsync()
     {
         await Task.Yield(); // Keep async contract
         _cache.Clear();
     }
 
+    /// <summary>
+    /// Returns statistics about cache usage, including hit/miss counts, evictions,
+    /// current item count, and an estimate of memory usage.
+    /// </summary>
+    /// <returns>A <see cref="CacheStats"/> snapshot of the cache.</returns>
     public async Task<CacheStats> GetStatsAsync()
     {
         await Task.Yield(); // Keep async contract
