@@ -346,6 +346,9 @@ public sealed class EventBus : IEventBus
         int priority = 0)
         where TEvent : class
     {
+        if (handler is null)
+            throw new ArgumentNullException(nameof(handler));
+
         return Subscribe<TEvent>(
             (e, ct) =>
             {
