@@ -207,44 +207,66 @@ public class MyEventType
 }
 ```
 
-## DeadLetterServiceTests
+## DeadLetterService
 
-The `DeadLetterServiceTests` class provides comprehensive unit tests for the `DeadLetterService` dead letter queue functionality. It validates the service's ability to retrieve pending dead letter entries, mark entries as reviewed, retrieve statistics, and archive old entries. These tests ensure proper handling of failed event processing scenarios and provide examples for working with the dead letter queue system.
+`DeadLetterService` (namespace `DotnetEventBus.Services`) implements `IDeadLetterService` and manages entries that could not be processed normally. `AddEventBus` registers the service, its repository, and the event bus as singletons, so applications using dependency injection should normally resolve `IDeadLetterService` instead of constructing the implementation directly. Every asynchronous operation accepts an optional `CancellationToken`.
+
+Public API:
+
+- `DeadLetterService(IDeadLetterRepository repository, IEventBus? eventBus = null, ILogger<DeadLetterService>? logger = null)` creates a service for direct use. Reprocessing requires a non-null event bus.
+- `DeadLetterService(IDeadLetterRepository repository, IServiceProvider serviceProvider, ILogger<DeadLetterService>? logger = null)` creates a service that resolves `IEventBus` lazily; this is the constructor used by `AddEventBus`. Both constructors throw `ArgumentNullException` when a required argument is null.
+- `GetPendingEntriesAsync(...)` returns all entries whose status is `Pending`.
+- `GetEntriesByEventTypeAsync(string eventType, ...)` and `GetEntriesByHandlerAsync(string handlerName, ...)` query entries by event type or failed handler. A null, empty, or whitespace query throws `ArgumentException`.
+- `ReprocessEntryAsync(string entryId, ...)` publishes the stored payload through the event bus and updates the entry to `Reprocessed` or `ReprocessFailed`. It returns `false` when the entry is missing, no event bus is available, publishing fails, or publishing throws. An empty entry ID throws `ArgumentException`.
+- `ReprocessByEventTypeAsync(string eventType, int? maxEntries = null, ...)` reprocesses pending entries of one event type, optionally limiting the number attempted. One failure does not stop the remaining entries.
+- `ReplayAsync(Func<DeadLetterEntry, bool> predicate, int? maxEntries = null, ...)` applies a predicate to pending entries and reprocesses the matches, optionally limiting the number attempted. A null predicate throws `ArgumentNullException`.
+- `MarkAsReviewedAsync(string entryId, string? reason = null, ...)` changes an entry to `ReviewedNotProcessed` and stores the optional reason. It throws `InvalidOperationException` if the entry does not exist.
+- `ArchiveOldEntriesAsync(TimeSpan retentionPeriod, ...)` archives entries older than the retention period and returns the number archived. A zero or negative period throws `ArgumentException`.
+- `GetStatisticsAsync(...)` returns status totals and counts grouped by event type and handler.
+- `PurgeAsync(...)` permanently clears every dead letter entry from the repository.
+- `AddDeadLetterEntryAsync(string eventType, string rawPayload, Exception exception, string? correlationId = null, string? handlerName = null, ...)` stores an external payload that could not be deserialized. The new entry is pending, has distributed scope, uses `DeserializationFailed` when no handler name is supplied, and records zero retry attempts. Empty event types or payloads throw `ArgumentException`; a null exception throws `ArgumentNullException`.
+
+Batch and statistics results:
+
+- `BatchReprocessResult` exposes mutable `SucceededCount`, `FailedCount`, and `FailedEntryIds` values. `TotalAttempted` is their count sum, and `AllSucceeded` is true when `FailedCount` is zero (including an empty batch).
+- `DeadLetterStatistics` exposes `TotalEntries`, counts for `PendingEntries`, `ReviewedNotProcessedEntries`, `ReprocessedEntries`, `ReprocessFailedEntries`, and `ArchivedEntries`, plus the `EntriesByEventType` and `EntriesByHandler` dictionaries.
 
 Example usage:
 
 ```csharp
-using DotnetEventBus.Services;
+using DotnetEventBus;
 using DotnetEventBus.Models;
+using DotnetEventBus.Services;
 using Microsoft.Extensions.DependencyInjection;
 
-// Create service collection and configure event bus
 var services = new ServiceCollection();
-services.AddEventBus();
+services.AddEventBus(options => options.EnableDeadLetterQueue = true);
 
-// Build service provider
-var provider = services.BuildServiceProvider();
-var eventBus = provider.GetRequiredService<IEventBus>();
-var repository = new InMemoryDeadLetterRepository();
-var deadLetterService = new DeadLetterService(repository, eventBus);
+await using var provider = services.BuildServiceProvider();
+var deadLetters = provider.GetRequiredService<IDeadLetterService>();
 
-// Add a dead letter entry
-var msg = new EventMessage("OrderCreated", "{ \"orderId\": 123 }");
-var entry = new DeadLetterEntry(msg, "OrderHandler", new InvalidOperationException("Order processing failed"), 3);
-await repository.AddAsync(entry);
+// Record a payload that could not be deserialized.
+await deadLetters.AddDeadLetterEntryAsync(
+    eventType: typeof(OrderCreated).AssemblyQualifiedName!,
+    rawPayload: "{ \"orderId\": 123 }",
+    exception: new InvalidOperationException("Invalid order payload"),
+    correlationId: "order-123");
 
-// Get pending entries
-var pendingEntries = await deadLetterService.GetPendingEntriesAsync();
+var pending = (await deadLetters.GetPendingEntriesAsync()).ToList();
+foreach (var entry in pending)
+    Console.WriteLine(entry.GetSummary());
 
-// Mark as reviewed
-await deadLetterService.MarkAsReviewedAsync(entry.Id, "Reviewed for reprocessing");
+// Replay selected entries; each failure is reported without stopping the batch.
+BatchReprocessResult result = await deadLetters.ReplayAsync(
+    entry => entry.Message.CorrelationId == "order-123",
+    maxEntries: 10);
 
-// Get statistics
-var stats = await deadLetterService.GetStatisticsAsync();
-Console.WriteLine($"Total entries: {stats.TotalEntries}, Pending: {stats.PendingEntries}");
+Console.WriteLine($"Attempted: {result.TotalAttempted}, failed: {result.FailedCount}");
 
-// Archive old entries
-await deadLetterService.ArchiveOldEntriesAsync(TimeSpan.FromDays(7));
+DeadLetterStatistics statistics = await deadLetters.GetStatisticsAsync();
+Console.WriteLine($"Pending: {statistics.PendingEntries} of {statistics.TotalEntries}");
+
+public sealed record OrderCreated(int OrderId);
 ```
 
 ## InMemoryRepositoryTests
