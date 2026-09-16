@@ -138,6 +138,14 @@ public sealed class EventMessage
     {
         return Headers.TryGetValue(key, out var value) ? value : null;
     }
+
+    /// <summary>
+    /// Returns a concise summary of the message for debugging and logging.
+    /// </summary>
+    public override string ToString()
+    {
+        return $"EventMessage {{ Id = {MessageId}, Type = {EventType}, CreatedAtUtc = {CreatedAtUtc:O} }}";
+    }
 }
 
 /// <summary>
