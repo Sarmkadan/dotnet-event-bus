@@ -25,6 +25,8 @@ public sealed class EventFilter<T> where T : class
     /// <summary>
     /// Adds a predicate filter.
     /// </summary>
+    /// <param name="predicate">The predicate used to evaluate whether an event matches.</param>
+    /// <returns>The current filter instance for fluent chaining.</returns>
     public EventFilter<T> Where(Func<T, bool> predicate)
     {
         ArgumentNullException.ThrowIfNull(predicate);
@@ -37,6 +39,9 @@ public sealed class EventFilter<T> where T : class
     /// Adds a property value filter.
     /// Example: .WhereProperty(e => e.UserId, 123)
     /// </summary>
+    /// <param name="propertySelector">A function that extracts the property value from the event.</param>
+    /// <param name="expectedValue">The expected value to compare against.</param>
+    /// <returns>The current filter instance for fluent chaining.</returns>
     public EventFilter<T> WhereProperty<TProperty>(Func<T, TProperty> propertySelector, TProperty expectedValue)
     {
         return Where(x => propertySelector(x)?.Equals(expectedValue) ?? false);
@@ -45,6 +50,10 @@ public sealed class EventFilter<T> where T : class
     /// <summary>
     /// Adds a property range filter.
     /// </summary>
+    /// <param name="propertySelector">A function that extracts the property value from the event.</param>
+    /// <param name="min">The minimum value (inclusive).</param>
+    /// <param name="max">The maximum value (inclusive).</param>
+    /// <returns>The current filter instance for fluent chaining.</returns>
     public EventFilter<T> WherePropertyInRange<TProperty>(
         Func<T, TProperty> propertySelector,
         TProperty min,
@@ -60,6 +69,9 @@ public sealed class EventFilter<T> where T : class
     /// <summary>
     /// Adds a string contains filter.
     /// </summary>
+    /// <param name="propertySelector">A function that extracts the string property value from the event.</param>
+    /// <param name="value">The substring to search for, case-insensitively.</param>
+    /// <returns>The current filter instance for fluent chaining.</returns>
     public EventFilter<T> WherePropertyContains(Func<T, string?> propertySelector, string value)
     {
         return Where(x => (propertySelector(x) ?? string.Empty).Contains(value, StringComparison.OrdinalIgnoreCase));
@@ -68,6 +80,8 @@ public sealed class EventFilter<T> where T : class
     /// <summary>
     /// Inverts the previous filter (NOT).
     /// </summary>
+    /// <param name="predicate">The predicate to invert.</param>
+    /// <returns>The current filter instance for fluent chaining.</returns>
     public EventFilter<T> Not(Func<T, bool> predicate)
     {
         return Where(x => !predicate(x));
@@ -113,6 +127,8 @@ public sealed class EventFilter<T> where T : class
     /// <summary>
     /// Evaluates all filters against an event.
     /// </summary>
+    /// <param name="event">The event to evaluate against the filters.</param>
+    /// <returns>True if the event matches all filters; otherwise, false.</returns>
     public bool Matches(T @event)
     {
         return Compile()(@event);
@@ -121,6 +137,8 @@ public sealed class EventFilter<T> where T : class
     /// <summary>
     /// Filters a collection of events.
     /// </summary>
+    /// <param name="events">The collection of events to filter.</param>
+    /// <returns>An enumerable containing only the events that match all filters.</returns>
     public IEnumerable<T> FilterCollection(IEnumerable<T> events)
     {
         return events.Where(Matches);
@@ -149,6 +167,8 @@ public static class FilterBuilder
     /// <summary>
     /// Creates a new filter for the specified event type.
     /// </summary>
+    /// <typeparam name="T">The type of event to filter.</typeparam>
+    /// <returns>A new EventFilter instance.</returns>
     public static EventFilter<T> CreateFilter<T>() where T : class
     {
         return new EventFilter<T>();
@@ -157,6 +177,8 @@ public static class FilterBuilder
     /// <summary>
     /// Creates a filter that matches all events.
     /// </summary>
+    /// <typeparam name="T">The type of event to filter.</typeparam>
+    /// <returns>An EventFilter that matches all events.</returns>
     public static EventFilter<T> CreateWildcardFilter<T>() where T : class
     {
         return new EventFilter<T>().Where(_ => true);
@@ -165,6 +187,8 @@ public static class FilterBuilder
     /// <summary>
     /// Creates a filter that matches no events.
     /// </summary>
+    /// <typeparam name="T">The type of event to filter.</typeparam>
+    /// <returns>An EventFilter that matches no events.</returns>
     public static EventFilter<T> CreateEmptyFilter<T>() where T : class
     {
         return new EventFilter<T>().Where(_ => false);
