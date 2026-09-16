@@ -170,6 +170,8 @@ public sealed class SubscriptionManager : ISubscriptionManager
         string eventType,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(eventType);
+
         if (string.IsNullOrWhiteSpace(eventType))
             throw new ArgumentException("Event type cannot be empty", nameof(eventType));
 
@@ -231,6 +233,8 @@ public sealed class SubscriptionManager : ISubscriptionManager
     /// <returns>The number of subscriptions for the specified event type.</returns>
     public async Task<int> GetSubscriptionCountAsync(string eventType, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(eventType);
+
         if (string.IsNullOrWhiteSpace(eventType))
             throw new ArgumentException("Event type cannot be empty", nameof(eventType));
 
@@ -244,6 +248,8 @@ public sealed class SubscriptionManager : ISubscriptionManager
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     public async Task DisableHandlerAsync(string handlerName, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(handlerName);
+
         if (string.IsNullOrWhiteSpace(handlerName))
             throw new ArgumentException("Handler name cannot be empty", nameof(handlerName));
 
@@ -266,6 +272,8 @@ public sealed class SubscriptionManager : ISubscriptionManager
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     public async Task EnableHandlerAsync(string handlerName, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(handlerName);
+
         if (string.IsNullOrWhiteSpace(handlerName))
             throw new ArgumentException("Handler name cannot be empty", nameof(handlerName));
 
