@@ -20,8 +20,19 @@ public abstract class EventSourcedAggregate
     private readonly List<object> _uncommittedEvents = [];
     private int _version = 0;
 
+    /// <summary>
+    /// Gets or sets the aggregate's unique identifier.
+    /// </summary>
     public string? Id { get; protected set; }
+
+    /// <summary>
+    /// Gets the current version of the aggregate, incremented on each applied event.
+    /// </summary>
     public int Version => _version;
+
+    /// <summary>
+    /// Gets the events raised but not yet committed.
+    /// </summary>
     public IReadOnlyList<object> UncommittedEvents => _uncommittedEvents.AsReadOnly();
 
     /// <summary>
@@ -126,6 +137,9 @@ public abstract class EventSourcedAggregate
         };
     }
 
+    /// <summary>
+    /// Returns a string representation of the aggregate's current snapshot state.
+    /// </summary>
     public override string ToString()
     {
         var snapshot = CreateSnapshot();
@@ -138,12 +152,35 @@ public abstract class EventSourcedAggregate
 /// Represents a snapshot of an aggregate's state at a point in time.
 /// Used to optimize event replay by jumping to a known good state.
 /// </summary>
+/// <summary>
+/// Represents a snapshot of an aggregate's state at a point in time.
+/// Used to optimize event replay by jumping to a known good state.
+/// </summary>
 public sealed class AggregateSnapshot
 {
+    /// <summary>
+    /// Gets or sets the unique identifier of the aggregate.
+    /// </summary>
     public string? AggregateId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the type name of the aggregate.
+    /// </summary>
     public string? AggregateType { get; set; }
+
+    /// <summary>
+    /// Gets or sets the version of the aggregate when the snapshot was taken.
+    /// </summary>
     public int Version { get; set; }
+
+    /// <summary>
+    /// Gets or sets the timestamp when the snapshot was created.
+    /// </summary>
     public DateTime CreatedAt { get; set; }
+
+    /// <summary>
+    /// Gets or sets the aggregate's state as a dictionary of property names to values.
+    /// </summary>
     public Dictionary<string, object?> State { get; set; } = [];
 }
 
