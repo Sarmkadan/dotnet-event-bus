@@ -269,6 +269,66 @@ Console.WriteLine($"Pending: {statistics.PendingEntries} of {statistics.TotalEnt
 public sealed record OrderCreated(int OrderId);
 ```
 
+## SubscriptionManager
+
+`SubscriptionManager` (namespace `DotnetEventBus.Services`) implements `ISubscriptionManager` and provides a read and control layer over an `ISubscriptionRepository`. `AddEventBus` registers both services as singletons, so applications using dependency injection should normally resolve `ISubscriptionManager`. Every asynchronous operation accepts an optional `CancellationToken`.
+
+Public API:
+
+- `SubscriptionManager(ISubscriptionRepository repository, ILogger<SubscriptionManager>? logger = null)` creates a manager over the supplied repository with optional diagnostic logging. A null repository throws `ArgumentNullException`.
+- `GetSubscriptionsAsync(string eventType, ...)` returns snapshots of the subscriptions for one event type, ordered from highest to lowest priority. A null, empty, or whitespace event type throws `ArgumentException`.
+- `GetAllSubscriptionsAsync(...)` returns snapshots of every subscription in repository order.
+- `GetSubscriptionCountAsync(string eventType, ...)` returns the number of subscriptions for one event type. A null, empty, or whitespace event type throws `ArgumentException`.
+- `DisableHandlerAsync(string handlerName, ...)` disables every subscription with the supplied handler name.
+- `EnableHandlerAsync(string handlerName, ...)` enables every subscription with the supplied handler name.
+- Both handler control methods throw `ArgumentException` for a null, empty, or whitespace handler name. If no matching subscriptions exist, they return without changing the repository.
+- `GetStatisticsAsync(...)` returns totals and grouped counts for the repository's current subscription state.
+
+Returned models:
+
+- `SubscriptionInfo` is a mutable snapshot exposing `Id`, `EventType`, `HandlerName`, `IsActive`, `Priority`, `IsAsync`, optional `Timeout`, and `CreatedAtUtc`. Changing the snapshot does not update the stored subscription.
+- `SubscriptionStatistics` exposes `TotalSubscriptions`, `ActiveSubscriptions`, `InactiveSubscriptions`, `UniqueEventTypes`, and `UniqueHandlers`. Its `SubscriptionsByEventType`, `SubscriptionsByHandler`, and `ActiveSubscriptionsByEventType` dictionaries contain the corresponding grouped counts.
+
+Example usage:
+
+```csharp
+using DotnetEventBus;
+using DotnetEventBus.Models;
+using DotnetEventBus.Repositories;
+using DotnetEventBus.Services;
+using Microsoft.Extensions.DependencyInjection;
+
+var services = new ServiceCollection();
+services.AddEventBus();
+
+await using var provider = services.BuildServiceProvider();
+var repository = provider.GetRequiredService<ISubscriptionRepository>();
+var subscriptions = provider.GetRequiredService<ISubscriptionManager>();
+
+// Add records through the repository used by the manager.
+var eventType = typeof(OrderCreated).FullName!;
+await repository.AddAsync(new Subscription(
+    eventType,
+    new Func<OrderCreated, CancellationToken, Task>(
+        (order, cancellationToken) => Task.CompletedTask),
+    handlerName: "BillingHandler",
+    priority: 10));
+
+IEnumerable<SubscriptionInfo> orderSubscriptions =
+    await subscriptions.GetSubscriptionsAsync(eventType);
+
+await subscriptions.DisableHandlerAsync("BillingHandler");
+
+SubscriptionStatistics statistics = await subscriptions.GetStatisticsAsync();
+Console.WriteLine(
+    $"Active: {statistics.ActiveSubscriptions}; " +
+    $"inactive: {statistics.InactiveSubscriptions}");
+
+await subscriptions.EnableHandlerAsync("BillingHandler");
+
+public sealed record OrderCreated(int OrderId);
+```
+
 ## InMemoryRepositoryTests
 
 The `InMemoryRepositoryTests` class provides comprehensive unit tests for the in-memory repository implementation. It validates basic CRUD operations, pagination, existence checks, counting, and clearing functionality for generic entity storage. These tests serve as both validation and usage examples for the `InMemoryRepository<T>` class.
