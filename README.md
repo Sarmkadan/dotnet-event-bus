@@ -52,6 +52,64 @@ Console.WriteLine($"Handlers invoked: {result.HandlersInvoked}");
 Console.WriteLine($"Duration: {result.Duration.TotalMilliseconds:F2}ms");
 ```
 
+## EventBus
+
+`EventBus` (namespace `DotnetEventBus.Services`) is the in-process implementation of `IEventBus`. It stores subscriptions in memory, publishes events to matching handlers, applies configured middleware and retry behavior, and records publish results. Applications using dependency injection should normally call `AddEventBus` and resolve `IEventBus`; direct construction is available when repositories and the other dependencies need to be supplied explicitly.
+
+Public API:
+
+- `EventBus(EventBusOptions? options = null, ILogger<EventBus>? logger = null, IDeadLetterService? deadLetterService = null, IEventFormatter? eventFormatter = null, IServiceProvider? serviceProvider = null, IEventMessageRepository? messageRepository = null, ISubscriptionRepository? subscriptionRepository = null, IDeadLetterRepository? deadLetterRepository = null)` creates an event bus, using default options, JSON formatting, and private in-memory repositories for omitted values. Despite its optional parameter syntax, `serviceProvider` is required and a null value throws `ArgumentNullException`.
+- `EventBus(IEventMessageRepository messageRepository, ISubscriptionRepository subscriptionRepository, IDeadLetterRepository deadLetterRepository, IDeadLetterService deadLetterService, IEventFormatter eventFormatter, IServiceProvider serviceProvider, EventBusOptions? options = null, ILogger<EventBus>? logger = null)` creates an event bus with explicit infrastructure dependencies. Null required dependencies throw `ArgumentNullException`.
+- `PublishAsync<TEvent>(TEvent event, string? correlationId = null, CancellationToken cancellationToken = default)` publishes a reference-type event to active handlers registered for its concrete type, base types, or implemented interfaces and returns a `PublishResult`.
+- `PublishAsync(object event, Type eventType, string? correlationId = null, CancellationToken cancellationToken = default)` is the runtime-type equivalent used when the event type is known dynamically.
+- `Subscribe<TEvent>(IEventHandler<TEvent> handler)` subscribes an `IEventHandler<TEvent>` instance.
+- `Subscribe<TEvent>(Func<TEvent, CancellationToken, Task> handler, string? handlerName = null, int priority = 0)` subscribes an asynchronous delegate. Within each matched event type, higher-priority handlers are selected first when handling is sequential.
+- `SubscribeSync<TEvent>(Action<TEvent> handler, string? handlerName = null, int priority = 0)` adapts and subscribes a synchronous delegate.
+- Each subscribe method returns an `IDisposable`; disposing it removes that subscription. Keep the returned object alive for as long as the handler should receive events.
+- `UnsubscribeAsync(string handlerId, CancellationToken cancellationToken = default)` removes the subscription with the specified subscription ID. An empty ID throws `ArgumentException`.
+- `GetSubscriptionsAsync(string eventType, CancellationToken cancellationToken = default)` returns the handler names currently registered for the full event type name. An empty event type throws `ArgumentException`.
+- `ClearSubscriptionsAsync(CancellationToken cancellationToken = default)` removes every in-memory subscription.
+- `GetOptions()` returns a clone of the current `EventBusOptions`, so changing the returned object does not reconfigure the bus.
+- `ProcessRawDistributedEventAsync(string eventType, string rawPayload, string? correlationId = null, CancellationToken cancellationToken = default)` resolves an assembly-qualified type name, deserializes the payload, and publishes it. Unknown types and deserialization failures are sent to the dead-letter service and returned as failed publish results.
+- `SendAsync<TRequest, TResponse>(TRequest request, string? correlationId = null, TimeSpan? timeout = null, CancellationToken cancellationToken = default)` and `SubscribeRequest<TRequest, TResponse>(IRequestHandler<TRequest, TResponse> handler)` reserve the request/reply API. Request/reply requires distributed transport configuration and its transport implementation is not currently available; these methods throw `ConfigurationException` or `NotImplementedException` rather than processing a request.
+
+Publish/subscribe example:
+
+```csharp
+using DotnetEventBus.Configuration;
+using DotnetEventBus.Services;
+using Microsoft.Extensions.DependencyInjection;
+
+var services = new ServiceCollection();
+services.AddEventBus(options =>
+{
+    options.AllowParallelHandling = false;
+    options.ThrowOnHandlerFailure = true;
+});
+
+await using var provider = services.BuildServiceProvider();
+var eventBus = provider.GetRequiredService<IEventBus>();
+
+// Dispose the subscription when this handler should stop receiving events.
+using var subscription = eventBus.Subscribe<OrderCreated>(
+    async (order, cancellationToken) =>
+    {
+        Console.WriteLine($"Processing order {order.OrderId}");
+        await Task.CompletedTask;
+    },
+    handlerName: "OrderCreatedHandler",
+    priority: 10);
+
+var result = await eventBus.PublishAsync(
+    new OrderCreated(123),
+    correlationId: "order-123");
+
+Console.WriteLine(
+    $"Invoked: {result.HandlersInvoked}; failed: {result.FailedHandlers}");
+
+public sealed record OrderCreated(int OrderId);
+```
+
 ## EventFormatterFactory
 
 The `EventFormatterFactory` class provides a registry for event formatters within the event bus. It allows registering formatters for specific data formats (JSON, XML, CSV), negotiating the appropriate formatter based on content type or format name, and managing the lifecycle of formatters.
