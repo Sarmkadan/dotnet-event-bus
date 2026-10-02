@@ -29,7 +29,7 @@ public sealed class XmlEventFormatter : IEventFormatter
     public XmlEventFormatter(bool omitXmlDeclaration = false, Encoding? encoding = null)
     {
         _omitXmlDeclaration = omitXmlDeclaration;
-        _encoding = encoding ?? Encoding.UTF8;
+        _encoding = encoding ?? new UTF8Encoding(false);
     }
 
     public string Serialize(object data, bool prettyPrint = false)
@@ -45,10 +45,13 @@ public sealed class XmlEventFormatter : IEventFormatter
             ConformanceLevel = ConformanceLevel.Document
         };
 
+        var ns = new XmlSerializerNamespaces();
+        ns.Add(string.Empty, string.Empty);
+
         using (var stream = new MemoryStream())
         using (var writer = XmlWriter.Create(stream, settings))
         {
-            serializer.Serialize(writer, data);
+            serializer.Serialize(writer, data, ns);
             return _encoding.GetString(stream.ToArray());
         }
     }
@@ -114,8 +117,15 @@ public sealed class XmlEventFormatter : IEventFormatter
 
             // Write event data
             writer.WriteStartElement("Data");
-            var eventSerializer = new XmlSerializer(eventData.GetType());
-            eventSerializer.Serialize(writer, eventData);
+            string eventXml = Serialize(eventData);
+            // Strip XML declaration if present
+            if (eventXml.StartsWith("<?xml"))
+            {
+                int end = eventXml.IndexOf("?>");
+                if (end >= 0)
+                    eventXml = eventXml.Substring(end + 2);
+            }
+            writer.WriteRaw(eventXml);
             writer.WriteEndElement(); // Data
 
             // Write metadata
@@ -126,9 +136,10 @@ public sealed class XmlEventFormatter : IEventFormatter
                 writer.WriteString(kvp.Value?.ToString() ?? string.Empty);
                 writer.WriteEndElement();
             }
-            writer.WriteEndElement(); // Metadata
+            writer.WriteFullEndElement(); // Metadata
 
             writer.WriteEndElement(); // Event
+            writer.Flush();
             return _encoding.GetString(stream.ToArray());
         }
     }

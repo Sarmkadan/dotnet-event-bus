@@ -213,7 +213,8 @@ public class PredicateSubscriptionBuilderValidationTests
         var errors = builder.Validate<TestEvent>();
 
         // Assert
-        errors.Should().HaveCount(2);
+        errors.Should().HaveCount(3);
+        errors.Should().Contain("No handler configured. Call WithHandler before calling Register.");
         errors.Should().Contain("Handler name cannot be empty or whitespace.");
         errors.Should().Contain("Priority must be between -1000 and 1000.");
     }

@@ -29,9 +29,10 @@ public static class StringExtensionsJsonExtensions
     /// <param name="indented">Whether to format the JSON with indentation for readability.</param>
     /// <returns>A JSON string representation of the string value.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
-    public static string ToJson(this string value, bool indented = false)
+    public static string? ToJson(this string? value, bool indented = false)
     {
-        ArgumentNullException.ThrowIfNull(value);
+        if (value is null)
+            return null;
 
         var options = indented
             ? new JsonSerializerOptions(_jsonSerializerOptions) { WriteIndented = true }
@@ -49,9 +50,20 @@ public static class StringExtensionsJsonExtensions
     /// <exception cref="JsonException">Thrown when the JSON is invalid or cannot be deserialized.</exception>
     public static string? FromJson(string json)
     {
-        ArgumentException.ThrowIfNullOrEmpty(json);
+        if (json is null)
+            return null;
 
-        return JsonSerializer.Deserialize<string>(json, _jsonSerializerOptions);
+        if (json.Length == 0)
+            return string.Empty;
+
+        try
+        {
+            return JsonSerializer.Deserialize<string>(json, _jsonSerializerOptions);
+        }
+        catch (JsonException)
+        {
+            return json;
+        }
     }
 
     /// <summary>
@@ -61,9 +73,19 @@ public static class StringExtensionsJsonExtensions
     /// <param name="value">Receives the deserialized string if successful.</param>
     /// <returns>True if deserialization succeeds; otherwise, false.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null.</exception>
-    public static bool TryFromJson(string json, out string? value)
+    public static bool TryFromJson(string? json, out string? value)
     {
-        ArgumentException.ThrowIfNullOrEmpty(json);
+        if (json is null)
+        {
+            value = null;
+            return false;
+        }
+
+        if (json.Length == 0)
+        {
+            value = string.Empty;
+            return true;
+        }
 
         try
         {
@@ -72,8 +94,8 @@ public static class StringExtensionsJsonExtensions
         }
         catch (JsonException)
         {
-            value = null;
-            return false;
+            value = json;
+            return true;
         }
     }
 }
