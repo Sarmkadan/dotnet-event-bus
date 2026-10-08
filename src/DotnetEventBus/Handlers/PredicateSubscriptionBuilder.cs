@@ -126,10 +126,7 @@ public sealed class PredicateSubscriptionBuilder<TEvent>
     public PredicateSubscriptionBuilder<TEvent> WithHandlerName(string name)
     {
         _logger?.LogInformation("WithHandlerName called with {name}", name);
-        if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("Handler name cannot be empty.", nameof(name));
-
-        _handlerName = name;
+        _handlerName = name ?? string.Empty;
         return this;
     }
 

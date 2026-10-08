@@ -10,7 +10,7 @@ namespace DotnetEventBus.Tests;
 
 public sealed class XmlEventFormatterTests
 {
-    private sealed class SampleEvent
+    public sealed class SampleEvent
     {
         public int Id { get; set; }
         public string? Name { get; set; }

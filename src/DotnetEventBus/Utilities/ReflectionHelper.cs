@@ -113,7 +113,7 @@ public static class ReflectionHelper
     {
         ArgumentNullException.ThrowIfNull(obj);
         ArgumentException.ThrowIfNullOrEmpty(propertyName);
-        var property = obj.GetType().GetProperty(propertyName, BindingFlags.Public | BindingFlags.IgnoreCase);
+        var property = obj.GetType().GetProperty(propertyName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
         return property?.GetValue(obj);
     }
 
@@ -125,7 +125,7 @@ public static class ReflectionHelper
     {
         ArgumentNullException.ThrowIfNull(obj);
         ArgumentException.ThrowIfNullOrEmpty(propertyName);
-        var property = obj.GetType().GetProperty(propertyName, BindingFlags.Public | BindingFlags.IgnoreCase);
+        var property = obj.GetType().GetProperty(propertyName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
         property?.SetValue(obj, value);
     }
 

@@ -66,7 +66,7 @@ namespace DotnetEventBus.Tests
         public void EnsureValid_InvalidInput_ThrowsArgumentException()
         {
             // Arrange
-            var deadLetterEntry = new DeadLetterEntry(new EventMessage("", ""), "", new Exception(""), 0);
+            var deadLetterEntry = new DeadLetterEntry(new EventMessage("EventType", "Payload"), "", new Exception(""), -1);
 
             // Act and Assert
             Assert.Throws<ArgumentException>(() => DeadLetterEntryValidation.EnsureValid(deadLetterEntry));

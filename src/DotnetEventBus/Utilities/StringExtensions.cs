@@ -148,9 +148,12 @@ public static class StringExtensions
         if (string.IsNullOrEmpty(eventType))
             return string.Empty;
 
-        return eventType.Contains('.')
-            ? eventType.Split('.')[0]
-            : Regex.Match(eventType, @"^[A-Z][a-zA-Z]*").Value;
+        if (eventType.Contains('.'))
+            return eventType.Split('.')[0];
+
+        // Extract first PascalCase word (e.g. "User" from "UserCreatedEvent")
+        var match = Regex.Match(eventType, @"^([A-Z][a-z]*)");
+        return match.Success ? match.Groups[1].Value : eventType;
     }
 
     /// <summary>

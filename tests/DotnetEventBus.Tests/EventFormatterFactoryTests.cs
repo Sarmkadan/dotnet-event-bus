@@ -113,8 +113,8 @@ public sealed class EventFormatterFactoryTests
     [Fact]
     public void Unregister_FormatNotRegistered_DoesNothing()
     {
-        var factory = new EventFormatterFactory();
-        factory.Unregister("json");
+        var factory = EventFormatterFactory.CreateDefault();
+        factory.Unregister("unknown");
         Assert.NotNull(factory.GetFormatter("json"));
     }
 }

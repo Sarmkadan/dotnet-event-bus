@@ -26,7 +26,6 @@ public sealed class ValidationHelper
     /// </summary>
     public ValidationHelper RequireNotEmpty(string? value, string fieldName)
     {
-        ArgumentException.ThrowIfNullOrEmpty(value);
         ArgumentException.ThrowIfNullOrEmpty(fieldName);
         if (string.IsNullOrWhiteSpace(value))
         {
@@ -41,7 +40,6 @@ public sealed class ValidationHelper
     /// </summary>
     public ValidationHelper RequireNotNull<T>(T? value, string fieldName) where T : class
     {
-        ArgumentNullException.ThrowIfNull(value);
         ArgumentException.ThrowIfNullOrEmpty(fieldName);
         if (value is null)
         {

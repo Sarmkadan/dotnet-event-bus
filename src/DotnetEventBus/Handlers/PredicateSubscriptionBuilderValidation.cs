@@ -19,12 +19,7 @@ public static class PredicateSubscriptionBuilderValidation
 {
     private const int MinPriority = -1000;
     private const int MaxPriority = 1000;
-    private static readonly FieldInfo? AsyncHandlerField = typeof(PredicateSubscriptionBuilder<>).GetField(
-        "_asyncHandler", BindingFlags.NonPublic | BindingFlags.Instance);
-    private static readonly FieldInfo? HandlerNameField = typeof(PredicateSubscriptionBuilder<>).GetField(
-        "_handlerName", BindingFlags.NonPublic | BindingFlags.Instance);
-    private static readonly FieldInfo? PriorityField = typeof(PredicateSubscriptionBuilder<>).GetField(
-        "_priority", BindingFlags.NonPublic | BindingFlags.Instance);
+    private const BindingFlags PrivateInstance = BindingFlags.NonPublic | BindingFlags.Instance;
 
     /// <summary>
     /// Validates the configuration of a predicate subscription builder.
@@ -119,30 +114,21 @@ public static class PredicateSubscriptionBuilderValidation
     private static object? GetAsyncHandlerValue<TEvent>(PredicateSubscriptionBuilder<TEvent> builder)
         where TEvent : class
     {
-        return AsyncHandlerField?.GetValue(builder);
+        var field = typeof(PredicateSubscriptionBuilder<TEvent>).GetField("_asyncHandler", PrivateInstance);
+        return field?.GetValue(builder);
     }
 
-    /// <summary>
-    /// Gets the configured handler name value using reflection.
-    /// </summary>
-    /// <typeparam name="TEvent">The event type.</typeparam>
-    /// <param name="builder">The builder instance.</param>
-    /// <returns>The handler name, or <see langword="null"/> if not set.</returns>
     private static string? GetHandlerNameValue<TEvent>(PredicateSubscriptionBuilder<TEvent> builder)
         where TEvent : class
     {
-        return HandlerNameField?.GetValue(builder) as string;
+        var field = typeof(PredicateSubscriptionBuilder<TEvent>).GetField("_handlerName", PrivateInstance);
+        return field?.GetValue(builder) as string;
     }
 
-    /// <summary>
-    /// Gets the configured priority value using reflection.
-    /// </summary>
-    /// <typeparam name="TEvent">The event type.</typeparam>
-    /// <param name="builder">The builder instance.</param>
-    /// <returns>The priority value (default 0).</returns>
     private static int GetPriorityValue<TEvent>(PredicateSubscriptionBuilder<TEvent> builder)
         where TEvent : class
     {
-        return PriorityField?.GetValue(builder) as int? ?? 0;
+        var field = typeof(PredicateSubscriptionBuilder<TEvent>).GetField("_priority", PrivateInstance);
+        return field?.GetValue(builder) as int? ?? 0;
     }
 }
