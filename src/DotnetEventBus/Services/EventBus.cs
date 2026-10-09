@@ -128,8 +128,7 @@ public sealed class EventBus : IEventBus
         CancellationToken cancellationToken = default)
         where TEvent : class
     {
-        if (@event is null)
-            throw new ArgumentNullException(nameof(@event));
+        ArgumentNullException.ThrowIfNull(@event);
 
         var eventType = typeof(TEvent).FullName ?? typeof(TEvent).Name;
         return await PublishAsync(@event, typeof(TEvent), correlationId, cancellationToken);
@@ -157,10 +156,8 @@ public sealed class EventBus : IEventBus
         string? correlationId = null,
         CancellationToken cancellationToken = default)
     {
-        if (@event is null)
-            throw new ArgumentNullException(nameof(@event));
-        if (eventType is null)
-            throw new ArgumentNullException(nameof(eventType));
+        ArgumentNullException.ThrowIfNull(@event);
+        ArgumentNullException.ThrowIfNull(eventType);
 
         var startTime = DateTime.UtcNow;
         var eventTypeName = eventType.FullName ?? eventType.Name;
@@ -318,8 +315,7 @@ public sealed class EventBus : IEventBus
         where TRequest : class
         where TResponse : class
     {
-        if (request is null)
-            throw new ArgumentNullException(nameof(request));
+        ArgumentNullException.ThrowIfNull(request);
 
         var requestType = typeof(TRequest);
         TimeSpan effectiveTimeout = _options.RequestTimeout;
@@ -362,8 +358,7 @@ public sealed class EventBus : IEventBus
     public IDisposable Subscribe<TEvent>(IEventHandler<TEvent> handler)
         where TEvent : class
     {
-        if (handler is null)
-            throw new ArgumentNullException(nameof(handler));
+        ArgumentNullException.ThrowIfNull(handler);
 
         var eventType = typeof(TEvent).FullName ?? typeof(TEvent).Name;
         var subscription = new Subscription(
@@ -402,8 +397,7 @@ public sealed class EventBus : IEventBus
         int priority = 0)
         where TEvent : class
     {
-        if (handler is null)
-            throw new ArgumentNullException(nameof(handler));
+        ArgumentNullException.ThrowIfNull(handler);
 
         var eventType = typeof(TEvent).FullName ?? typeof(TEvent).Name;
         var subscription = new Subscription(
@@ -438,8 +432,7 @@ public sealed class EventBus : IEventBus
         int priority = 0)
         where TEvent : class
     {
-        if (handler is null)
-            throw new ArgumentNullException(nameof(handler));
+        ArgumentNullException.ThrowIfNull(handler);
 
         return Subscribe<TEvent>(
             (e, ct) =>
@@ -464,6 +457,8 @@ public sealed class EventBus : IEventBus
         where TRequest : class
         where TResponse : class
     {
+        ArgumentNullException.ThrowIfNull(handler);
+
         throw new NotImplementedException("Request handlers require distributed transport configuration");
     }
 
