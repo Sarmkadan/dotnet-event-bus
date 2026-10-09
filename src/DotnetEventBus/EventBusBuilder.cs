@@ -28,7 +28,8 @@ public sealed class EventBusBuilder
     /// </summary>
     public EventBusBuilder(IServiceCollection services)
     {
-        _services = services ?? throw new ArgumentNullException(nameof(services));
+        ArgumentNullException.ThrowIfNull(services);
+        _services = services;
     }
 
     /// <summary>
@@ -36,8 +37,7 @@ public sealed class EventBusBuilder
     /// </summary>
     public EventBusBuilder WithOptions(Action<EventBusOptions> configureOptions)
     {
-        if (configureOptions is null)
-            throw new ArgumentNullException(nameof(configureOptions));
+        ArgumentNullException.ThrowIfNull(configureOptions);
 
         configureOptions(_options);
         return this;
@@ -48,7 +48,8 @@ public sealed class EventBusBuilder
     /// </summary>
     public EventBusBuilder WithMessageRepository(IEventMessageRepository repository)
     {
-        _messageRepository = repository ?? throw new ArgumentNullException(nameof(repository));
+        ArgumentNullException.ThrowIfNull(repository);
+        _messageRepository = repository;
         return this;
     }
 
@@ -57,7 +58,8 @@ public sealed class EventBusBuilder
     /// </summary>
     public EventBusBuilder WithSubscriptionRepository(ISubscriptionRepository repository)
     {
-        _subscriptionRepository = repository ?? throw new ArgumentNullException(nameof(repository));
+        ArgumentNullException.ThrowIfNull(repository);
+        _subscriptionRepository = repository;
         return this;
     }
 
@@ -66,7 +68,8 @@ public sealed class EventBusBuilder
     /// </summary>
     public EventBusBuilder WithDeadLetterRepository(IDeadLetterRepository repository)
     {
-        _deadLetterRepository = repository ?? throw new ArgumentNullException(nameof(repository));
+        ArgumentNullException.ThrowIfNull(repository);
+        _deadLetterRepository = repository;
         return this;
     }
 
@@ -240,8 +243,7 @@ public static class EventBusBuilderExtensions
     /// </summary>
     public static EventBusBuilder AddEventBusBuilder(this IServiceCollection services)
     {
-        if (services is null)
-            throw new ArgumentNullException(nameof(services));
+        ArgumentNullException.ThrowIfNull(services);
 
         return new EventBusBuilder(services);
     }
