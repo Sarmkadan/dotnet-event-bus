@@ -37,6 +37,22 @@ public sealed class EventBus : IEventBus
     private readonly Dictionary<string, TaskCompletionSource<object?>> _pendingRequests = new();
     private readonly object _subscriptionLock = new();
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="EventBus"/> class.
+    /// </summary>
+    /// <param name="options">Bus configuration. A default <see cref="EventBusOptions"/> is used when <c>null</c>. The options are validated on construction.</param>
+    /// <param name="logger">Optional logger. When <c>null</c>, no logging is performed.</param>
+    /// <param name="deadLetterService">Optional dead letter service. When <c>null</c>, a <see cref="DeadLetterService"/> bound to this instance is created.</param>
+    /// <param name="eventFormatter">Optional payload formatter. Defaults to <see cref="Formatters.JsonEventFormatter"/>.</param>
+    /// <param name="serviceProvider">Service provider used to resolve middleware types. Required; <c>null</c> throws <see cref="ArgumentNullException"/>.</param>
+    /// <param name="messageRepository">Optional message repository. Defaults to a private in-memory repository.</param>
+    /// <param name="subscriptionRepository">Optional subscription repository. Defaults to a private in-memory repository.</param>
+    /// <param name="deadLetterRepository">Optional dead letter repository. Defaults to a private in-memory repository.</param>
+    /// <remarks>
+    /// When resolved through DI, pass the same repository singletons that <see cref="IDeadLetterService"/> uses.
+    /// Otherwise dead letters written by this instance are not visible to the rest of the application.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="serviceProvider"/> is <c>null</c>.</exception>
     public EventBus(
         EventBusOptions? options = null,
         ILogger<EventBus>? logger = null,
@@ -63,6 +79,18 @@ public sealed class EventBus : IEventBus
         _concurrencyLimiter = new SemaphoreSlim(_options.MaxConcurrentHandlers);
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="EventBus"/> class with all dependencies supplied explicitly.
+    /// </summary>
+    /// <param name="messageRepository">Repository for published event messages. Must not be <c>null</c>.</param>
+    /// <param name="subscriptionRepository">Repository for subscriptions. Must not be <c>null</c>.</param>
+    /// <param name="deadLetterRepository">Repository for dead letter entries. Must not be <c>null</c>.</param>
+    /// <param name="deadLetterService">Dead letter service. Must not be <c>null</c>.</param>
+    /// <param name="eventFormatter">Payload formatter. Must not be <c>null</c>.</param>
+    /// <param name="serviceProvider">Service provider used to resolve middleware. Must not be <c>null</c>.</param>
+    /// <param name="options">Bus configuration. A default <see cref="EventBusOptions"/> is used when <c>null</c>.</param>
+    /// <param name="logger">Optional logger.</param>
+    /// <exception cref="ArgumentNullException">Thrown when any required dependency is <c>null</c>.</exception>
     public EventBus(
         IEventMessageRepository messageRepository,
         ISubscriptionRepository subscriptionRepository,
@@ -84,6 +112,16 @@ public sealed class EventBus : IEventBus
     {
     }
 
+    /// <summary>
+    /// Publishes a strongly typed event to all matching subscribers.
+    /// </summary>
+    /// <typeparam name="TEvent">The event type. Handlers registered for base types and implemented interfaces are also invoked.</typeparam>
+    /// <param name="event">The event to publish. Serialized to JSON for the message payload.</param>
+    /// <param name="correlationId">Correlation identifier. A new GUID is generated when <c>null</c>.</param>
+    /// <param name="cancellationToken">Token that cancels publishing and handler invocation.</param>
+    /// <returns>A <see cref="PublishResult"/> describing handler outcomes and elapsed time.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="event"/> is <c>null</c>.</exception>
+    /// <exception cref="NoHandlersRegisteredException">Thrown when no handlers match and <c>ThrowOnNoHandlers</c> is enabled.</exception>
     public async Task<PublishResult> PublishAsync<TEvent>(
         TEvent @event,
         string? correlationId = null,
@@ -97,6 +135,22 @@ public sealed class EventBus : IEventBus
         return await PublishAsync(@event, typeof(TEvent), correlationId, cancellationToken);
     }
 
+    /// <summary>
+    /// Publishes an event using a runtime type. Handlers are resolved from <paramref name="eventType"/>,
+    /// its base types and implemented interfaces, then invoked through the configured middleware pipeline.
+    /// </summary>
+    /// <param name="event">The event instance to publish.</param>
+    /// <param name="eventType">The runtime type used for subscription lookup and payload naming.</param>
+    /// <param name="correlationId">Correlation identifier. A new GUID is generated when <c>null</c>.</param>
+    /// <param name="cancellationToken">Token that cancels publishing and handler invocation.</param>
+    /// <returns>A <see cref="PublishResult"/> describing handler outcomes and elapsed time.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="event"/> or <paramref name="eventType"/> is <c>null</c>.</exception>
+    /// <exception cref="NoHandlersRegisteredException">Thrown when no handlers match and <c>ThrowOnNoHandlers</c> is enabled.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when a configured middleware type cannot be resolved.</exception>
+    /// <remarks>
+    /// Unless <c>ThrowOnHandlerFailure</c> is enabled, exceptions raised during publishing are logged
+    /// and returned as a failed <see cref="PublishResult"/> instead of being thrown.
+    /// </remarks>
     public async Task<PublishResult> PublishAsync(
         object @event,
         Type eventType,
@@ -243,6 +297,19 @@ public sealed class EventBus : IEventBus
         }
     }
 
+    /// <summary>
+    /// Sends a request and awaits a response. Intended for request/reply over a distributed transport.
+    /// </summary>
+    /// <typeparam name="TRequest">The request type.</typeparam>
+    /// <typeparam name="TResponse">The response type.</typeparam>
+    /// <param name="request">The request to send.</param>
+    /// <param name="correlationId">Correlation identifier for the request.</param>
+    /// <param name="timeout">Overrides the request timeout. Takes precedence over <c>RequestTimeoutAttribute</c> on <typeparamref name="TRequest"/> and the configured default.</param>
+    /// <param name="cancellationToken">Token that cancels the request.</param>
+    /// <returns>The response produced by the remote handler.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="request"/> is <c>null</c>.</exception>
+    /// <exception cref="ConfigurationException">Thrown when no distributed transport is configured.</exception>
+    /// <exception cref="NotImplementedException">Thrown always in the current version; the distributed transport is not implemented.</exception>
     public async Task<TResponse> SendAsync<TRequest, TResponse>(
         TRequest request,
         string? correlationId = null,
@@ -285,6 +352,13 @@ public sealed class EventBus : IEventBus
         throw new NotImplementedException("Request/reply pattern requires distributed transport configuration");
     }
 
+    /// <summary>
+    /// Subscribes an <see cref="IEventHandler{TEvent}"/> instance to events of type <typeparamref name="TEvent"/>.
+    /// </summary>
+    /// <typeparam name="TEvent">The event type to handle.</typeparam>
+    /// <param name="handler">The handler to invoke for each matching event.</param>
+    /// <returns>A disposable that removes the subscription when disposed.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="handler"/> is <c>null</c>.</exception>
     public IDisposable Subscribe<TEvent>(IEventHandler<TEvent> handler)
         where TEvent : class
     {
@@ -313,6 +387,15 @@ public sealed class EventBus : IEventBus
         return new SubscriptionDisposable(this, subscription.Id);
     }
 
+    /// <summary>
+    /// Subscribes an asynchronous delegate to events of type <typeparamref name="TEvent"/>.
+    /// </summary>
+    /// <typeparam name="TEvent">The event type to handle.</typeparam>
+    /// <param name="handler">The delegate to invoke for each matching event.</param>
+    /// <param name="handlerName">Name used in logs, results and dead letter entries. A generated name is used when <c>null</c>.</param>
+    /// <param name="priority">Dispatch priority. Higher values are invoked first.</param>
+    /// <returns>A disposable that removes the subscription when disposed.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="handler"/> is <c>null</c>.</exception>
     public IDisposable Subscribe<TEvent>(
         Func<TEvent, CancellationToken, Task> handler,
         string? handlerName = null,
@@ -340,6 +423,15 @@ public sealed class EventBus : IEventBus
         return new SubscriptionDisposable(this, subscription.Id);
     }
 
+    /// <summary>
+    /// Subscribes a synchronous delegate to events of type <typeparamref name="TEvent"/>.
+    /// </summary>
+    /// <typeparam name="TEvent">The event type to handle.</typeparam>
+    /// <param name="handler">The delegate to invoke for each matching event.</param>
+    /// <param name="handlerName">Name used in logs, results and dead letter entries. A generated name is used when <c>null</c>.</param>
+    /// <param name="priority">Dispatch priority. Higher values are invoked first.</param>
+    /// <returns>A disposable that removes the subscription when disposed.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="handler"/> is <c>null</c>.</exception>
     public IDisposable SubscribeSync<TEvent>(
         Action<TEvent> handler,
         string? handlerName = null,
@@ -359,6 +451,14 @@ public sealed class EventBus : IEventBus
             priority);
     }
 
+    /// <summary>
+    /// Registers a request handler for request/reply messaging.
+    /// </summary>
+    /// <typeparam name="TRequest">The request type.</typeparam>
+    /// <typeparam name="TResponse">The response type.</typeparam>
+    /// <param name="handler">The request handler.</param>
+    /// <returns>A disposable that removes the registration when disposed.</returns>
+    /// <exception cref="NotImplementedException">Thrown always in the current version; requires a distributed transport that is not implemented.</exception>
     public IDisposable SubscribeRequest<TRequest, TResponse>(
         IRequestHandler<TRequest, TResponse> handler)
         where TRequest : class
@@ -367,6 +467,12 @@ public sealed class EventBus : IEventBus
         throw new NotImplementedException("Request handlers require distributed transport configuration");
     }
 
+    /// <summary>
+    /// Removes the subscription with the given identifier from all event types.
+    /// </summary>
+    /// <param name="handlerId">The subscription identifier. Unknown identifiers are ignored.</param>
+    /// <param name="cancellationToken">Token for cancelling the operation.</param>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="handlerId"/> is null, empty or whitespace.</exception>
     public async Task UnsubscribeAsync(string handlerId, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(handlerId))
@@ -389,6 +495,13 @@ public sealed class EventBus : IEventBus
         _logger?.LogInformation("Handler {HandlerId} unsubscribed", handlerId);
     }
 
+    /// <summary>
+    /// Returns the handler names currently subscribed to the given event type.
+    /// </summary>
+    /// <param name="eventType">The full event type name.</param>
+    /// <param name="cancellationToken">Token for cancelling the operation.</param>
+    /// <returns>Handler names for the event type. Empty when there are none.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="eventType"/> is null, empty or whitespace.</exception>
     public async Task<IEnumerable<string>> GetSubscriptionsAsync(string eventType, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(eventType))
@@ -402,6 +515,10 @@ public sealed class EventBus : IEventBus
         }
     }
 
+    /// <summary>
+    /// Removes all subscriptions for all event types.
+    /// </summary>
+    /// <param name="cancellationToken">Token for cancelling the operation.</param>
     public async Task ClearSubscriptionsAsync(CancellationToken cancellationToken = default)
     {
         lock (_subscriptionLock)
@@ -412,8 +529,20 @@ public sealed class EventBus : IEventBus
         _logger?.LogWarning("All subscriptions cleared");
     }
 
+    /// <summary>
+    /// Returns a copy of the bus configuration. Changes to the returned instance do not affect this bus.
+    /// </summary>
+    /// <returns>A cloned <see cref="EventBusOptions"/>.</returns>
     public EventBusOptions GetOptions() => _options.Clone();
 
+    /// <summary>
+    /// Invokes all subscriptions concurrently, subject to the concurrency limiter.
+    /// </summary>
+    /// <param name="subscriptions">Subscriptions to invoke.</param>
+    /// <param name="event">The event instance.</param>
+    /// <param name="message">The message associated with the event.</param>
+    /// <param name="result">Result object updated with handler outcomes.</param>
+    /// <param name="cancellationToken">Token that cancels handler invocation.</param>
     private async Task InvokeHandlersInParallel(
         List<Subscription> subscriptions,
         object @event,
@@ -427,6 +556,14 @@ public sealed class EventBus : IEventBus
         await Task.WhenAll(tasks);
     }
 
+    /// <summary>
+    /// Invokes subscriptions one at a time in the order given.
+    /// </summary>
+    /// <param name="subscriptions">Subscriptions to invoke.</param>
+    /// <param name="event">The event instance.</param>
+    /// <param name="message">The message associated with the event.</param>
+    /// <param name="result">Result object updated with handler outcomes.</param>
+    /// <param name="cancellationToken">Token that cancels handler invocation.</param>
     private async Task InvokeHandlersSequentially(
         List<Subscription> subscriptions,
         object @event,
@@ -440,6 +577,16 @@ public sealed class EventBus : IEventBus
         }
     }
 
+    /// <summary>
+    /// Invokes a single subscription, retrying on failure up to <c>MaxRetryAttempts</c> times.
+    /// Failures after the final attempt are recorded on <paramref name="result"/> and, when enabled,
+    /// written to the dead letter repository. The exception is not rethrown.
+    /// </summary>
+    /// <param name="subscription">The subscription to invoke.</param>
+    /// <param name="event">The event instance.</param>
+    /// <param name="message">The message associated with the event.</param>
+    /// <param name="result">Result object updated with handler outcomes.</param>
+    /// <param name="cancellationToken">Token that cancels handler invocation and retry delays.</param>
     private async Task InvokeHandlerWithRetry(
         Subscription subscription,
         object @event,
@@ -500,6 +647,13 @@ public sealed class EventBus : IEventBus
         }
     }
 
+    /// <summary>
+    /// Invokes a single handler once, applying the subscription timeout (or the default handler timeout).
+    /// </summary>
+    /// <param name="subscription">The subscription to invoke.</param>
+    /// <param name="event">The event instance.</param>
+    /// <param name="cancellationToken">Token that cancels the invocation.</param>
+    /// <exception cref="InvalidOperationException">Thrown when an async handler returns <c>null</c>.</exception>
     private async Task InvokeHandler(Subscription subscription, object @event, CancellationToken cancellationToken)
     {
         var method = subscription.Handler.Method;
@@ -530,6 +684,21 @@ public sealed class EventBus : IEventBus
         }
     }
 
+    /// <summary>
+    /// Deserializes a raw payload received from a distributed transport and publishes it locally.
+    /// </summary>
+    /// <param name="eventType">Assembly-qualified type name of the event, resolved with <c>Type.GetType</c>.</param>
+    /// <param name="rawPayload">The serialized event payload.</param>
+    /// <param name="correlationId">Correlation identifier for the event.</param>
+    /// <param name="cancellationToken">Token that cancels publishing.</param>
+    /// <returns>
+    /// The <see cref="PublishResult"/> from publishing, or a failed result when the type is unknown,
+    /// the payload cannot be deserialized, or deserialization yields <c>null</c>.
+    /// </returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="eventType"/> or <paramref name="rawPayload"/> is null, empty or whitespace.</exception>
+    /// <remarks>
+    /// Unresolvable or undeserializable events are written to the dead letter service before a failed result is returned.
+    /// </remarks>
     public async Task<PublishResult> ProcessRawDistributedEventAsync(
         string eventType,
         string rawPayload,
@@ -592,6 +761,9 @@ public sealed class EventBus : IEventBus
             return PublishResult.CreateFailed(correlationId, ex);
         }
     }
+    /// <summary>
+    /// Disposable handle returned from subscribe methods. Disposing it removes the subscription.
+    /// </summary>
     private class SubscriptionDisposable : IDisposable
     {
         private readonly EventBus _eventBus;
