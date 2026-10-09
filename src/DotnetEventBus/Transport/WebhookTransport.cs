@@ -96,12 +96,19 @@ public sealed class WebhookTransport : IEventTransport
     }
 
     /// <inheritdoc/>
-    public async Task<TransportPublishResult> PublishAsync(EventEnvelope envelope, CancellationToken cancellationToken = default)
+    public async Task<TransportPublishResult> PublishAsync(
+        EventEnvelope envelope,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(envelope);
 
         if (!envelope.IsValid())
-            return TransportPublishResult.FailedResult(envelope.EventId ?? Guid.NewGuid().ToString(), new ArgumentException(InvalidEnvelopeExceptionMessage), InvalidEnvelopeMessage);
+        {
+            return TransportPublishResult.FailedResult(
+                envelope.EventId ?? Guid.NewGuid().ToString(),
+                new ArgumentException(InvalidEnvelopeExceptionMessage),
+                InvalidEnvelopeMessage);
+        }
 
         _metrics.IncrementMessagesPublished();
         var startTime = DateTime.UtcNow;
@@ -127,7 +134,8 @@ public sealed class WebhookTransport : IEventTransport
             var elapsedMs = DateTime.UtcNow.Subtract(startTime).TotalMilliseconds;
             _metrics.RecordPublishTime(elapsedMs);
 
-            _logger?.LogInformation("Webhook transport published event {EventId} of type {EventType} to {Count} webhooks in {ElapsedMs}ms",
+            _logger?.LogInformation(
+                "Webhook transport published event {EventId} of type {EventType} to {Count} webhooks in {ElapsedMs}ms",
                 envelope.EventId, envelope.EventType, applicableWebhooks.Count(), elapsedMs);
 
             return TransportPublishResult.SuccessResult(envelope.EventId ?? Guid.NewGuid().ToString());
@@ -149,7 +157,10 @@ public sealed class WebhookTransport : IEventTransport
     /// <param name="envelope">The event envelope being published.</param>
     /// <param name="cancellationToken">Token used to cancel the delivery.</param>
     /// <exception cref="InvalidOperationException">Thrown when the handler reports a failed delivery.</exception>
-    private async Task DeliverToWebhookAsync(WebhookSubscription webhook, EventEnvelope envelope, CancellationToken cancellationToken)
+    private async Task DeliverToWebhookAsync(
+        WebhookSubscription webhook,
+        EventEnvelope envelope,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -177,7 +188,8 @@ public sealed class WebhookTransport : IEventTransport
                 envelope.EventType,
                 onRetry: (attempt, ex, delay) =>
                 {
-                    _logger?.LogWarning("Webhook delivery retry {Attempt} for {Url}: {ExceptionMessage} (delay: {DelayMs}ms)",
+                    _logger?.LogWarning(
+                        "Webhook delivery retry {Attempt} for {Url}: {ExceptionMessage} (delay: {DelayMs}ms)",
                         attempt, webhook.Url, ex.Message, delay.TotalMilliseconds);
                     return Task.CompletedTask;
                 }
@@ -185,7 +197,9 @@ public sealed class WebhookTransport : IEventTransport
 
             if (!deliveryResult.Success)
             {
-                _logger?.LogWarning("Webhook delivery failed for {Url}: {ErrorMessage}", webhook.Url, deliveryResult.ErrorMessage);
+                _logger?.LogWarning(
+                    "Webhook delivery failed for {Url}: {ErrorMessage}",
+                    webhook.Url, deliveryResult.ErrorMessage);
                 throw new InvalidOperationException($"{DeliveryFailedMessagePrefix}{deliveryResult.ErrorMessage}");
             }
         }
