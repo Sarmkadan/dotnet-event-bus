@@ -24,6 +24,11 @@ namespace DotnetEventBus.Services;
 /// </summary>
 public sealed class EventBus : IEventBus
 {
+    private const string NoHandlersDeadLetterReason = "NoHandlersRegistered";
+    private const string ProcessRawDistributedEventOperation = "ProcessRawDistributedEventAsync";
+    private const string GeneratedHandlerNameInfix = "_Handler_";
+    private const int GeneratedHandlerIdLength = 8;
+
     private readonly EventBusOptions _options;
     private readonly ILogger<EventBus>? _logger;
     private readonly IEventMessageRepository _messageRepository;
@@ -232,7 +237,7 @@ public sealed class EventBus : IEventBus
                         payload,
                         new NoHandlersRegisteredException(eventTypeName),
                         correlationId,
-                        "NoHandlersRegistered",
+                        NoHandlersDeadLetterReason,
                         cancellationToken);
                 }
             }
@@ -403,7 +408,7 @@ public sealed class EventBus : IEventBus
         var subscription = new Subscription(
             eventType,
             handler,
-            handlerName ?? $"{eventType}_Handler_{Guid.NewGuid().ToString().Substring(0, 8)}",
+            handlerName ?? $"{eventType}{GeneratedHandlerNameInfix}{Guid.NewGuid().ToString().Substring(0, GeneratedHandlerIdLength)}",
             priority);
 
         lock (_subscriptionLock)
@@ -714,7 +719,7 @@ public sealed class EventBus : IEventBus
                 rawPayload,
                 new InvalidOperationException($"Unknown event type: {eventType}"),
                 correlationId,
-                "ProcessRawDistributedEventAsync",
+                ProcessRawDistributedEventOperation,
                 cancellationToken);
             return PublishResult.CreateFailed(correlationId, new InvalidOperationException($"Unknown event type: {eventType}"));
         }
@@ -731,7 +736,7 @@ public sealed class EventBus : IEventBus
                     rawPayload,
                     new InvalidOperationException($"Deserialized event is null for type: {eventType}"),
                     correlationId,
-                    "ProcessRawDistributedEventAsync",
+                    ProcessRawDistributedEventOperation,
                     cancellationToken);
                 return PublishResult.CreateFailed(correlationId, new InvalidOperationException($"Deserialized event is null for type: {eventType}"));
             }
@@ -750,7 +755,7 @@ public sealed class EventBus : IEventBus
                 rawPayload,
                 ex,
                 correlationId,
-                "ProcessRawDistributedEventAsync",
+                ProcessRawDistributedEventOperation,
                 cancellationToken);
 
             return PublishResult.CreateFailed(correlationId, ex);
