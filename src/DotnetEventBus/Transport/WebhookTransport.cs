@@ -34,7 +34,8 @@ public sealed class WebhookTransport : IEventTransport
     /// <param name="logger">Optional logger.</param>
     public WebhookTransport(WebhookHandler webhookHandler, ILogger<WebhookTransport>? logger = null)
     {
-        _webhookHandler = webhookHandler ?? throw new ArgumentNullException(nameof(webhookHandler));
+        ArgumentNullException.ThrowIfNull(webhookHandler);
+        _webhookHandler = webhookHandler;
         _logger = logger;
     }
 
@@ -76,8 +77,7 @@ public sealed class WebhookTransport : IEventTransport
     /// <inheritdoc/>
     public async Task<TransportPublishResult> PublishAsync(EventEnvelope envelope, CancellationToken cancellationToken = default)
     {
-        if (envelope is null)
-            throw new ArgumentNullException(nameof(envelope));
+        ArgumentNullException.ThrowIfNull(envelope);
 
         if (!envelope.IsValid())
             return TransportPublishResult.FailedResult(envelope.EventId ?? Guid.NewGuid().ToString(), new ArgumentException("Event envelope is not valid"), "Invalid event envelope");
