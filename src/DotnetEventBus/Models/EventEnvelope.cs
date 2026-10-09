@@ -176,6 +176,17 @@ public sealed class EventEnvelope
     {
         return !string.IsNullOrEmpty(EventType) && Payload is not null;
     }
+
+    /// <summary>
+    /// Returns a concise, log-friendly summary of the envelope.
+    /// The payload is intentionally omitted to avoid large or sensitive output.
+    /// </summary>
+    /// <returns>A string in the form "EventEnvelope { Id=..., Type=..., Version=..., CreatedAt=..., CorrelationId=..., Source=... }".</returns>
+    public override string ToString()
+    {
+        return $"EventEnvelope {{ Id={EventId ?? "(none)"}, Type={EventType}, Version={Version}, " +
+               $"CreatedAt={CreatedAt:o}, CorrelationId={CorrelationId ?? "(none)"}, Source={Source ?? "(none)"} }}";
+    }
 }
 
 /// <summary>
