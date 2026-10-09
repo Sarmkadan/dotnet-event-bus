@@ -245,30 +245,38 @@ public sealed class EventBus : IEventBus
             var result = new PublishResult(message.MessageId);
 
             // Construct the EventContext for the middleware pipeline
-            var eventContext = new Middleware.EventMiddlewareContext(@event, eventType, correlationId, message, cancellationToken);
+            var eventContext = new Middleware.EventMiddlewareContext(
+                @event, eventType, correlationId, message, cancellationToken);
 
             // Create the terminal delegate (actual handler invocation logic)
             EventMiddlewareDelegate terminalDelegate = async ctx =>
             {
                 if (_options.AllowParallelHandling)
                 {
-                    await InvokeHandlersInParallel(applicableSubscriptions, ctx.Event, ctx.EventMessage, result, ctx.CancellationToken);
+                    await InvokeHandlersInParallel(
+                        applicableSubscriptions, ctx.Event, ctx.EventMessage, result, ctx.CancellationToken);
                 }
                 else
                 {
-                    await InvokeHandlersSequentially(applicableSubscriptions, ctx.Event, ctx.EventMessage, result, ctx.CancellationToken);
+                    await InvokeHandlersSequentially(
+                        applicableSubscriptions, ctx.Event, ctx.EventMessage, result, ctx.CancellationToken);
                 }
             };
 
             // Build the middleware pipeline
             EventMiddlewareDelegate pipeline = terminalDelegate;
-            foreach (var middlewareType in Enumerable.Reverse(_options.MiddlewareTypes)) // Reverse to build from inside out
+            // Reverse to build from inside out
+            foreach (var middlewareType in Enumerable.Reverse(_options.MiddlewareTypes))
             {
-                var middlewareInstance = _serviceProvider.GetRequiredService(middlewareType) as Middleware.IEventBusMiddleware;
+                var middlewareInstance =
+                    _serviceProvider.GetRequiredService(middlewareType) as Middleware.IEventBusMiddleware;
                 if (middlewareInstance is null)
                 {
-                    _logger?.LogError("Middleware type {MiddlewareType} could not be resolved or is not an IEventBusMiddleware.", middlewareType.FullName);
-                    throw new InvalidOperationException($"Middleware type {middlewareType.FullName} is not registered or does not implement IEventBusMiddleware.");
+                    _logger?.LogError(
+                        "Middleware type {MiddlewareType} could not be resolved or is not an IEventBusMiddleware.",
+                        middlewareType.FullName);
+                    throw new InvalidOperationException(
+                        $"Middleware type {middlewareType.FullName} is not registered or does not implement IEventBusMiddleware.");
                 }
 
                 var currentNext = pipeline;
@@ -408,7 +416,8 @@ public sealed class EventBus : IEventBus
         var subscription = new Subscription(
             eventType,
             handler,
-            handlerName ?? $"{eventType}{GeneratedHandlerNameInfix}{Guid.NewGuid().ToString().Substring(0, GeneratedHandlerIdLength)}",
+            handlerName ??
+                $"{eventType}{GeneratedHandlerNameInfix}{Guid.NewGuid().ToString().Substring(0, GeneratedHandlerIdLength)}",
             priority);
 
         lock (_subscriptionLock)
@@ -502,7 +511,9 @@ public sealed class EventBus : IEventBus
     /// <param name="cancellationToken">Token for cancelling the operation.</param>
     /// <returns>Handler names for the event type. Empty when there are none.</returns>
     /// <exception cref="ArgumentException">Thrown when <paramref name="eventType"/> is null, empty or whitespace.</exception>
-    public async Task<IEnumerable<string>> GetSubscriptionsAsync(string eventType, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<string>> GetSubscriptionsAsync(
+        string eventType,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(eventType))
             throw new ArgumentException("Event type cannot be empty", nameof(eventType));
@@ -721,7 +732,8 @@ public sealed class EventBus : IEventBus
                 correlationId,
                 ProcessRawDistributedEventOperation,
                 cancellationToken);
-            return PublishResult.CreateFailed(correlationId, new InvalidOperationException($"Unknown event type: {eventType}"));
+            return PublishResult.CreateFailed(
+                correlationId, new InvalidOperationException($"Unknown event type: {eventType}"));
         }
 
         try
@@ -730,7 +742,9 @@ public sealed class EventBus : IEventBus
 
             if (deserializedEvent is null)
             {
-                _logger?.LogError("Failed to deserialize event of type {EventType}. Sending to dead letter queue.", eventType);
+                _logger?.LogError(
+                    "Failed to deserialize event of type {EventType}. Sending to dead letter queue.",
+                    eventType);
                 await _deadLetterService.AddDeadLetterEntryAsync(
                     eventType,
                     rawPayload,
@@ -738,7 +752,9 @@ public sealed class EventBus : IEventBus
                     correlationId,
                     ProcessRawDistributedEventOperation,
                     cancellationToken);
-                return PublishResult.CreateFailed(correlationId, new InvalidOperationException($"Deserialized event is null for type: {eventType}"));
+                return PublishResult.CreateFailed(
+                    correlationId,
+                    new InvalidOperationException($"Deserialized event is null for type: {eventType}"));
             }
 
             return await PublishAsync(deserializedEvent, eventActualType, correlationId, cancellationToken);
