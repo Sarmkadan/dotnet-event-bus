@@ -32,7 +32,9 @@ The library is one project, organized by namespace/folder:
 | `Handlers/` | `IEventHandler<TEvent>`, `HandlerBase`, predicate-filtered handlers and the `PredicateSubscriptionBuilder` fluent API |
 | `Middleware/` | `IEventBusMiddleware`, `EventMiddlewareContext`, built-ins (`EventBusLoggingMiddleware`, `ErrorHandlingMiddleware`, `RateLimitingMiddleware`), plus a standalone `PipelineBuilder` |
 | `Configuration/` | `EventBusOptions`, `ServiceCollectionExtensions` (DI wiring), `MiddlewareConfiguration`, routing config |
-| `Repositories/` | `IRepository`-style abstractions (`IEventMessageRepository`, `ISubscriptionRepository`, `IDeadLetterRepository`) and their in-memory implementations |
+| `Repositories/` | Repository abstractions (`IRepository`) and their implementations: `EventMessageRepository`, `SubscriptionRepository`, `DeadLetterRepository`, plus `InMemoryRepository` |
+| `Transport/` | `IEventTransport`, `ITransportRegistry`, `InProcessTransport`, `WebhookTransport` |
+| `Exceptions/` | `EventBusException`, `ConfigurationException`, `ValidationException`, `SagaCompensationException` |
 | `Formatters/` | `IEventFormatter` with JSON (default), XML and CSV implementations plus `EventFormatterFactory` |
 | `Workers/` | `DeadLetterProcessor`, a `BackgroundService` that periodically sweeps the DLQ |
 | `Advanced/` | Opt-in building blocks: `SagaOrchestrator`, `EventSourcedAggregate`, `EventTransformer`, `EventFilter`, `MetricsCollector`, request/response helpers |
