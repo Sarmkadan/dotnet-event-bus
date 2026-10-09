@@ -18,13 +18,25 @@ namespace DotnetEventBus.Transport;
 /// </summary>
 public sealed class WebhookTransport : IEventTransport
 {
+    /// <summary>Stable identifier reported by <see cref="TransportId"/>.</summary>
     private const string TransportIdValue = "webhook-transport";
+
+    /// <summary>Transport type reported by <see cref="TransportType"/>.</summary>
     private const string TransportTypeValue = "webhook";
+
+    /// <summary>Status message returned by <see cref="GetStatus"/> while the transport is healthy.</summary>
     private const string OperationalStatusMessage = "Webhook transport is operational";
+
+    /// <summary>Zero value used as the default for metrics without samples.</summary>
     private const int ZeroMetricValue = 0;
 
+    /// <summary>Handler that owns subscriptions and performs HTTP deliveries.</summary>
     private readonly WebhookHandler _webhookHandler;
+
+    /// <summary>Optional logger; null disables logging.</summary>
     private readonly ILogger<WebhookTransport>? _logger;
+
+    /// <summary>Thread-safe counters backing <see cref="GetStatus"/>.</summary>
     private readonly ConcurrentCounter _metrics = new ConcurrentCounter();
 
     /// <summary>
@@ -121,6 +133,13 @@ public sealed class WebhookTransport : IEventTransport
         }
     }
 
+    /// <summary>
+    /// Delivers a single envelope to one webhook subscription, with retries handled by the webhook handler.
+    /// </summary>
+    /// <param name="webhook">The subscription to deliver to.</param>
+    /// <param name="envelope">The event envelope being published.</param>
+    /// <param name="cancellationToken">Token used to cancel the delivery.</param>
+    /// <exception cref="InvalidOperationException">Thrown when the handler reports a failed delivery.</exception>
     private async Task DeliverToWebhookAsync(WebhookSubscription webhook, EventEnvelope envelope, CancellationToken cancellationToken)
     {
         try
@@ -182,6 +201,10 @@ public sealed class WebhookTransport : IEventTransport
         );
     }
 
+    /// <summary>
+    /// Reports health. Currently always true while the handler is available.
+    /// </summary>
+    /// <returns>True when the transport is considered healthy.</returns>
     private bool IsHealthy()
     {
         // Webhook transport is healthy if it can deliver to at least one webhook
@@ -189,6 +212,7 @@ public sealed class WebhookTransport : IEventTransport
         return true;
     }
 
+    /// <summary>Human-readable status message included in <see cref="GetStatus"/>.</summary>
     private string? StatusMessage => OperationalStatusMessage;
 
     /// <summary>
@@ -201,15 +225,28 @@ public sealed class WebhookTransport : IEventTransport
         private double _totalPublishTimeMs;
         private long _publishCount;
 
+        /// <summary>Gets the number of publish attempts, read atomically.</summary>
         public long MessagesPublished => Interlocked.Read(ref _messagesPublished);
+
+        /// <summary>Gets the number of failed publishes, read atomically.</summary>
         public long FailedPublishes => Interlocked.Read(ref _failedPublishes);
+
+        /// <summary>Gets the mean publish duration in milliseconds, or zero when no samples exist.</summary>
         public double AveragePublishTimeMs => _publishCount > ZeroMetricValue
             ? _totalPublishTimeMs / _publishCount
             : ZeroMetricValue;
 
+        /// <summary>Increments the publish-attempt counter.</summary>
         public void IncrementMessagesPublished() => Interlocked.Increment(ref _messagesPublished);
+
+        /// <summary>Increments the failed-publish counter.</summary>
         public void IncrementFailedPublishes() => Interlocked.Increment(ref _failedPublishes);
+
+        /// <summary>Records a successful publish by incrementing the published counter.</summary>
         public void RecordSuccess() => Interlocked.Increment(ref _messagesPublished);
+
+        /// <summary>Adds a duration sample used for the running average.</summary>
+        /// <param name="milliseconds">Elapsed publish time in milliseconds.</param>
         public void RecordPublishTime(double milliseconds)
         {
             _totalPublishTimeMs += milliseconds;
