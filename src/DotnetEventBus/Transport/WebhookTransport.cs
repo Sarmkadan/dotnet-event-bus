@@ -30,6 +30,15 @@ public sealed class WebhookTransport : IEventTransport
     /// <summary>Zero value used as the default for metrics without samples.</summary>
     private const int ZeroMetricValue = 0;
 
+    /// <summary>Failure message returned when the envelope fails validation.</summary>
+    private const string InvalidEnvelopeMessage = "Invalid event envelope";
+
+    /// <summary>Message of the exception attached to an invalid-envelope failure.</summary>
+    private const string InvalidEnvelopeExceptionMessage = "Event envelope is not valid";
+
+    /// <summary>Prefix of the exception message thrown when a webhook delivery fails.</summary>
+    private const string DeliveryFailedMessagePrefix = "Webhook delivery failed: ";
+
     /// <summary>Handler that owns subscriptions and performs HTTP deliveries.</summary>
     private readonly WebhookHandler _webhookHandler;
 
@@ -92,7 +101,7 @@ public sealed class WebhookTransport : IEventTransport
         ArgumentNullException.ThrowIfNull(envelope);
 
         if (!envelope.IsValid())
-            return TransportPublishResult.FailedResult(envelope.EventId ?? Guid.NewGuid().ToString(), new ArgumentException("Event envelope is not valid"), "Invalid event envelope");
+            return TransportPublishResult.FailedResult(envelope.EventId ?? Guid.NewGuid().ToString(), new ArgumentException(InvalidEnvelopeExceptionMessage), InvalidEnvelopeMessage);
 
         _metrics.IncrementMessagesPublished();
         var startTime = DateTime.UtcNow;
@@ -177,7 +186,7 @@ public sealed class WebhookTransport : IEventTransport
             if (!deliveryResult.Success)
             {
                 _logger?.LogWarning("Webhook delivery failed for {Url}: {ErrorMessage}", webhook.Url, deliveryResult.ErrorMessage);
-                throw new InvalidOperationException($"Webhook delivery failed: {deliveryResult.ErrorMessage}");
+                throw new InvalidOperationException($"{DeliveryFailedMessagePrefix}{deliveryResult.ErrorMessage}");
             }
         }
         catch (Exception ex)
