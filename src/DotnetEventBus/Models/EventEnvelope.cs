@@ -95,6 +95,11 @@ public sealed class EventEnvelope
     /// <summary>
     /// Creates a new event envelope with default values.
     /// </summary>
+    /// <param name="eventType">Type of event. Must not be null or empty.</param>
+    /// <param name="payload">The event payload. Must not be null.</param>
+    /// <returns>A new envelope with a fresh <see cref="EventId"/> and <see cref="CreatedAt"/> set to UTC now.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="eventType"/> is null or empty.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="payload"/> is null.</exception>
     public static EventEnvelope Create(string eventType, object payload)
     {
         ArgumentException.ThrowIfNullOrEmpty(eventType);
@@ -111,6 +116,13 @@ public sealed class EventEnvelope
     /// <summary>
     /// Creates a linked event envelope (causally related).
     /// </summary>
+    /// <param name="eventType">Type of event. Must not be null or empty.</param>
+    /// <param name="payload">The event payload. Must not be null.</param>
+    /// <param name="causationId">ID of the event that caused this one. Must not be null or empty.</param>
+    /// <param name="correlationId">Correlation ID to propagate. A new GUID is generated when null.</param>
+    /// <returns>A new envelope with <see cref="CausationId"/> and <see cref="CorrelationId"/> set.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="eventType"/> or <paramref name="causationId"/> is null or empty.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="payload"/> is null.</exception>
     public static EventEnvelope CreateLinked(
         string eventType,
         object payload,
@@ -159,6 +171,7 @@ public sealed class EventEnvelope
     /// <summary>
     /// Validates that the envelope has required fields.
     /// </summary>
+    /// <returns>True when <see cref="EventType"/> is non-empty and <see cref="Payload"/> is not null; otherwise false.</returns>
     public bool IsValid()
     {
         return !string.IsNullOrEmpty(EventType) && Payload is not null;
@@ -170,12 +183,39 @@ public sealed class EventEnvelope
 /// </summary>
 public sealed class EventProcessingResult
 {
+    /// <summary>
+    /// Whether the event was processed successfully.
+    /// </summary>
     public bool Success { get; set; }
+
+    /// <summary>
+    /// ID of the processed event.
+    /// </summary>
     public string? EventId { get; set; }
+
+    /// <summary>
+    /// Optional human-readable details about the outcome.
+    /// </summary>
     public string? Message { get; set; }
+
+    /// <summary>
+    /// When processing finished (UTC).
+    /// </summary>
     public DateTime ProcessedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// Wall-clock processing duration in milliseconds.
+    /// </summary>
     public long ProcessingTimeMs { get; set; }
+
+    /// <summary>
+    /// Number of retries performed before this result.
+    /// </summary>
     public int RetryCount { get; set; }
+
+    /// <summary>
+    /// Exception raised during processing, if any.
+    /// </summary>
     public Exception? Exception { get; set; }
 }
 
@@ -184,13 +224,36 @@ public sealed class EventProcessingResult
 /// </summary>
 public sealed class EventBatch
 {
+    /// <summary>
+    /// Unique identifier for this batch.
+    /// </summary>
     public string? BatchId { get; set; } = Guid.NewGuid().ToString();
+
+    /// <summary>
+    /// Events contained in this batch.
+    /// </summary>
     public List<EventEnvelope> Events { get; set; } = [];
+
+    /// <summary>
+    /// When the batch was created (UTC).
+    /// </summary>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// Priority level (0-100, higher = more important).
+    /// </summary>
     public int Priority { get; set; } = 50;
 
+    /// <summary>
+    /// Number of events in the batch.
+    /// </summary>
     public int EventCount => Events.Count;
 
+    /// <summary>
+    /// Creates a new batch containing the given events.
+    /// </summary>
+    /// <param name="events">Events to include in the batch.</param>
+    /// <returns>A new batch with a fresh <see cref="BatchId"/>.</returns>
     public static EventBatch Create(params EventEnvelope[] events)
     {
         return new EventBatch { Events = new List<EventEnvelope>(events) };
