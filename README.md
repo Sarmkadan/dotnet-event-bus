@@ -105,6 +105,117 @@ public sealed class OrdersController(IEventBus eventBus) : ControllerBase
 
 Any injected service can publish the same way. The delegate-based and class-based subscription styles, along with options, are covered in the sections below.
 
+## Using RabbitMQ
+
+> **Status:** the library does not ship a RabbitMQ transport or a `RabbitMqBus` yet. Everything is delivered in-process by `EventBus`, which `AddEventBus()` registers. `AsDistributed(...)` and the `DistributedTransportType` / `DistributedTransportConnectionString` options only store values; nothing connects to a broker from them. The configuration and local broker setup below are what you will use once a RabbitMQ transport exists. They do not connect anything today.
+
+### Configuration
+
+Keep the broker settings in `appsettings.json`. Bind the section to `EventBusOptions` inside the `AddEventBus` callback. The library takes a plain callback rather than `IOptions<T>`, so bind the section there:
+
+```json
+{
+  "EventBus": {
+    "MaxRetryAttempts": 3,
+    "RetryDelay": "00:00:00.100",
+    "RetryDelayMultiplier": 2.0,
+    "MaxRetryDelay": "00:00:30",
+    "EnableDeadLetterQueue": true,
+    "IsDistributed": true,
+    "DistributedTransportType": "RabbitMQ",
+    "DistributedTransportConnectionString": "amqp://localhost:5672/"
+  }
+}
+```
+
+```csharp
+// Program.cs
+builder.Services.AddEventBus(options =>
+    builder.Configuration.GetSection("EventBus").Bind(options));
+```
+
+Keep credentials out of source control and `appsettings.json`. Set them through user secrets or an environment variable, which overrides the file value:
+
+```bash
+export EventBus__DistributedTransportConnectionString="amqp://eventbus:<password>@localhost:5672/"
+```
+
+Validation runs when `AddEventBus` executes, so an invalid section fails at startup. For example, `IsDistributed: true` without `DistributedTransportType` throws.
+
+### Switching from InMemoryBus to RabbitMQ
+
+There is no RabbitMQ bus to switch to yet. Use these options today:
+
+| Scenario | Use |
+|---|---|
+| Application code, single process | `AddEventBus()` (registers `EventBus`) |
+| Tests or single-process tooling | `new InMemoryBus(logger, options)`, constructed directly. It is not registered by `AddEventBus` and drops payloads that need distributed processing. |
+| Delivery across processes through RabbitMQ | Not available. Do not rely on `AsDistributed` for it. |
+
+### Local RabbitMQ with docker-compose
+
+Add this service to your local `docker-compose.yml`. It requires `RABBITMQ_PASSWORD` in the environment or a `.env` file, so no default password is committed:
+
+```yaml
+services:
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: eventbus-rabbitmq
+    ports:
+      - "5672:5672"    # AMQP
+      - "15672:15672"  # management UI at http://localhost:15672
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-eventbus}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+```
+
+Start it with `docker compose up -d rabbitmq`. The `guest` account is only allowed from localhost, so the compose file creates a named user instead.
+
+### Retries
+
+`EventBus` retries a failing handler using the `EventBusOptions` retry settings:
+
+- `MaxRetryAttempts` is the number of retries after the first failure. With `5`, a handler runs up to six times.
+- Before retry `n` (counting from 0), the delay is `RetryDelay × RetryDelayMultiplier^n`, capped at `MaxRetryDelay`. There is no jitter.
+- When retries are exhausted, the event goes to the dead letter queue if `EnableDeadLetterQueue` is set and the subscription allows it (`SendToDeadLetterOnFailure`).
+
+```csharp
+builder.Services.AddEventBus(options =>
+{
+    options.MaxRetryAttempts = 5;                       // 6 calls in total
+    options.RetryDelay = TimeSpan.FromMilliseconds(200);
+    options.RetryDelayMultiplier = 2.0;                 // waits 200 ms, 400 ms, 800 ms, 1.6 s, 3.2 s
+    options.MaxRetryDelay = TimeSpan.FromSeconds(5);    // caps each wait
+});
+```
+
+`RetryHandler` is a standalone helper for wrapping your own calls, such as an HTTP request to an external service. `AddEventBus` does not register it, and `EventBus` does not use it. Register it yourself:
+
+```csharp
+builder.Services.AddSingleton<RetryHandler>(); // resolves ILogger<RetryHandler> and EventBusOptions
+
+// In a service that takes RetryHandler as a constructor parameter:
+var error = await _retry.ExecuteWithRetryAsync(
+    token => CallRemoteServiceAsync(token),
+    handlerName: "remote-service",
+    cancellationToken: ct);
+
+if (error is not null)
+{
+    // All attempts failed. The last exception is returned, not thrown.
+}
+```
+
+`RetryHandler` reads the same options with different rules:
+
+- `MaxRetryAttempts` is the total number of attempts, not retries. A value of `0` or less falls back to 3.
+- The delay is `RetryDelay × RetryDelayMultiplier^(attempt − 1)` with ±25% jitter. It is capped at a fixed 30 seconds and ignores `MaxRetryDelay`.
+
 ## BasicPubSubExample
 
 The `BasicPubSubExample` class demonstrates the core publish-subscribe pattern of the DotnetEventBus library. It shows how to define custom events, subscribe multiple handlers to those events, and publish events asynchronously. The example includes both delegate-based handlers and class-based handlers, demonstrating different subscription approaches.
