@@ -2,6 +2,7 @@ using DotnetEventBus.Configuration;
 using DotnetEventBus.Services;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace DotnetEventBus.Tests;
@@ -53,6 +54,37 @@ public class ServiceCollectionExtensionsTests
         act.Should().Throw<NotSupportedException>()
             .WithMessage("*RabbitMq*");
         services.Should().NotContain(d => d.ServiceType == typeof(IEventBus));
+    }
+
+    [Fact]
+    public void AddEventBus_RabbitMqWithInvalidPort_ThrowsOptionsValidationExceptionNamingPort()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        var options = new RabbitMqOptions { ConnectionString = "amqp://localhost:5672/", Port = 0 };
+
+        // Act
+        var act = () => services.AddEventBus(options);
+
+        // Assert
+        act.Should().Throw<OptionsValidationException>()
+            .WithMessage("*Port*");
+        services.Should().NotContain(d => d.ServiceType == typeof(IEventBus));
+    }
+
+    [Fact]
+    public void AddEventBus_RabbitMqWithBlankHostName_ThrowsOptionsValidationExceptionNamingHostName()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        var options = new RabbitMqOptions { ConnectionString = "amqp://localhost:5672/", HostName = " " };
+
+        // Act
+        var act = () => services.AddEventBus(options);
+
+        // Assert
+        act.Should().Throw<OptionsValidationException>()
+            .WithMessage("*HostName*");
     }
 
     [Fact]

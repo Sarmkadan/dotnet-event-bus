@@ -7,6 +7,7 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using DotnetEventBus.Formatters;
 using DotnetEventBus.Integration;
 using DotnetEventBus.Repositories;
@@ -148,6 +149,9 @@ public static class ServiceCollectionExtensions
     /// Thrown if <paramref name="options"/> is null or has no connection string, or if a different
     /// event bus implementation is already registered.
     /// </exception>
+    /// <exception cref="OptionsValidationException">
+    /// Thrown when a property fails <see cref="RabbitMqOptionsValidator"/>. The message names each invalid property.
+    /// </exception>
     /// <exception cref="NotSupportedException">
     /// Thrown when the options are valid, because no RabbitMQ bus is implemented in this version of the library.
     /// Nothing is registered when this is thrown.
@@ -170,6 +174,14 @@ public static class ServiceCollectionExtensions
         {
             throw new InvalidOperationException(
                 "Cannot register the RabbitMq event bus: RabbitMqOptions.ConnectionString is empty.");
+        }
+
+        // Validate eagerly so bad settings fail during startup, not at the first publish.
+        var validation = new RabbitMqOptionsValidator().Validate(Options.DefaultName, options);
+        if (validation.Failed)
+        {
+            throw new OptionsValidationException(
+                Options.DefaultName, typeof(RabbitMqOptions), validation.Failures);
         }
 
         throw new NotSupportedException(
