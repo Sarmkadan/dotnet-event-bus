@@ -1,3 +1,110 @@
+## Getting started
+
+This walkthrough builds a small ASP.NET Core API that publishes an `OrderPlacedEvent` from a controller and handles it in a handler class. It targets .NET 10.
+
+Install the package (or add a project reference to `src/DotnetEventBus`):
+
+```bash
+dotnet add package Zaiets.dotnet.event.bus
+```
+
+### 1. Define an event
+
+Events are plain classes or records. Any reference type can be an event.
+
+```csharp
+// Events/OrderPlacedEvent.cs
+namespace MyApp.Events;
+
+public sealed record OrderPlacedEvent(string OrderId, string CustomerId, decimal Total, DateTime PlacedAt);
+```
+
+### 2. Create a handler class
+
+Handlers derive from `EventHandlerBase<TEvent>` and override `Handle`. The optional `ILogger` constructor argument is passed to the base class.
+
+```csharp
+// Handlers/OrderPlacedHandler.cs
+using DotnetEventBus.Handlers;
+using Microsoft.Extensions.Logging;
+using MyApp.Events;
+
+namespace MyApp.Handlers;
+
+public sealed class OrderPlacedHandler(ILogger<OrderPlacedHandler> logger)
+    : EventHandlerBase<OrderPlacedEvent>(logger)
+{
+    public override Task Handle(OrderPlacedEvent @event, CancellationToken cancellationToken = default)
+    {
+        Logger?.LogInformation("Order {OrderId} placed for {Total}", @event.OrderId, @event.Total);
+        return Task.CompletedTask;
+    }
+}
+```
+
+### 3. Register the bus and subscribe
+
+`AddEventBus()` registers `IEventBus` as a singleton with default options (pass a callback to customize `EventBusOptions`). Handlers are not discovered from DI automatically, so subscribe each one once at startup.
+
+```csharp
+// Program.cs
+using DotnetEventBus.Configuration;
+using DotnetEventBus.Services;
+using MyApp.Events;
+using MyApp.Handlers;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddControllers();
+builder.Services.AddEventBus();
+builder.Services.AddSingleton<OrderPlacedHandler>();
+
+var app = builder.Build();
+
+var eventBus = app.Services.GetRequiredService<IEventBus>();
+eventBus.Subscribe<OrderPlacedEvent>(app.Services.GetRequiredService<OrderPlacedHandler>());
+
+app.MapControllers();
+app.Run();
+```
+
+### 4. Publish from a controller
+
+Inject `IEventBus` like any other service. `PublishAsync` returns a `PublishResult`. By default, handler exceptions are logged and reported as a failed result rather than thrown, so check `Success`.
+
+```csharp
+// Controllers/OrdersController.cs
+using DotnetEventBus.Services;
+using Microsoft.AspNetCore.Mvc;
+using MyApp.Events;
+
+namespace MyApp.Controllers;
+
+public sealed record PlaceOrderRequest(string CustomerId, decimal Total);
+
+[ApiController]
+[Route("api/orders")]
+public sealed class OrdersController(IEventBus eventBus) : ControllerBase
+{
+    [HttpPost]
+    public async Task<IActionResult> PlaceOrder(
+        [FromBody] PlaceOrderRequest request,
+        CancellationToken cancellationToken)
+    {
+        var orderId = Guid.NewGuid().ToString("N");
+        var @event = new OrderPlacedEvent(orderId, request.CustomerId, request.Total, DateTime.UtcNow);
+
+        var result = await eventBus.PublishAsync(@event, correlationId: HttpContext.TraceIdentifier, cancellationToken: cancellationToken);
+
+        return result.Success
+            ? Accepted(new { orderId, messageId = result.MessageId })
+            : Problem(result.ErrorMessage);
+    }
+}
+```
+
+Any injected service can publish the same way. The delegate-based and class-based subscription styles, along with options, are covered in the sections below.
+
 ## BasicPubSubExample
 
 The `BasicPubSubExample` class demonstrates the core publish-subscribe pattern of the DotnetEventBus library. It shows how to define custom events, subscribe multiple handlers to those events, and publish events asynchronously. The example includes both delegate-based handlers and class-based handlers, demonstrating different subscription approaches.
