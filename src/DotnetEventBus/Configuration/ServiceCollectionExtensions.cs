@@ -27,16 +27,21 @@ public static class ServiceCollectionExtensions
     /// <param name="configureOptions">Optional configuration action for event bus options.</param>
     /// <returns>The service collection.</returns>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="services"/> is null.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown if a different event bus implementation is already registered.
+    /// </exception>
     public static IServiceCollection AddEventBus(
         this IServiceCollection services,
         Action<EventBusOptions>? configureOptions = null)
     {
         ArgumentNullException.ThrowIfNull(services);
+        EnsureSingleBusImplementation(services, EventBusRegistration.InMemory);
 
         var options = new EventBusOptions();
         configureOptions?.Invoke(options);
         options.Validate();
 
+        services.TryAddSingleton(new EventBusRegistration(EventBusRegistration.InMemory));
         services.AddSingleton(options);
         RegisterConfiguredMiddleware(services, options);
         services.AddSingleton<IEventMessageRepository, InMemoryEventMessageRepository>();
@@ -80,6 +85,9 @@ public static class ServiceCollectionExtensions
     /// <param name="configureOptions">Optional configuration action for event bus options.</param>
     /// <returns>The service collection.</returns>
     /// <exception cref="ArgumentNullException">Thrown if any parameter is null.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown if a different event bus implementation is already registered.
+    /// </exception>
     public static IServiceCollection AddEventBus(
         this IServiceCollection services,
         IEventMessageRepository messageRepository,
@@ -91,11 +99,13 @@ public static class ServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(messageRepository);
         ArgumentNullException.ThrowIfNull(subscriptionRepository);
         ArgumentNullException.ThrowIfNull(deadLetterRepository);
+        EnsureSingleBusImplementation(services, EventBusRegistration.InMemory);
 
         var options = new EventBusOptions();
         configureOptions?.Invoke(options);
         options.Validate();
 
+        services.TryAddSingleton(new EventBusRegistration(EventBusRegistration.InMemory));
         services.AddSingleton(options);
         RegisterConfiguredMiddleware(services, options);
         services.AddSingleton(messageRepository);
@@ -124,6 +134,65 @@ public static class ServiceCollectionExtensions
                 sp.GetService<Microsoft.Extensions.Logging.ILogger<Services.EventBus>>()));
 
         return services;
+    }
+
+    /// <summary>
+    /// Adds the RabbitMQ event bus to the dependency injection container.
+    /// Options are validated up front so misconfiguration fails at startup.
+    /// </summary>
+    /// <param name="services">The service collection to add services to.</param>
+    /// <param name="options">The RabbitMQ connection options. Required.</param>
+    /// <returns>The service collection.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="services"/> is null.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown if <paramref name="options"/> is null or has no connection string, or if a different
+    /// event bus implementation is already registered.
+    /// </exception>
+    /// <exception cref="NotSupportedException">
+    /// Thrown when the options are valid, because no RabbitMQ bus is implemented in this version of the library.
+    /// Nothing is registered when this is thrown.
+    /// </exception>
+    public static IServiceCollection AddEventBus(
+        this IServiceCollection services,
+        RabbitMqOptions? options)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        EnsureSingleBusImplementation(services, EventBusRegistration.RabbitMq);
+
+        if (options is null)
+        {
+            throw new InvalidOperationException(
+                "Cannot register the RabbitMq event bus without RabbitMqOptions. " +
+                "Pass an options instance with ConnectionString set.");
+        }
+
+        if (string.IsNullOrWhiteSpace(options.ConnectionString))
+        {
+            throw new InvalidOperationException(
+                "Cannot register the RabbitMq event bus: RabbitMqOptions.ConnectionString is empty.");
+        }
+
+        throw new NotSupportedException(
+            "The RabbitMq event bus is not implemented in DotnetEventBus yet, so messages are not delivered " +
+            "through RabbitMQ. Use AddEventBus() for in-process delivery.");
+    }
+
+    /// <summary>
+    /// Throws if a bus of a different kind was already registered. Registering the same kind again
+    /// is allowed, which keeps <c>AddInProcessTransport</c> followed by <c>AddEventBus</c> working.
+    /// </summary>
+    private static void EnsureSingleBusImplementation(IServiceCollection services, string kind)
+    {
+        var existing = (services
+            .FirstOrDefault(d => d.ServiceType == typeof(EventBusRegistration))
+            ?.ImplementationInstance as EventBusRegistration)?.Kind;
+
+        if (existing is not null && existing != kind)
+        {
+            throw new InvalidOperationException(
+                $"Cannot register the {kind} event bus: the {existing} event bus is already registered. " +
+                "Register exactly one bus implementation per service collection.");
+        }
     }
 
     /// <summary>
