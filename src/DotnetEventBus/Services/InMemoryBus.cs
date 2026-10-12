@@ -6,6 +6,7 @@
 // =============================================================================
 
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using DotnetEventBus.Configuration;
 using DotnetEventBus.Handlers;
 using DotnetEventBus.Models;
@@ -17,6 +18,7 @@ namespace DotnetEventBus.Services;
 /// Lightweight in-memory event bus for testing and single-process scenarios.
 /// Does not persist messages or support distributed transports.
 /// </summary>
+[DebuggerDisplay("InMemoryBus (EventTypes = {_subscriptions.Count})")]
 public sealed class InMemoryBus : IEventBus, IDisposable
 {
     private readonly ConcurrentDictionary<string, List<Subscription>> _subscriptions = new();
@@ -236,5 +238,18 @@ public sealed class InMemoryBus : IEventBus, IDisposable
         _publishLock.Dispose();
         _subscriptions.Clear();
         _pendingRequests.Clear();
+    }
+
+    /// <summary>
+    /// Returns a concise summary of the bus with the subscriber count for each event type.
+    /// </summary>
+    public override string ToString()
+    {
+        var counts = _subscriptions.Select(kvp =>
+        {
+            lock (kvp.Value) { return $"{kvp.Key} = {kvp.Value.Count}"; }
+        });
+
+        return $"InMemoryBus {{ EventTypes = {_subscriptions.Count}, Subscribers = [{string.Join(", ", counts)}] }}";
     }
 }

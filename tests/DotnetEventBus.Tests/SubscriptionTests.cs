@@ -152,4 +152,27 @@ public sealed class SubscriptionTests
         // Assert
         Assert.Equal(-10, subscription.Priority);
     }
+
+    [Fact]
+    public void ToString_ContainsEventTypeHandlerTypeAndActiveState()
+    {
+        // Arrange
+        var handler = new Action<string>(s => { });
+        var subscription = new Subscription("OrderPlaced", handler, "OnOrderPlaced");
+
+        // Act
+        var text = subscription.ToString();
+
+        // Assert
+        Assert.Contains("EventType = OrderPlaced", text);
+        Assert.Contains($"HandlerType = {handler.GetType().Name}", text);
+        Assert.Contains("HandlerName = OnOrderPlaced", text);
+        Assert.Contains("IsActive = True", text);
+
+        // Act
+        subscription.Disable();
+
+        // Assert
+        Assert.Contains("IsActive = False", subscription.ToString());
+    }
 }

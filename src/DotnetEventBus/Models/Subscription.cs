@@ -5,11 +5,14 @@
 // CTO & Software Architect
 // =============================================================================
 
+using System.Diagnostics;
+
 namespace DotnetEventBus.Models;
 
 /// <summary>
 /// Represents a subscription between an event type and its handlers.
 /// </summary>
+[DebuggerDisplay("Subscription {EventType} -> {HandlerName} (IsActive = {IsActive})")]
 public sealed class Subscription
 {
     /// <summary>
@@ -125,4 +128,10 @@ public sealed class Subscription
 
         Timeout = timeout;
     }
+
+    /// <summary>
+    /// Returns a concise summary of the subscription, including its event type, handler type and active state.
+    /// </summary>
+    public override string ToString()
+        => $"Subscription {{ Id = {Id}, EventType = {EventType}, HandlerType = {Handler.GetType().Name}, HandlerName = {HandlerName}, IsActive = {IsActive} }}";
 }
