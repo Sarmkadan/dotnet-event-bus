@@ -176,6 +176,36 @@ services:
 
 Start it with `docker compose up -d rabbitmq`. The `guest` account is only allowed from localhost, so the compose file creates a named user instead.
 
+### Health check
+
+`AddEventBusHealthCheck()` registers an ASP.NET Core health check that reads the connection state through `IRabbitMqConnectionMonitor`:
+
+| Connection state (`RabbitMqConnectionState`) | Health status |
+|---|---|
+| `Open` | `Healthy` |
+| `Reconnecting` | `Degraded` |
+| `Closed`, or any other value | `Unhealthy` |
+
+The result's `Data` includes `connectionState` with the state name.
+
+```csharp
+builder.Services.AddHealthChecks()
+    .AddEventBusHealthCheck(tags: ["messaging"]);
+
+app.MapHealthChecks("/health/messaging", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("messaging")
+});
+```
+
+The check is named `eventbus` by default. Pass a different name as the first argument if you need several buses.
+
+A RabbitMQ bus is responsible for implementing `IRabbitMqConnectionMonitor`. Until one is registered, the check reports `Unhealthy`, because there is no RabbitMQ connection to report on. The library does not register a monitor itself, so no connection state is reported today. The interface is what a future RabbitMQ bus would implement. A custom monitor can be registered as well. The health check reads its `State` on every run:
+
+```csharp
+builder.Services.AddSingleton<IRabbitMqConnectionMonitor, MyConnectionMonitor>();
+```
+
 ### Retries
 
 `EventBus` retries a failing handler using the `EventBusOptions` retry settings:
