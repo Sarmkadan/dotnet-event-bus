@@ -20,7 +20,7 @@ namespace DotnetEventBus.Caching;
 /// </summary>
 public sealed class InMemoryEventCache : IEventCache, IDisposable
 {
-    private const int DefaultMaxCapacity = 10000;
+    public const int DefaultMaxCapacity = 10000;
     private const int CleanupIntervalMinutes = 1;
     private const int DisposeTimeoutSeconds = 1;
     private const long StringOverheadBytes = 26;
