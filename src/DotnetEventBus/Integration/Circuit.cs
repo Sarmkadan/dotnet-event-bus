@@ -24,12 +24,8 @@ public class Circuit
     /// <param name="maxFailures">The maximum number of failures before the circuit opens.</param>
     /// <param name="cooldownTime">The time the circuit stays open after a failure.</param>
     /// <param name="halfOpenTimeout">The time the circuit stays in the half-open state.</param>
-    /// <exception cref="ArgumentNullException">Thrown if cooldownTime or halfOpenTimeout is null.</exception>
     public Circuit(int maxFailures, TimeSpan cooldownTime, TimeSpan halfOpenTimeout)
     {
-        ArgumentNullException.ThrowIfNull(cooldownTime);
-        ArgumentNullException.ThrowIfNull(halfOpenTimeout);
-
         _maxFailures = maxFailures;
         _cooldownTime = cooldownTime;
         _halfOpenTimeout = halfOpenTimeout;

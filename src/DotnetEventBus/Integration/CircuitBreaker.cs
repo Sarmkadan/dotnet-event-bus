@@ -78,7 +78,7 @@ public sealed class CircuitBreaker
             RecordSuccess();
             return result;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             RecordFailure();
             throw;
@@ -107,7 +107,7 @@ public sealed class CircuitBreaker
             await operation();
             RecordSuccess();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             RecordFailure();
             throw;

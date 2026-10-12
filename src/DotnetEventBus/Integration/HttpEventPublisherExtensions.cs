@@ -17,27 +17,6 @@ namespace DotnetEventBus.Integration;
 public static class HttpEventPublisherExtensions
 {
     /// <summary>
-    /// Publishes an event with custom headers configured via a fluent action and automatic JSON serialization.
-    /// </summary>
-    /// <param name="publisher">The <see cref="HttpEventPublisher"/> instance.</param>
-    /// <param name="url">The target URL.</param>
-    /// <param name="eventData">The event payload.</param>
-    /// <param name="configureHeaders">Optional action to configure request headers.</param>
-    /// <returns>A <see cref="Task"/> that represents the asynchronous publish operation. The task result contains the publish result.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="publisher"/>, <paramref name="url"/>, or <paramref name="eventData"/> is <see langword="null"/>.</exception>
-
-    /// <summary>
-    /// Publishes an event with a custom content type.
-    /// </summary>
-    /// <param name="publisher">The <see cref="HttpEventPublisher"/> instance.</param>
-    /// <param name="url">The target URL.</param>
-    /// <param name="eventData">The event payload.</param>
-    /// <param name="contentType">Custom content type (e.g., "application/xml").</param>
-    /// <returns>A <see cref="Task"/> that represents the asynchronous publish operation. The task result contains the publish result.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="publisher"/>, <paramref name="url"/>, or <paramref name="eventData"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="contentType"/> is <see langword="null"/>.</exception>
-
-    /// <summary>
     /// Publishes an event and returns <see langword="true"/> if the HTTP status code indicates success (2xx).
     /// </summary>
     /// <param name="publisher">The <see cref="HttpEventPublisher"/> instance.</param>
@@ -58,6 +37,15 @@ public static class HttpEventPublisherExtensions
         return result.Success && result.StatusCode is >= 200 and < 300;
     }
 
+    /// <summary>
+    /// Publishes an event with custom headers configured via a fluent action and automatic JSON serialization.
+    /// </summary>
+    /// <param name="publisher">The <see cref="HttpEventPublisher"/> instance.</param>
+    /// <param name="url">The target URL.</param>
+    /// <param name="eventData">The event payload.</param>
+    /// <param name="configureHeaders">Optional action to configure request headers.</param>
+    /// <returns>A <see cref="Task"/> that represents the asynchronous publish operation. The task result contains the publish result.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="publisher"/>, <paramref name="url"/>, or <paramref name="eventData"/> is <see langword="null"/>.</exception>
     public static async Task<HttpPublishResult> PublishAsync(
         this HttpEventPublisher publisher,
         string url,
@@ -74,6 +62,16 @@ public static class HttpEventPublisherExtensions
         return await publisher.PublishAsync(url, eventData, customHeaders);
     }
 
+    /// <summary>
+    /// Publishes an event with a custom content type.
+    /// </summary>
+    /// <param name="publisher">The <see cref="HttpEventPublisher"/> instance.</param>
+    /// <param name="url">The target URL.</param>
+    /// <param name="eventData">The event payload.</param>
+    /// <param name="contentType">Custom content type (e.g., "application/xml").</param>
+    /// <returns>A <see cref="Task"/> that represents the asynchronous publish operation. The task result contains the publish result.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="publisher"/>, <paramref name="url"/>, or <paramref name="eventData"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="contentType"/> is <see langword="null"/>.</exception>
     public static async Task<HttpPublishResult> PublishAsync(
         this HttpEventPublisher publisher,
         string url,

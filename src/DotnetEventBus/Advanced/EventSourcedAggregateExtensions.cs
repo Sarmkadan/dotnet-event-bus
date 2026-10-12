@@ -30,8 +30,8 @@ public static class EventSourcedAggregateExtensions
         ArgumentNullException.ThrowIfNull(aggregate);
 
         // Create a new instance using the same type
-        var clone = (EventSourcedAggregate)Activator.CreateInstance(aggregate.GetType()
-            ?? throw new InvalidOperationException("Cannot create instance of aggregate type"));
+        var clone = (EventSourcedAggregate?)Activator.CreateInstance(aggregate.GetType())
+            ?? throw new InvalidOperationException("Cannot create instance of aggregate type");
 
         // Copy Id if set using reflection since it's protected
         if (aggregate.Id is not null)

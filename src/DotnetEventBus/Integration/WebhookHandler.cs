@@ -239,7 +239,7 @@ public sealed class WebhookHandler
         }
         catch (HttpRequestException ex) when (ex.Data.Contains("StatusCode"))
         {
-            var statusCode = (int)ex.Data["StatusCode"];
+            var statusCode = (int)ex.Data["StatusCode"]!;
             var responseContent = ex.Data["Response"] as string ?? string.Empty;
 
             // Don't retry on client errors (except 408)
@@ -331,7 +331,7 @@ public sealed class WebhookHandler
         // Retry on network errors, timeouts, and server errors
         if (ex is HttpRequestException httpEx && httpEx.Data.Contains("StatusCode"))
         {
-            var statusCode = (int)httpEx.Data["StatusCode"];
+            var statusCode = (int)httpEx.Data["StatusCode"]!;
             // Retry on 5xx, 408 (Request Timeout), and network errors
             return statusCode >= 500 || statusCode == 408;
         }

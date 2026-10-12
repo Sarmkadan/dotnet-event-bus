@@ -12,5 +12,7 @@ jobs:
     - uses: actions/setup-dotnet@v4
       with:
         dotnet-version: '10.0.x'
-    - run: dotnet pack -c Release
+    # GeneratePackageOnBuild makes `dotnet pack` skip compiling on a clean tree, so build first
+    - run: dotnet build -c Release
+    - run: dotnet pack -c Release --no-build
     - run: dotnet nuget push **/*.nupkg --api-key ${{secrets.NUGET_API_KEY}} --source https://api.nuget.org/v3/index.json --skip-duplicate

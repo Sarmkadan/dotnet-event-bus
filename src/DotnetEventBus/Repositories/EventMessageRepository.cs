@@ -69,8 +69,6 @@ public sealed class InMemoryEventMessageRepository : InMemoryRepository<EventMes
         DateTime endUtc,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(startUtc);
-        ArgumentNullException.ThrowIfNull(endUtc);
         if (endUtc < startUtc)
             throw new ArgumentException("End time must be after start time");
 
@@ -113,7 +111,6 @@ public sealed class InMemoryEventMessageRepository : InMemoryRepository<EventMes
 
     public async Task<int> DeleteOldMessagesAsync(TimeSpan retentionPeriod, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(retentionPeriod);
         if (retentionPeriod <= TimeSpan.Zero)
             throw new ArgumentException("Retention period must be greater than zero", nameof(retentionPeriod));
 

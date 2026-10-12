@@ -39,6 +39,7 @@ public static class TypeExtensions
     /// <summary>
     /// Determines if a type is assignable from another type (including null handling).
     /// </summary>
+    /// <param name="type">The type to check assignability from.</param>
     /// <param name="other">The type to check assignability against.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="type"/> is null.</exception>
     /// <returns>True if the type is assignable from other; otherwise false.</returns>

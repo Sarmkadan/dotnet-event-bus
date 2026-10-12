@@ -107,7 +107,6 @@ public sealed class ValidationHelper
     public ValidationHelper RequireMinimumItems<T>(IEnumerable<T>? items, int minimum, string fieldName)
     {
         ArgumentNullException.ThrowIfNull(items);
-        ArgumentNullException.ThrowIfNull(minimum);
         ArgumentNullException.ThrowIfNullOrEmpty(fieldName);
         var count = items?.Count() ?? 0;
         if (count < minimum)
@@ -124,7 +123,6 @@ public sealed class ValidationHelper
     public ValidationHelper RequireMaximumItems<T>(IEnumerable<T>? items, int maximum, string fieldName)
     {
         ArgumentNullException.ThrowIfNull(items);
-        ArgumentNullException.ThrowIfNull(maximum);
         ArgumentNullException.ThrowIfNullOrEmpty(fieldName);
         var count = items?.Count() ?? 0;
         if (count > maximum)

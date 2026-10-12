@@ -62,7 +62,7 @@ public static class EventTransformerExtensions
         ArgumentNullException.ThrowIfNull(transformer);
         ArgumentNullException.ThrowIfNull(postTransform);
 
-        return transformer.Then(target => target is not null ? postTransform(target) : target);
+        return transformer.Then(target => target is not null ? postTransform(target) : target!);
     }
 
     /// <summary>

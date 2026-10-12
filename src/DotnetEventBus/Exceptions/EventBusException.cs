@@ -64,9 +64,9 @@ public sealed class HandlerInvocationException : EventBusException
 /// </summary>
 public sealed class InvalidHandlerException : EventBusException
 {
-    public Type HandlerType { get; }
+    public Type? HandlerType { get; }
 
-    public InvalidHandlerException(Type handlerType)
+    public InvalidHandlerException(Type? handlerType)
     : base(handlerType == null ? "Handler type '' does not implement a valid handler interface" : $"Handler type '{handlerType.FullName}' does not implement a valid handler interface")
     {
         HandlerType = handlerType;

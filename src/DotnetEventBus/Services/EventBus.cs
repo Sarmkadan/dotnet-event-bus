@@ -721,6 +721,9 @@ public sealed class EventBus : IEventBus
         if (string.IsNullOrWhiteSpace(rawPayload))
             throw new ArgumentException("Raw payload cannot be empty", nameof(rawPayload));
 
+        // PublishResult requires a message id, so failures need one even when the caller did not supply a correlation id
+        correlationId ??= Guid.NewGuid().ToString();
+
         Type? eventActualType = Type.GetType(eventType);
         if (eventActualType is null)
         {

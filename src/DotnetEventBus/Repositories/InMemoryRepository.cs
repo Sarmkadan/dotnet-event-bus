@@ -133,6 +133,9 @@ public class InMemoryRepository<T> : IRepository<T> where T : class
             throw new ArgumentNullException(nameof(entity));
 
         var id = GetEntityId(entity);
+        if (string.IsNullOrWhiteSpace(id))
+            throw new ArgumentException("Entity must have a valid ID property", nameof(entity));
+
         return await DeleteAsync(id, cancellationToken);
     }
 
