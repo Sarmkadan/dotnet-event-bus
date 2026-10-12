@@ -5,6 +5,7 @@
 // CTO & Software Architect
 // =============================================================================
 
+using System.Globalization;
 using DotnetEventBus.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -23,11 +24,59 @@ public sealed class RetryHandler
     /// </summary>
     /// <param name="logger">Logger for retry diagnostics.</param>
     /// <param name="options">Event bus options containing retry configuration.</param>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="logger"/> or <paramref name="options"/> is null.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when a retry setting is out of range: <c>MaxRetryAttempts</c> is less than 1,
+    /// <c>RetryDelay</c> is not positive, <c>MaxRetryDelay</c> is less than <c>RetryDelay</c>,
+    /// or <c>RetryDelayMultiplier</c> is less than 1.
+    /// </exception>
     public RetryHandler(ILogger<RetryHandler> logger, EventBusOptions options)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _options = options ?? throw new ArgumentNullException(nameof(options));
+
+        ValidateRetrySettings(options);
     }
+
+    private static void ValidateRetrySettings(EventBusOptions options)
+    {
+        if (options.MaxRetryAttempts < 1)
+        {
+            throw Out(
+                $"MaxRetryAttempts must be at least 1 (received {Invariant(options.MaxRetryAttempts)}).");
+        }
+
+        if (options.RetryDelay <= TimeSpan.Zero)
+        {
+            throw Out(
+                $"RetryDelay must be greater than zero (received {Ms(options.RetryDelay)} ms).");
+        }
+
+        if (options.MaxRetryDelay < options.RetryDelay)
+        {
+            throw Out(
+                $"MaxRetryDelay must be greater than or equal to RetryDelay " +
+                $"(received {Ms(options.MaxRetryDelay)} ms, RetryDelay is {Ms(options.RetryDelay)} ms).");
+        }
+
+        // Negated comparison so that NaN is rejected as well.
+        if (!(options.RetryDelayMultiplier >= 1.0))
+        {
+            throw Out(
+                $"RetryDelayMultiplier must be at least 1.0 (received {Invariant(options.RetryDelayMultiplier)}).");
+        }
+    }
+
+    private static ArgumentOutOfRangeException Out(string message)
+        => new("options", message);
+
+    private static string Invariant(IFormattable value)
+        => value.ToString(null, CultureInfo.InvariantCulture);
+
+    private static string Ms(TimeSpan value)
+        => Invariant(value.TotalMilliseconds);
 
     /// <summary>
     /// Executes an async action with retry logic. On exhausted retries, returns the last exception.
@@ -41,9 +90,7 @@ public sealed class RetryHandler
         string handlerName,
         CancellationToken cancellationToken = default)
     {
-        var maxAttempts = _options.MaxRetryAttempts > 0
-            ? _options.MaxRetryAttempts
-            : EventBusConstants.DefaultMaxRetryAttempts;
+        var maxAttempts = _options.MaxRetryAttempts;
 
         Exception? lastException = null;
 
@@ -95,16 +142,11 @@ public sealed class RetryHandler
     /// <returns>The delay to wait before retrying.</returns>
     public TimeSpan ComputeBackoffDelay(int attempt)
     {
-        var baseDelay = _options.RetryDelay.TotalMilliseconds > 0
-            ? _options.RetryDelay.TotalMilliseconds
-            : EventBusConstants.DefaultRetryDelayMilliseconds;
-
-        var multiplier = _options.RetryDelayMultiplier > 0
-            ? _options.RetryDelayMultiplier
-            : EventBusConstants.DefaultRetryDelayMultiplier;
+        var baseDelay = _options.RetryDelay.TotalMilliseconds;
+        var multiplier = _options.RetryDelayMultiplier;
 
         var delayMs = baseDelay * Math.Pow(multiplier, attempt - 1);
-        var maxDelayMs = EventBusConstants.MaxDefaultRetryDelaySeconds * 1000.0;
+        var maxDelayMs = _options.MaxRetryDelay.TotalMilliseconds;
         delayMs = Math.Min(delayMs, maxDelayMs);
 
         // Add jitter: +/- 25%
