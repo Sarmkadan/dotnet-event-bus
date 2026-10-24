@@ -113,7 +113,7 @@ public sealed class InMemoryRepositoryTests
         // Assert
         Assert.Equal(2, page1.Items.Count);
         Assert.Equal(2, page2.Items.Count);
-        Assert.Equal(1, page3.Items.Count);
+        Assert.Single(page3.Items);
         Assert.Equal(5, page1.TotalCount);
         Assert.Equal(3, page1.TotalPages);
         Assert.True(page1.HasNextPage);

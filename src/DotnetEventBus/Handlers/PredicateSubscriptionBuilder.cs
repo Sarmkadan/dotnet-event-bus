@@ -123,7 +123,7 @@ public sealed class PredicateSubscriptionBuilder<TEvent>
     /// Sets a display name for the subscription used in logging and diagnostics.
     /// </summary>
     /// <param name="name">A descriptive name that identifies this subscription.</param>
-    public PredicateSubscriptionBuilder<TEvent> WithHandlerName(string name)
+    public PredicateSubscriptionBuilder<TEvent> WithHandlerName(string? name)
     {
         _logger?.LogInformation("WithHandlerName called with {name}", name);
         _handlerName = name ?? string.Empty;

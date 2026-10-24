@@ -63,7 +63,7 @@ public sealed class DeadLetterEntry
     public DeadLetterEntry(
         EventMessage message,
         string failedHandlerName,
-        Exception exception,
+        Exception? exception,
         int maxRetryAttempts = 3)
     {
         Id = Guid.NewGuid().ToString();

@@ -5,149 +5,148 @@ using System.Linq;
 using System.Reflection;
 using Xunit;
 
-namespace DotnetEventBus.Tests
+namespace DotnetEventBus.Tests;
+
+public class TypeExtensionsTests
 {
-    public class TypeExtensionsTests
+    [Fact]
+    public void GetFriendlyName_HappyPath_ReturnsExpectedName()
     {
-        [Fact]
-        public void GetFriendlyName_HappyPath_ReturnsExpectedName()
-        {
-            // Arrange
-            var type = typeof(string);
+        // Arrange
+        var type = typeof(string);
 
-            // Act
-            var friendlyName = type.GetFriendlyName();
+        // Act
+        var friendlyName = type.GetFriendlyName();
 
-            // Assert
-            Assert.Equal("String", friendlyName);
-        }
+        // Assert
+        Assert.Equal("String", friendlyName);
+    }
 
-        [Fact]
-        public void IsAssignableFromNullable_HappyPath_ReturnsTrue()
-        {
-            // Arrange
-            var type = typeof(string);
-            var otherType = typeof(string);
+    [Fact]
+    public void IsAssignableFromNullable_HappyPath_ReturnsTrue()
+    {
+        // Arrange
+        var type = typeof(string);
+        var otherType = typeof(string);
 
-            // Act
-            var isAssignable = type.IsAssignableFromNullable(otherType);
+        // Act
+        var isAssignable = type.IsAssignableFromNullable(otherType);
 
-            // Assert
-            Assert.True(isAssignable);
-        }
+        // Assert
+        Assert.True(isAssignable);
+    }
 
-        [Fact]
-        public void Implements_HappyPath_ReturnsTrue()
-        {
-            // Arrange
-            var type = typeof(string);
-            var interfaceType = typeof(IComparable);
+    [Fact]
+    public void Implements_HappyPath_ReturnsTrue()
+    {
+        // Arrange
+        var type = typeof(string);
+        var interfaceType = typeof(IComparable);
 
-            // Act
-            var implements = type.Implements<IComparable>();
+        // Act
+        var implements = type.Implements<IComparable>();
 
-            // Assert
-            Assert.True(implements);
-        }
+        // Assert
+        Assert.True(implements);
+    }
 
-        [Fact]
-        public void IsNullableType_HappyPath_ReturnsTrue()
-        {
-            // Arrange
-            var type = typeof(string);
+    [Fact]
+    public void IsNullableType_HappyPath_ReturnsTrue()
+    {
+        // Arrange
+        var type = typeof(string);
 
-            // Act
-            var isNullable = type.IsNullableType();
+        // Act
+        var isNullable = type.IsNullableType();
 
-            // Assert
-            Assert.True(isNullable);
-        }
+        // Assert
+        Assert.True(isNullable);
+    }
 
-        [Fact]
-        public void GetAllInterfaces_HappyPath_ReturnsExpectedInterfaces()
-        {
-            // Arrange
-            var type = typeof(string);
+    [Fact]
+    public void GetAllInterfaces_HappyPath_ReturnsExpectedInterfaces()
+    {
+        // Arrange
+        var type = typeof(string);
 
-            // Act
-            var interfaces = type.GetAllInterfaces();
+        // Act
+        var interfaces = type.GetAllInterfaces();
 
-            // Assert
-            Assert.Contains(typeof(IComparable), interfaces);
-        }
+        // Assert
+        Assert.Contains(typeof(IComparable), interfaces);
+    }
 
-        [Fact]
-        public void IsInstantiable_HappyPath_ReturnsTrue()
-        {
-            // Arrange
-            var type = typeof(string);
+    [Fact]
+    public void IsInstantiable_HappyPath_ReturnsTrue()
+    {
+        // Arrange
+        var type = typeof(string);
 
-            // Act
-            var isInstantiable = type.IsInstantiable();
+        // Act
+        var isInstantiable = type.IsInstantiable();
 
-            // Assert
-            Assert.True(isInstantiable);
-        }
+        // Assert
+        Assert.True(isInstantiable);
+    }
 
-        [Fact]
-        public void GetFullTypeNameWithGenerics_HappyPath_ReturnsExpectedName()
-        {
-            // Arrange
-            var type = typeof(List<string>);
+    [Fact]
+    public void GetFullTypeNameWithGenerics_HappyPath_ReturnsExpectedName()
+    {
+        // Arrange
+        var type = typeof(List<string>);
 
-            // Act
-            var fullName = type.GetFullTypeNameWithGenerics();
+        // Act
+        var fullName = type.GetFullTypeNameWithGenerics();
 
-            // Assert
-            Assert.Equal("System.Collections.Generic.List`1[[System.String]]", fullName);
-        }
+        // Assert
+        Assert.Equal("System.Collections.Generic.List`1[[System.String]]", fullName);
+    }
 
-        [Fact]
-        public void InheritsFrom_HappyPath_ReturnsTrue()
-        {
-            // Arrange
-            var type = typeof(string);
-            var baseType = typeof(object);
+    [Fact]
+    public void InheritsFrom_HappyPath_ReturnsTrue()
+    {
+        // Arrange
+        var type = typeof(string);
+        var baseType = typeof(object);
 
-            // Act
-            var inherits = type.InheritsFrom(baseType);
+        // Act
+        var inherits = type.InheritsFrom(baseType);
 
-            // Assert
-            Assert.True(inherits);
-        }
+        // Assert
+        Assert.True(inherits);
+    }
 
-        [Fact]
-        public void GetAllPublicProperties_HappyPath_ReturnsExpectedProperties()
-        {
-            // Arrange
-            var type = typeof(string);
+    [Fact]
+    public void GetAllPublicProperties_HappyPath_ReturnsExpectedProperties()
+    {
+        // Arrange
+        var type = typeof(string);
 
-            // Act
-            var properties = type.GetAllPublicProperties();
+        // Act
+        var properties = type.GetAllPublicProperties();
 
-            // Assert
-            Assert.Contains(typeof(string).GetProperty("Length"), properties);
-        }
+        // Assert
+        Assert.Contains(typeof(string).GetProperty("Length"), properties);
+    }
 
-        [Fact]
-        public void GetFriendlyName_NullInput_ThrowsArgumentNullException()
-        {
-            // Act and Assert
-            Assert.Throws<ArgumentNullException>(() => ((Type)null).GetFriendlyName());
-        }
+    [Fact]
+    public void GetFriendlyName_NullInput_ThrowsArgumentNullException()
+    {
+        // Act and Assert
+        Assert.Throws<ArgumentNullException>(() => ((Type)null!).GetFriendlyName());
+    }
 
-        [Fact]
-        public void IsAssignableFromNullable_NullInput_ThrowsArgumentNullException()
-        {
-            // Act and Assert
-            Assert.Throws<ArgumentNullException>(() => ((Type)null).IsAssignableFromNullable(typeof(string)));
-        }
+    [Fact]
+    public void IsAssignableFromNullable_NullInput_ThrowsArgumentNullException()
+    {
+        // Act and Assert
+        Assert.Throws<ArgumentNullException>(() => ((Type)null!).IsAssignableFromNullable(typeof(string)));
+    }
 
-        [Fact]
-        public void Implements_NullInput_ThrowsArgumentNullException()
-        {
-            // Act and Assert
-            Assert.Throws<ArgumentNullException>(() => ((Type)null).Implements<IComparable>());
-        }
+    [Fact]
+    public void Implements_NullInput_ThrowsArgumentNullException()
+    {
+        // Act and Assert
+        Assert.Throws<ArgumentNullException>(() => ((Type)null!).Implements<IComparable>());
     }
 }

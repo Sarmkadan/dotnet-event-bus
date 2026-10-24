@@ -267,7 +267,7 @@ public sealed class RequestResponsePatternTests
         var request = new TestRequest();
 
         // Act - fire 10k timing-out requests concurrently with short timeout
-        var tasks = new Task<TestResponse>[10000];
+        var tasks = new Task<TestResponse?>[10000];
         for (int i = 0; i < 10000; i++)
         {
             tasks[i] = requestResponseBus.RequestAsync<TestRequest, TestResponse>(
@@ -334,7 +334,7 @@ public sealed class RequestResponsePatternTests
         var request = new TestRequest();
 
         // Act - fire 5k timeout requests and 5k requests with short timeout
-        var tasks = new Task<TestResponse>[10000];
+        var tasks = new Task<TestResponse?>[10000];
         for (int i = 0; i < 5000; i++)
         {
             tasks[i] = requestResponseBus.RequestAsync<TestRequest, TestResponse>(
@@ -375,7 +375,6 @@ public sealed class RequestResponsePatternTests
 
         // Assert
         Assert.Empty(auditResults);
-        Assert.Equal(0, auditResults.Count);
     }
 
     [Fact]
