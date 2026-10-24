@@ -57,6 +57,7 @@ public sealed class EventSourcedAggregateExtensionsTests
         clone.Should().NotBeSameAs(aggregate);
         clone.Should().BeOfType<TestAggregate>();
         clone.UncommittedEvents.Should().HaveCount(1);
+        ((TestAggregate)clone).Name.Should().Be("Alice");
     }
 
     [Fact]
