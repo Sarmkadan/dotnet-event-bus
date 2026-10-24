@@ -319,4 +319,105 @@ public class EventBusBuilderValidationTests
         exception.Message.Should().Contain("MaxRetryAttempts cannot be negative");
         exception.Message.Should().Contain("RetryDelay cannot be negative");
     }
+
+    [Fact]
+    public void Validate_WithPositiveMaxConcurrentHandlersAndParallelHandlingDisabled_ReturnsEmptyList()
+    {
+        // Arrange
+        // The validator does not cross-check AllowParallelHandling: a positive limit is accepted and
+        // still gates handler invocation through the concurrency limiter on the sequential path.
+        var services = new ServiceCollection();
+        var builder = services.AddEventBusBuilder();
+        builder.WithParallelHandling(false);
+        builder.WithMaxConcurrentHandlers(4);
+
+        // Act
+        var errors = builder.Validate();
+
+        // Assert
+        errors.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(int.MinValue)]
+    public void Validate_WithNonPositiveMaxConcurrentHandlersAndParallelHandlingEnabled_ReturnsError(int maxConcurrent)
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        var builder = services.AddEventBusBuilder();
+        builder.WithOptions(options =>
+        {
+            options.AllowParallelHandling = true;
+            options.MaxConcurrentHandlers = maxConcurrent;
+        });
+
+        // Act
+        var errors = builder.Validate();
+
+        // Assert
+        errors.Should().ContainSingle()
+            .Which.Should().Contain($"MaxConcurrentHandlers must be at least 1 (current: {maxConcurrent})");
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void EnsureValid_WithNonPositiveMaxConcurrentHandlersAndParallelHandlingEnabled_ThrowsArgumentException(
+        int maxConcurrent)
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        var builder = services.AddEventBusBuilder();
+        builder.WithOptions(options =>
+        {
+            options.AllowParallelHandling = true;
+            options.MaxConcurrentHandlers = maxConcurrent;
+        });
+
+        // Act
+        var act = () => builder.EnsureValid();
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*MaxConcurrentHandlers must be at least 1*");
+    }
+
+    [Fact]
+    public void Validate_WithZeroMaxConcurrentHandlersAndParallelHandlingDisabled_StillReturnsError()
+    {
+        // Arrange
+        // The non-positive limit rule is unconditional and does not depend on AllowParallelHandling.
+        var services = new ServiceCollection();
+        var builder = services.AddEventBusBuilder();
+        builder.WithOptions(options =>
+        {
+            options.AllowParallelHandling = false;
+            options.MaxConcurrentHandlers = 0;
+        });
+
+        // Act
+        var errors = builder.Validate();
+
+        // Assert
+        errors.Should().ContainSingle()
+            .Which.Should().Contain("MaxConcurrentHandlers must be at least 1");
+    }
+
+    [Fact]
+    public void Validate_WithDefaultMaxConcurrentHandlersAndParallelHandlingEnabled_ReturnsEmptyList()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        var builder = services.AddEventBusBuilder();
+        builder.WithParallelHandling(true);
+
+        // Act
+        var errors = builder.Validate();
+
+        // Assert
+        new EventBusOptions().MaxConcurrentHandlers.Should().Be(Environment.ProcessorCount);
+        errors.Should().BeEmpty();
+    }
 }
