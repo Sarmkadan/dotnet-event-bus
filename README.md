@@ -1,3 +1,5 @@
+See [CONTRIBUTING.md](CONTRIBUTING.md) for build, test, and pull request guidelines.
+
 ## Getting started
 
 This walkthrough builds a small ASP.NET Core API that publishes an `OrderPlacedEvent` from a controller and handles it in a handler class. It targets .NET 10.
