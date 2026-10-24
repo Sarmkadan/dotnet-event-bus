@@ -92,9 +92,40 @@ public sealed class MessageSerializationException : EventBusException
 /// </summary>
 public sealed class DistributedBusNotConfiguredException : EventBusException
 {
+    private const string DefaultMessage =
+        "Distributed event bus is not properly configured. Ensure transport is registered.";
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DistributedBusNotConfiguredException"/> class
+    /// with the default message.
+    /// </summary>
     public DistributedBusNotConfiguredException()
-    : base("Distributed event bus is not properly configured. Ensure transport is registered.")
+    : base(DefaultMessage)
     {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DistributedBusNotConfiguredException"/> class with a message.
+    /// </summary>
+    /// <param name="message">A message describing the configuration problem.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="message"/> is <see langword="null"/>.</exception>
+    public DistributedBusNotConfiguredException(string message)
+    : base(message)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DistributedBusNotConfiguredException"/> class
+    /// with a message and inner exception.
+    /// </summary>
+    /// <param name="message">A message describing the configuration problem.</param>
+    /// <param name="innerException">The exception that caused the problem, or <see langword="null"/>.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="message"/> is <see langword="null"/>.</exception>
+    public DistributedBusNotConfiguredException(string message, Exception? innerException)
+    : base(message, innerException)
+    {
+        ArgumentNullException.ThrowIfNull(message);
     }
 }
 
@@ -103,11 +134,35 @@ public sealed class DistributedBusNotConfiguredException : EventBusException
 /// </summary>
 public sealed class RequestTimeoutException : EventBusException
 {
+    /// <summary>
+    /// Gets the type name of the request that timed out.
+    /// </summary>
     public string RequestType { get; }
+
+    /// <summary>
+    /// Gets the timeout that was exceeded while waiting for a reply.
+    /// </summary>
     public TimeSpan Timeout { get; }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="RequestTimeoutException"/> class.
+    /// </summary>
+    /// <param name="requestType">The type name of the request that timed out.</param>
+    /// <param name="timeout">The timeout that was exceeded.</param>
     public RequestTimeoutException(string requestType, TimeSpan timeout)
-    : base($"Request of type '{requestType}' timed out after {timeout.TotalSeconds} seconds")
+    : this(requestType, timeout, null)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="RequestTimeoutException"/> class
+    /// with an inner exception.
+    /// </summary>
+    /// <param name="requestType">The type name of the request that timed out.</param>
+    /// <param name="timeout">The timeout that was exceeded.</param>
+    /// <param name="innerException">The exception that caused the timeout, or <see langword="null"/>.</param>
+    public RequestTimeoutException(string requestType, TimeSpan timeout, Exception? innerException)
+    : base($"Request of type '{requestType}' timed out after {timeout.TotalSeconds} seconds", innerException)
     {
         RequestType = requestType;
         Timeout = timeout;
