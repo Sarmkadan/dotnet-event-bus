@@ -165,4 +165,63 @@ public class CircuitBreakerValidationTests
         // Assert
         isValid.Should().BeTrue();
     }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(int.MinValue)]
+    public void Constructor_WithNonPositiveFailureThreshold_ThrowsExactArgumentExceptionNamingFailureThreshold(int failureThreshold)
+    {
+        // Arrange
+        Action act = () => _ = new CircuitBreaker(failureThreshold: failureThreshold);
+
+        // Act
+        var exception = act.Should().Throw<ArgumentException>().Which;
+
+        // Assert
+        exception.GetType().Should().Be(typeof(ArgumentException));
+        exception.ParamName.Should().Be("failureThreshold");
+        exception.Message.Should().Contain("Failure threshold must be positive");
+    }
+
+    [Fact]
+    public void Constructor_WithMinimumFailureThreshold_IsAcceptedAndValid()
+    {
+        // Arrange & Act
+        var circuitBreaker = new CircuitBreaker(failureThreshold: 1, timeout: TimeSpan.FromSeconds(30));
+
+        // Assert
+        circuitBreaker.IsValid().Should().BeTrue();
+        circuitBreaker.Validate().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithMinimumFailureThreshold_OpensAfterSingleFailure()
+    {
+        // Arrange
+        var circuitBreaker = new CircuitBreaker(failureThreshold: 1, timeout: TimeSpan.FromMinutes(1));
+        Func<Task<int>> failing = () => Task.FromException<int>(new TimeoutException("Failure"));
+
+        // Act
+        var act = () => circuitBreaker.ExecuteAsync(failing);
+
+        // Assert
+        await act.Should().ThrowAsync<TimeoutException>();
+        circuitBreaker.State.Should().Be(CircuitBreakerState.Open);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithThresholdJustAboveMinimum_RemainsClosedAfterSingleFailure()
+    {
+        // Arrange
+        var circuitBreaker = new CircuitBreaker(failureThreshold: 2, timeout: TimeSpan.FromMinutes(1));
+        Func<Task<int>> failing = () => Task.FromException<int>(new TimeoutException("Failure"));
+
+        // Act
+        var act = () => circuitBreaker.ExecuteAsync(failing);
+
+        // Assert
+        await act.Should().ThrowAsync<TimeoutException>();
+        circuitBreaker.State.Should().Be(CircuitBreakerState.Closed);
+    }
 }
