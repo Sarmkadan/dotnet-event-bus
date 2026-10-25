@@ -517,6 +517,92 @@ public class MyEventType
 }
 ```
 
+## CsvEventFormatter
+
+`CsvEventFormatter` (`src/DotnetEventBus/Formatters/CsvEventFormatter.cs`) implements `IEventFormatter` and writes events as CSV for bulk export and reporting. It is serialization only: `Deserialize` throws `NotSupportedException`. Columns come from the public, readable instance properties of the event's runtime type, so anonymous types, records and classes all work.
+
+Format name `csv`, content type `text/csv`.
+
+### Constructor
+
+```csharp
+public CsvEventFormatter(string delimiter = ",", bool includeHeaders = true)
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `delimiter` | `","` | Separator between fields. Use a non-empty value; it is not validated. |
+| `includeHeaders` | `true` | When `true`, output starts with a header row of property names (and metadata keys). |
+
+### Public API
+
+| Member | Description |
+|--------|-------------|
+| `string Format` | Always `"csv"`. |
+| `string ContentType` | Always `"text/csv"`. |
+| `string Delimiter` | The delimiter passed to the constructor. |
+| `bool IncludeHeaders` | Whether a header row is written. |
+| `string Serialize(object data, bool prettyPrint = false)` | Returns the header row (if enabled) and one value row for `data`. `prettyPrint` has no effect. Throws `ArgumentNullException` if `data` is `null`. |
+| `string FormatEvent(object eventData, bool includePrettyPrint = false)` | Same output as `Serialize`. `includePrettyPrint` has no effect. |
+| `string FormatEventWithMetadata(object eventData, Dictionary<string, object> metadata, bool includePrettyPrint = false)` | Returns the event's columns followed by one column per metadata entry. Metadata keys are appended to the header row. `includePrettyPrint` has no effect. |
+| `T? Deserialize<T>(string data) where T : class` | Always throws `NotSupportedException`. |
+| `object? Deserialize(string data, Type targetType)` | Always throws `NotSupportedException`. |
+
+### Output rules
+
+- Each line, header and value, ends with a newline.
+- Each call writes exactly one value row. To export many events into one file, create the formatter with `includeHeaders: false` for the rows after the first, or write the header once yourself.
+- A `null` property value or metadata value is written as an empty field.
+- Values are written with `ToString()`, so numbers and dates use the current culture. In a culture that uses `,` as the decimal separator, `299.99m` becomes `299,99` and is quoted when the delimiter is `,`.
+- A field is wrapped in double quotes when it contains the delimiter, a double quote or a `\n`. Embedded double quotes are doubled. A bare `\r` does not trigger quoting.
+- A property whose getter throws is written as an empty field.
+- Only public, instance properties with a getter are included. Write-only and non-public properties are skipped.
+- `FormatEventWithMetadata` does not check its arguments for `null`. Use `Serialize` when you want the `ArgumentNullException` check.
+
+### Usage
+
+```csharp
+using DotnetEventBus.Formatters;
+
+public sealed record OrderPlaced(string OrderId, decimal Total, string CustomerName);
+
+var formatter = new CsvEventFormatter();
+string csv = formatter.Serialize(new OrderPlaced("ORD-123", 299.99m, "Alice, Jr."));
+
+// OrderId,Total,CustomerName
+// ORD-123,299.99,"Alice, Jr."
+```
+
+Export rows with a custom delimiter and no header:
+
+```csharp
+var semicolon = new CsvEventFormatter(delimiter: ";", includeHeaders: false);
+string row = semicolon.Serialize(new OrderPlaced("ORD-124", 5m, "Bob"));
+
+// ORD-124;5;Bob
+```
+
+Add metadata columns:
+
+```csharp
+var metadata = new Dictionary<string, object>
+{
+    ["EventType"] = nameof(OrderPlaced),
+    ["ReceivedAt"] = DateTimeOffset.UtcNow.ToString("O"),
+};
+
+string line = formatter.FormatEventWithMetadata(new OrderPlaced("ORD-123", 299.99m, "Alice, Jr."), metadata);
+
+// OrderId,Total,CustomerName,EventType,ReceivedAt
+// ORD-123,299.99,"Alice, Jr.",OrderPlaced,2026-10-25T12:00:00.0000000+00:00
+```
+
+Get the default CSV formatter from the factory:
+
+```csharp
+var csvFormatter = EventFormatterFactory.CreateDefault().GetFormatter("csv");
+```
+
 ## DeadLetterService
 
 `DeadLetterService` (namespace `DotnetEventBus.Services`) implements `IDeadLetterService` and manages entries that could not be processed normally. `AddEventBus` registers the service, its repository, and the event bus as singletons, so applications using dependency injection should normally resolve `IDeadLetterService` instead of constructing the implementation directly. Every asynchronous operation accepts an optional `CancellationToken`.
