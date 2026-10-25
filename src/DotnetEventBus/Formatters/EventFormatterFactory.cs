@@ -21,6 +21,14 @@ public sealed class EventFormatterFactory
     private readonly Dictionary<string, IEventFormatter> _formatters = [];
 
     /// <summary>
+    /// Initializes a new, empty factory with no formatters registered.
+    /// Use <see cref="CreateDefault"/> to get a factory with the standard formatters.
+    /// </summary>
+    public EventFormatterFactory()
+    {
+    }
+
+    /// <summary>
     /// Creates a new factory with standard formatters (JSON, CSV, XML) pre-registered.
     /// </summary>
     public static EventFormatterFactory CreateDefault()
