@@ -58,6 +58,7 @@ public sealed class EventTransformer<TSource, TTarget> where TSource : class whe
     /// </summary>
     public IEnumerable<TTarget> TransformMany(IEnumerable<TSource> sourceEvents)
     {
+        ArgumentNullException.ThrowIfNull(sourceEvents);
         return sourceEvents.Select(Transform);
     }
 
@@ -67,6 +68,7 @@ public sealed class EventTransformer<TSource, TTarget> where TSource : class whe
     public EventTransformer<TSource, TIntermediate> Chain<TIntermediate>(
         Func<TTarget, TIntermediate> chainTransform) where TIntermediate : class
     {
+        ArgumentNullException.ThrowIfNull(chainTransform);
         return new EventTransformer<TSource, TIntermediate>(source =>
         {
             var intermediate = Transform(source);
@@ -86,6 +88,7 @@ public sealed class EventTransformerBuilder
     public static EventTransformer<TSource, TTarget> CreateTransformer<TSource, TTarget>(
         Func<TSource, TTarget> mapFunc) where TSource : class where TTarget : class
     {
+        ArgumentNullException.ThrowIfNull(mapFunc);
         return new EventTransformer<TSource, TTarget>(mapFunc);
     }
 
