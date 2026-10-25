@@ -113,6 +113,17 @@ public sealed class DeadLetterEntry
         return $"Dead Letter [{Id}]: {FailedHandlerName} failed to process {Message.EventType}" +
                $" at {CreatedAtUtc:O}. Error: {ExceptionMessage}";
     }
+
+    /// <summary>
+    /// Returns a compact single-line summary of key fields for debugging and logging.
+    /// The stack trace and message payload are intentionally omitted.
+    /// </summary>
+    public override string ToString()
+    {
+        return $"DeadLetterEntry[Id={Id}, EventType={Message.EventType}, Handler={FailedHandlerName}, " +
+               $"Status={Status}, MaxRetryAttempts={MaxRetryAttempts}, CreatedAtUtc={CreatedAtUtc:O}, " +
+               $"Error={ExceptionMessage}, StatusReason={StatusReason ?? "<none>"}]";
+    }
 }
 
 /// <summary>
