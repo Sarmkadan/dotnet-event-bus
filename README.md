@@ -995,6 +995,92 @@ catch (RateLimitExceededException ex)
 }
 ```
 
+## ErrorHandlingMiddleware
+
+`ErrorHandlingMiddleware` (namespace `DotnetEventBus.Middleware`) is a sealed middleware component that runs the rest of the pipeline again when a step throws. After the last attempt fails, it can call an optional recovery callback. If the callback does not recover the event, the middleware throws `EventProcessingException` with the last exception as its `InnerException`. Create the middleware with a logger and its retry settings, then add its `Create` method to a `PipelineBuilder` with `Use`. Put the steps that should be retried after this middleware in the pipeline, because the retries re-run only the steps that come after it.
+
+Public API:
+- `ErrorHandlingMiddleware(ILogger<ErrorHandlingMiddleware> logger, int maxRetries = 3, TimeSpan? retryDelay = null, Func<EventContext, Exception, Task<bool>>? errorHandler = null)` — creates the middleware. Throws `ArgumentNullException` when `logger` is `null`. `maxRetries` is the total number of attempts, including the first one (default `3`). `retryDelay` is the fixed wait between attempts (default 1 second when `null`). `errorHandler` is the optional recovery callback. `maxRetries` and `retryDelay` are not validated by the constructor (see the notes below).
+- `EventBusMiddleware Create(EventBusMiddleware next)` — returns the pipeline step that wraps `next`. The step calls `next(context)` once per attempt. The instance holds only read-only settings, so the same middleware can be used by several pipelines.
+- `public sealed class EventProcessingException : Exception` — thrown when all attempts fail and the error handler does not recover the event. Its constructor is `EventProcessingException(string message, Exception? innerException = null)`. The message has the form `Event {EventType} failed after {maxRetries} retries`, and `InnerException` holds the exception from the last attempt.
+
+Behavior for each event:
+1. Calls `next(context)`. If it completes, the step sets `context.IsProcessed = true` and returns.
+2. If it throws, the step stores the exception in `context.ProcessingException` and the attempt number in `context.Metadata["attempt"]` (as an `int`), logs a `Warning`, and waits `retryDelay` before the next attempt. The wait is not applied after the last attempt.
+3. After the last attempt fails, if `errorHandler` is set, the step calls `errorHandler(context, lastException)`:
+   - If it returns `true`, the event counts as recovered. The step sets `context.IsProcessed = true`, sets `context.Metadata["recoveredByHandler"] = true`, and returns normally.
+   - If it returns `false`, the step continues with step 4.
+4. Otherwise, the step sets `context.IsProcessed = false`, logs an `Error` with the last exception, and throws `EventProcessingException`.
+
+Behavior notes:
+- Every exception is retried, including `OperationCanceledException`. The delay does not observe any cancellation token, so cancellation does not stop the retries.
+- The retry delay is fixed. There is no exponential backoff and no jitter. For those, use `RetryPolicy` (see [RetryPolicy](#retrypolicy)) inside a handler.
+- `Metadata["attempt"]` holds the number of the most recent failed attempt. If the first attempt succeeds, the key is not set.
+- An exception thrown by `errorHandler` is not caught. It propagates to the caller as is, and it is not retried.
+- `maxRetries` is not validated by the constructor. With `0` or a negative value, the loop never runs: the step returns without calling `next`, sets `IsProcessed = false`, and throws nothing. Use a value of at least `1`. `AddErrorHandling` (below) rejects a negative value with `ArgumentOutOfRangeException`, but it does not reject `0`.
+- Logging: an `Information` entry when `Create` is called, one at the start and one at the success of each event, a `Warning` for each failed attempt (with the exception message only), and an `Error` with the full exception when the event fails.
+
+Example usage:
+```csharp
+using DotnetEventBus.Middleware;
+using Microsoft.Extensions.Logging;
+
+ILogger<ErrorHandlingMiddleware> logger = loggerFactory.CreateLogger<ErrorHandlingMiddleware>();
+
+// Make up to 4 attempts, waiting 500 ms between them.
+var errorHandling = new ErrorHandlingMiddleware(
+    logger,
+    maxRetries: 4,
+    retryDelay: TimeSpan.FromMilliseconds(500),
+    errorHandler: RecoverAsync);
+
+async Task<bool> RecoverAsync(EventContext context, Exception exception)
+{
+    // Save the event for later processing, for example to a dead-letter store.
+    await Task.Delay(10);
+
+    // true: the event is treated as processed. false: EventProcessingException is thrown.
+    return true;
+}
+
+EventBusMiddleware pipeline = new PipelineBuilder()
+    .Use(errorHandling.Create)
+    .Use(next => async context =>
+    {
+        // This step is retried when it throws, because it runs after the error handling step.
+        await Task.Delay(10);
+        await next(context);
+    })
+    .Build();
+
+var context = new EventContext
+{
+    EventType = "OrderCreated",
+    EventData = new { OrderId = 42 }
+};
+
+try
+{
+    await pipeline(context);
+}
+catch (EventProcessingException ex)
+{
+    // The event was not recovered. The exception from the last attempt is in InnerException.
+    Console.WriteLine($"{ex.Message}: {ex.InnerException?.Message}");
+}
+```
+
+The `AddErrorHandling` extension method on `PipelineBuilder` (namespace `DotnetEventBus.Configuration`) creates the middleware for you and registers it. It takes an `ILoggerFactory` instead of a logger, and it accepts the same `maxRetries`, `retryDelay`, and `errorHandler` parameters:
+
+```csharp
+using DotnetEventBus.Configuration;
+using DotnetEventBus.Middleware;
+
+EventBusMiddleware pipeline = new PipelineBuilder()
+    .AddErrorHandling(loggerFactory, maxRetries: 3, retryDelay: TimeSpan.FromSeconds(2))
+    .Build();
+```
+
 ## PipelineBuilderTests
 
 The `PipelineBuilderTests` class provides comprehensive unit tests for the `PipelineBuilder` middleware pipeline construction. It verifies middleware registration, execution order, context manipulation, error handling, and pipeline building scenarios. The tests cover both synchronous and asynchronous middleware execution, short-circuiting behavior, exception handling, and proper initialization of event context.
