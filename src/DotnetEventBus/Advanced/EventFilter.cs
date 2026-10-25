@@ -44,6 +44,7 @@ public sealed class EventFilter<T> where T : class
     /// <returns>The current filter instance for fluent chaining.</returns>
     public EventFilter<T> WhereProperty<TProperty>(Func<T, TProperty> propertySelector, TProperty expectedValue)
     {
+        ArgumentNullException.ThrowIfNull(propertySelector);
         return Where(x => propertySelector(x)?.Equals(expectedValue) ?? false);
     }
 
@@ -59,6 +60,7 @@ public sealed class EventFilter<T> where T : class
         TProperty min,
         TProperty max) where TProperty : IComparable<TProperty>
     {
+        ArgumentNullException.ThrowIfNull(propertySelector);
         return Where(x =>
         {
             var value = propertySelector(x);
@@ -74,6 +76,8 @@ public sealed class EventFilter<T> where T : class
     /// <returns>The current filter instance for fluent chaining.</returns>
     public EventFilter<T> WherePropertyContains(Func<T, string?> propertySelector, string value)
     {
+        ArgumentNullException.ThrowIfNull(propertySelector);
+        ArgumentNullException.ThrowIfNull(value);
         return Where(x => (propertySelector(x) ?? string.Empty).Contains(value, StringComparison.OrdinalIgnoreCase));
     }
 
@@ -84,6 +88,7 @@ public sealed class EventFilter<T> where T : class
     /// <returns>The current filter instance for fluent chaining.</returns>
     public EventFilter<T> Not(Func<T, bool> predicate)
     {
+        ArgumentNullException.ThrowIfNull(predicate);
         return Where(x => !predicate(x));
     }
 
@@ -131,6 +136,7 @@ public sealed class EventFilter<T> where T : class
     /// <returns>True if the event matches all filters; otherwise, false.</returns>
     public bool Matches(T @event)
     {
+        ArgumentNullException.ThrowIfNull(@event);
         return Compile()(@event);
     }
 
@@ -141,6 +147,7 @@ public sealed class EventFilter<T> where T : class
     /// <returns>An enumerable containing only the events that match all filters.</returns>
     public IEnumerable<T> FilterCollection(IEnumerable<T> events)
     {
+        ArgumentNullException.ThrowIfNull(events);
         return events.Where(Matches);
     }
 
