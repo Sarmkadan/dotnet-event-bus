@@ -3510,3 +3510,87 @@ IEventHandler handler = new OrderPlacedHandler();
 // Returns typeof(OrderPlacedEvent) for this handler.
 IEnumerable<Type> types = invoker.GetSupportedEventTypes(handler);
 ```
+
+## PerformanceProfiler
+
+`PerformanceProfiler` (namespace `DotnetEventBus.Performance`) measures how long named operations take and keeps the timings in memory. Wrap the code you want to measure with `Profile` or `ProfileAsync`, then read the results with `GetStats`, `GetAllStats`, `GetSummary`, or `GenerateReport`. Timings are wall-clock durations taken from `Stopwatch` and stored as whole milliseconds, so an operation that finishes in under 1 ms is recorded as `0`.
+
+Each execution adds one entry to an in-memory list per operation name, and the lists grow until `Reset()` is called. Use the profiler for development, benchmarking, and diagnostics rather than leaving it on for every request in production. An instance is **not thread-safe**: `Profile`, `ProfileAsync`, and the query methods read and write unsynchronized dictionaries and lists. Use one instance per thread, or wrap every call in your own lock when you share it.
+
+Public API:
+
+- `PerformanceProfiler()` creates an empty profiler and starts the session clock.
+- `T Profile<T>(string operationName, Func<T> operation)` runs `operation`, records its elapsed time under `operationName`, and returns its result.
+- `void Profile(string operationName, Action operation)` runs `operation` and records its elapsed time.
+- `Task<T> ProfileAsync<T>(string operationName, Func<Task<T>> operation)` awaits `operation` and records the time until the task completes.
+- `OperationStats? GetStats(string operationName)` returns statistics for one operation, or `null` when nothing has been recorded under that name.
+- `IEnumerable<OperationStats> GetAllStats()` returns statistics for every recorded operation. The order is not defined; sort the results yourself if you need a specific order.
+- `ProfilingSessionSummary GetSummary()` returns totals for the current session.
+- `string GenerateReport()` returns a text report with the session summary followed by each operation, ordered by descending `TotalTimeMs`. The format is meant for people to read and may change, so use the model properties for programmatic access.
+- `void Reset()` discards all recorded timings and restarts the session clock.
+
+`Profile` and `ProfileAsync` throw `ArgumentNullException` when `operationName` or `operation` is `null`. If the delegate throws, the exception propagates unchanged and the elapsed time is still recorded. The timing methods do not add any other exception handling.
+
+The returned models expose the following data:
+
+- `OperationStats`: `OperationName`, `ExecutionCount`, and the timings in milliseconds: `TotalTimeMs`, `AverageTimeMs`, `MinTimeMs`, `MaxTimeMs`, `MedianTimeMs`, `P95TimeMs`, and `P99TimeMs`. Average, median, and percentiles are `double` values.
+- `ProfilingSessionSummary`: `SessionDuration` (time since construction or the last `Reset()`), `OperationCount` (distinct operation names), `TotalExecutions`, `TotalTimeMs`, `AverageTimeMs` across all executions, and `ThroughputPerSecond`, which is total executions divided by `SessionDuration`. Idle time between calls counts toward the session duration.
+
+Statistics are calculated over every recorded execution. The median is the mean of the two middle values when the count is even. Percentiles use the nearest-rank method: the value at position `ceil(p / 100 × count)` in the sorted timings, so `P95TimeMs` is the smallest recorded value that is at least as large as 95% of the executions.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Models;
+using DotnetEventBus.Performance;
+using DotnetEventBus.Services;
+
+public sealed record OrderPlacedEvent(string OrderId);
+
+public sealed class OrderPublisher(IEventBus bus)
+{
+    private readonly PerformanceProfiler _profiler = new();
+
+    public async Task<PublishResult> PublishAsync(string orderId, CancellationToken cancellationToken)
+    {
+        return await _profiler.ProfileAsync(
+            "Publish:OrderPlaced",
+            () => bus.PublishAsync(new OrderPlacedEvent(orderId), cancellationToken: cancellationToken));
+    }
+
+    public void PrintReport()
+    {
+        OperationStats? stats = _profiler.GetStats("Publish:OrderPlaced");
+        if (stats is not null)
+        {
+            Console.WriteLine(
+                $"{stats.OperationName}: {stats.ExecutionCount} run(s), " +
+                $"average {stats.AverageTimeMs:F1} ms, p95 {stats.P95TimeMs:F1} ms");
+        }
+
+        Console.WriteLine(_profiler.GenerateReport());
+    }
+}
+```
+
+Synchronous operations and session totals:
+
+```csharp
+using DotnetEventBus.Performance;
+
+var profiler = new PerformanceProfiler();
+
+// Synchronous operation with a return value.
+int total = profiler.Profile("SumNumbers", () => Enumerable.Range(1, 1_000).Sum());
+
+// Synchronous operation without a return value.
+profiler.Profile("WriteLine", () => Console.WriteLine($"Total: {total}"));
+
+// Session-wide totals.
+ProfilingSessionSummary summary = profiler.GetSummary();
+Console.WriteLine($"{summary.TotalExecutions} executions across {summary.OperationCount} operations");
+Console.WriteLine($"Throughput: {summary.ThroughputPerSecond:F2} ops/sec");
+
+// Discard the data and start a new session.
+profiler.Reset();
+```
