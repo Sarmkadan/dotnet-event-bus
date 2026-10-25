@@ -735,6 +735,53 @@ await pipeline(context);
 builder.Clear();
 ```
 
+## RateLimitingMiddleware
+
+`RateLimitingMiddleware` (namespace `DotnetEventBus.Middleware`) is a sealed middleware component that limits how many events of each event type can pass through a pipeline within a sliding time window. It keeps a separate bucket for every `EventType` value, so a burst of one event type does not use up the quota of another. Create the middleware with a logger and its limits, then add its `Create` method to a `PipelineBuilder` with `Use`.
+
+Public API:
+- `RateLimitingMiddleware(ILogger<RateLimitingMiddleware> logger, int requestsPerWindow = 1000, TimeSpan? timeWindow = null)` — creates the middleware. Throws `ArgumentNullException` when `logger` is `null`. `requestsPerWindow` is the maximum number of events of one type accepted within the window (default `1000`). `timeWindow` is the length of the sliding window (default 60 seconds when `null`). The limits are not validated, so a `requestsPerWindow` of `0` or less rejects every event.
+- `EventBusMiddleware Create(EventBusMiddleware next)` — returns the pipeline step. Before it calls `next`, it checks the bucket for `context.EventType`. If the quota is used up, it throws `RateLimitExceededException` and does not call `next`. Otherwise it records the event in the bucket and awaits `next(context)`.
+- `public sealed class RateLimitExceededException : Exception` — thrown when an event type has exceeded its quota. Its constructor is `RateLimitExceededException(string message)`. The message has the form `Rate limit exceeded for event type: {EventType}`.
+
+Behavior notes:
+- The window is sliding. Each accepted event stores a timestamp, and timestamps older than `timeWindow` are dropped on the next check. Rejected events are not recorded, so they do not extend the block.
+- Buckets are keyed by the `EventType` string using the default, case-sensitive comparison. A bucket is created the first time a type is seen and is never removed, so memory grows with the number of distinct event type names.
+- The quota check and the recording are two separate lock acquisitions. Concurrent publishes of the same type can pass the check together, so the limit can be exceeded by up to the number of callers running at the same time.
+- A rejected event is not passed to the rest of the pipeline. The returned task faults with `RateLimitExceededException`, so the caller of the pipeline must catch it.
+- The middleware writes an `Information` log entry when each check starts and finishes, and a `Warning` entry when an event is rejected. Under high event volume, filter these entries in your logging configuration.
+
+Example usage:
+```csharp
+using DotnetEventBus.Middleware;
+using Microsoft.Extensions.Logging;
+
+ILogger<RateLimitingMiddleware> logger = loggerFactory.CreateLogger<RateLimitingMiddleware>();
+
+// Accept at most 100 events of each type every 10 seconds.
+var rateLimiter = new RateLimitingMiddleware(logger, requestsPerWindow: 100, timeWindow: TimeSpan.FromSeconds(10));
+
+EventBusMiddleware pipeline = new PipelineBuilder()
+    .Use(rateLimiter.Create)
+    .Build();
+
+var context = new EventContext
+{
+    EventType = "OrderCreated",
+    EventData = new { OrderId = 42 }
+};
+
+try
+{
+    await pipeline(context);
+}
+catch (RateLimitExceededException ex)
+{
+    // Log the rejection, retry later, or return HTTP 429 to the caller.
+    Console.WriteLine(ex.Message);
+}
+```
+
 ## PipelineBuilderTests
 
 The `PipelineBuilderTests` class provides comprehensive unit tests for the `PipelineBuilder` middleware pipeline construction. It verifies middleware registration, execution order, context manipulation, error handling, and pipeline building scenarios. The tests cover both synchronous and asynchronous middleware execution, short-circuiting behavior, exception handling, and proper initialization of event context.
