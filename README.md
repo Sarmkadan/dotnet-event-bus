@@ -686,6 +686,55 @@ Console.WriteLine($"Repository ID: {repository.Id}");
 Console.WriteLine($"Repository Name: {repository.Name}");
 ```
 
+## PipelineBuilder
+
+`PipelineBuilder` (namespace `DotnetEventBus.Middleware`) composes event-processing middleware into a single `EventBusMiddleware` delegate using a chain-of-responsibility pattern. Middleware is registered with `Use` in the order it should run, and `Build` returns the composed pipeline. The same file defines the two types the pipeline works with: the `EventBusMiddleware` delegate and the `EventContext` class.
+
+Public API:
+- `PipelineBuilder Use(Func<EventBusMiddleware, EventBusMiddleware> middleware)` — registers a middleware factory. The factory receives the next step in the chain and returns the step it wraps. Throws `ArgumentNullException` when `middleware` is `null`. Returns the builder for chaining.
+- `EventBusMiddleware Build()` — composes all registered middleware and returns the outermost step. The first registered middleware runs first.
+- `void Clear()` — removes all registered middleware.
+- `delegate Task EventBusMiddleware(EventContext context)` — a single pipeline step. A step either calls `next(context)` to continue the chain or returns without calling it to short-circuit.
+- `EventContext` — the event data and metadata passed through the pipeline. Properties: `required string EventType`, `required object EventData`, `Dictionary<string, object> Metadata` (empty by default), `DateTime CreatedAt` (UTC, set on creation), `string? CorrelationId`, `bool IsProcessed`, `Exception? ProcessingException`.
+
+Behavior notes:
+- `Build()` takes a snapshot. Calling `Use` or `Clear` afterwards does not change a pipeline that has already been built.
+- The innermost step is a no-op that completes immediately. `PipelineBuilder` does not invoke subscribers itself, so the chain only does what your middleware does.
+- Factories are invoked each time the pipeline runs, not once at `Build()`. Keep them free of one-time setup. Put any shared state in fields or captured variables outside the factory.
+- `PipelineBuilder` is not thread-safe for concurrent `Use` / `Clear` calls. Build the pipeline once at startup and reuse the returned delegate.
+
+Example usage:
+```csharp
+using DotnetEventBus.Middleware;
+
+var builder = new PipelineBuilder()
+    .Use(next => async context =>
+    {
+        Console.WriteLine($"Before {context.EventType}");
+        await next(context);
+        Console.WriteLine($"After {context.EventType}");
+    })
+    .Use(next => context =>
+    {
+        context.Metadata["processedBy"] = "audit";
+        return next(context);
+    });
+
+EventBusMiddleware pipeline = builder.Build();
+
+var context = new EventContext
+{
+    EventType = "OrderCreated",
+    EventData = new { OrderId = 42 },
+    CorrelationId = Guid.NewGuid().ToString()
+};
+
+await pipeline(context);
+
+// Remove all middleware and start over
+builder.Clear();
+```
+
 ## PipelineBuilderTests
 
 The `PipelineBuilderTests` class provides comprehensive unit tests for the `PipelineBuilder` middleware pipeline construction. It verifies middleware registration, execution order, context manipulation, error handling, and pipeline building scenarios. The tests cover both synchronous and asynchronous middleware execution, short-circuiting behavior, exception handling, and proper initialization of event context.
