@@ -2070,6 +2070,77 @@ Console.WriteLine(breaker.State);
 breaker.Reset();
 ```
 
+## RetryPolicy
+
+`RetryPolicy` (namespace `DotnetEventBus.Integration`) runs an asynchronous operation again after it fails with a retryable exception. It is separate from `EventBus`, which uses only the retry settings in `EventBusOptions` (see [Retries](#retries)). Use `RetryPolicy` to wrap calls to external dependencies, such as an HTTP request made from a handler.
+
+Public API:
+
+- `RetryPolicy()` creates a policy with these defaults: 3 retries, a 1 second initial delay, a backoff multiplier of 2.0, a 5 minute maximum delay, jitter enabled, and the default exception filter.
+- `WithMaxRetries(int maxRetries)` sets the number of retries after the first attempt. `0` means a single attempt. A negative value throws `ArgumentException`.
+- `WithInitialDelay(TimeSpan delay)` sets the delay before the first retry. `TimeSpan.Zero` is allowed. A negative value throws `ArgumentException`.
+- `WithBackoffMultiplier(double multiplier)` sets the factor applied to the delay after each retry. The value must be greater than `1.0`; otherwise, it throws `ArgumentException`.
+- `WithMaxDelay(TimeSpan maxDelay)` caps the delay before jitter. The value must be positive; otherwise, it throws `ArgumentException`.
+- `WithJitter(bool enabled)` turns the ±10% random variation of each delay on or off. It does not validate its input.
+- `WithRetryableExceptionFilter(Func<Exception, bool>? filter)` replaces the default filter. Passing `null` restores the default.
+- Every `With*` method changes the policy in place and returns the same instance, so calls can be chained. Configure the policy before it is used to run operations.
+- `ExecuteAsync<T>(Func<Task<T>> operation, Func<int, Exception, TimeSpan, Task>? onRetry = null)` runs the operation and returns its result.
+- `ExecuteAsync(Func<Task> operation, Func<int, Exception, TimeSpan, Task>? onRetry = null)` runs an operation that has no result.
+- Both `ExecuteAsync` overloads throw `ArgumentNullException` when `operation` is null.
+
+Retry behavior:
+
+- The default filter retries only `TimeoutException` and `InvalidOperationException`. A custom filter replaces this list entirely.
+- When an attempt fails with a retryable exception and retries remain, the policy calls `onRetry` if one was provided. It passes the 1-based retry number, the exception, and the delay. It then waits and runs the operation again.
+- When the exception is not retryable, or the retries are used up, the original exception is rethrown unchanged.
+- An exception thrown by `onRetry` is not caught. It goes to the caller, and no further retries run.
+- The delay before retry `n`, counting from 0, is `InitialDelay × BackoffMultiplier^n`, capped at `MaxDelay`. When jitter is on, the capped value is then varied by ±10%, so a delay can be up to 10% longer than `MaxDelay`.
+- The policy has no `CancellationToken` parameter, and the wait between attempts cannot be cancelled. To stop retrying on cancellation, make the filter return `false` for `OperationCanceledException`. The operation itself still receives any token you pass to it through a closure.
+
+Factory methods are available on the static `RetryPolicyBuilder` class:
+
+- `RetryPolicyBuilder.CreateDefault()` returns `new RetryPolicy()`.
+- `RetryPolicyBuilder.CreateExponentialBackoff(int maxRetries = 3)` uses a 1 second initial delay and a multiplier of 2.0.
+- `RetryPolicyBuilder.CreateLinearBackoff(int maxRetries = 3)` uses a 1 second initial delay and a multiplier of 1.5. Despite the name, the delay still grows geometrically, not linearly.
+- `RetryPolicyBuilder.CreateImmediate(int maxRetries = 3)` uses a zero initial delay, so retries start without waiting.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Integration;
+
+var retry = new RetryPolicy()
+    .WithMaxRetries(4)
+    .WithInitialDelay(TimeSpan.FromMilliseconds(200))
+    .WithBackoffMultiplier(2.0)              // waits about 200 ms, 400 ms, 800 ms, 1.6 s
+    .WithMaxDelay(TimeSpan.FromSeconds(5))
+    .WithJitter(true)
+    .WithRetryableExceptionFilter(ex => ex is HttpRequestException);
+
+async Task<string> FetchOrderAsync(string id)
+{
+    // Call the external dependency here.
+    await Task.Delay(10);
+    return $"order-{id}";
+}
+
+// Operation with a result. onRetry is optional and runs before each wait.
+string order = await retry.ExecuteAsync(
+    () => FetchOrderAsync("42"),
+    onRetry: (attempt, ex, delay) =>
+    {
+        Console.WriteLine($"Retry {attempt} after {ex.GetType().Name}, waiting {delay.TotalMilliseconds} ms");
+        return Task.CompletedTask;
+    });
+
+// Operation without a result.
+await retry.ExecuteAsync(() => Task.CompletedTask);
+
+// Factory methods create a policy with common settings.
+var immediate = RetryPolicyBuilder.CreateImmediate(maxRetries: 2);
+await immediate.ExecuteAsync(() => FetchOrderAsync("43"));
+```
+
 ## ECommerceOrderProcessingExample
 
 The `ECommerceOrderProcessingExample` class demonstrates a complete e-commerce order processing workflow using the event bus system. It shows how to define custom events for order placement, payment processing, and shipment creation, and how to create handlers with different priorities that work together to process an order through multiple stages.
