@@ -41,6 +41,8 @@ public sealed class RateLimitingMiddleware
 
     public EventBusMiddleware Create(EventBusMiddleware next)
     {
+        ArgumentNullException.ThrowIfNull(next);
+
         return async (context) =>
         {
             _logger.LogInformation("Rate limiting check started for {EventType}", context.EventType);
@@ -131,5 +133,8 @@ public sealed class RateLimitingMiddleware
 
 public sealed class RateLimitExceededException : Exception
 {
-    public RateLimitExceededException(string message) : base(message) { }
+    public RateLimitExceededException(string message) : base(message)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+    }
 }
