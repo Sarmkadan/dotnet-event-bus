@@ -933,6 +933,158 @@ var endStatusEvent = new TestFilterEvent { Status = "Pending" };
 bool containsMatches = statusFilter.Matches(endStatusEvent); // Returns true
 ```
 
+## BatchEventPublisher
+
+`BatchEventPublisher` (namespace `DotnetEventBus.Services`) collects `EventEnvelope` instances in an in-memory buffer and passes them to your handler as an `EventBatch`. The buffer is flushed when it reaches `batchSize`, when `flushInterval` has passed when an event is added, or when you call `FlushAsync()`. Events are held in memory only; nothing is persisted.
+
+### Constructor
+
+```csharp
+public BatchEventPublisher(
+    ILogger<BatchEventPublisher> logger,
+    int batchSize = 100,
+    TimeSpan? flushInterval = null)
+```
+
+- **logger**: Required; `null` throws `ArgumentNullException`.
+- **batchSize**: Number of buffered events that triggers a flush. Must be greater than `0`; otherwise `ArgumentException` is thrown.
+- **flushInterval**: Maximum time between flushes. When `null`, it defaults to 10 seconds.
+
+### Public Members
+
+| Member | Description |
+|--------|-------------|
+| `SetFlushHandler(Func<EventBatch, Task> handler)` | Registers a handler that receives each flushed batch as a whole. `null` throws `ArgumentNullException`. If the handler throws, the exception is logged and rethrown to the caller of `AddEventAsync`, `AddEventsAsync`, or `FlushAsync`. The failed batch is not put back in the buffer. |
+| `SetFlushHandlerWithResult(Func<EventEnvelope, Task<EventBatchItemResult>> handler, Action<BatchPublishResult>? onBatchComplete = null)` | Registers a handler that is called once per event, with error isolation. A throwing handler is recorded as a failed item and the rest of the batch continues. `onBatchComplete` receives the aggregated `BatchPublishResult` after each flush. `null` for `handler` throws `ArgumentNullException`. |
+| `Task<bool> AddEventAsync(EventEnvelope envelope)` | Adds one event to the buffer and flushes if a trigger is met. Returns `true` when the event was buffered, or `false` when the envelope is invalid (`EventType` is empty or `Payload` is `null`). `null` throws `ArgumentNullException`. |
+| `Task AddEventsAsync(IEnumerable<EventEnvelope> envelopes)` | Calls `AddEventAsync` for each item in order. A `null` item throws `ArgumentException`, but the items before it have already been added. |
+| `Task FlushAsync()` | Flushes all buffered events now. Does nothing when the buffer is empty. |
+| `int GetBufferSize()` | Returns the number of events currently buffered. |
+| `BatchPublisherStats GetStats()` | Returns `BufferedEventCount`, `BufferedEventSize`, and `LastFlushTime`. `BufferedEventSize` currently equals the event count, not a byte size. |
+| `string ToString()` | Returns a summary of the stats. |
+
+### Flush Behavior
+
+- **Triggers are checked only inside `AddEventAsync`.** The class has no timer. An event sitting in an idle buffer is not flushed when `flushInterval` passes. It waits until the next add or until you call `FlushAsync()`. Call `FlushAsync()` on shutdown so buffered events are not lost.
+- **The interval is measured from the last flush**, or from construction if nothing has flushed yet. If the publisher has been idle longer than `flushInterval`, the next added event is flushed immediately as a batch of one.
+- **Without a handler, events are dropped.** The buffer is cleared before the handler is looked up, so a flush with no handler logs a warning and discards the events. Register a handler before adding events.
+- **A per-event handler takes precedence.** If both `SetFlushHandler` and `SetFlushHandlerWithResult` were called, only the per-event handler runs.
+- **Handlers run outside the internal lock.** Concurrent `AddEventAsync` calls can flush concurrently, so batches may be processed in parallel and out of addition order.
+- **Failed events are not moved to a dead letter queue.** Inspect `BatchPublishResult.FailedEvents` and handle them yourself.
+
+### EventBatchItemResult
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `EventId` | `string?` | ID of the event this result describes. |
+| `EventType` | `string?` | Type of the event. |
+| `Success` | `bool` | Defaults to `false`. Your handler must set it to `true` on success. |
+| `ErrorMessage` | `string?` | Error text for a failed item. |
+| `Exception` | `Exception?` | Exception for a failed item. Set automatically when the handler throws. |
+
+### BatchPublishResult
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `BatchId` | `string?` | ID of the flushed `EventBatch`. |
+| `SucceededCount` | `int` | Number of items whose `Success` is `true`. |
+| `FailedCount` | `int` | Number of items whose `Success` is `false`, including thrown exceptions. |
+| `AllSucceeded` | `bool` | `true` when `FailedCount` is `0`. |
+| `EventResults` | `List<EventBatchItemResult>` | One entry per event in the batch, in order. |
+| `FailedEvents` | `IEnumerable<EventBatchItemResult>` | The entries from `EventResults` where `Success` is `false`. |
+
+### BatchPublisherStats
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `BufferedEventCount` | `int` | Number of events waiting in the buffer. |
+| `BufferedEventSize` | `int` | Currently the same value as `BufferedEventCount`. |
+| `LastFlushTime` | `DateTime` | UTC time of the most recent flush, or construction time if none has happened. |
+
+### Validation Helpers
+
+`BatchEventPublisherValidation` adds extension methods to `BatchEventPublisher`:
+
+- `Validate()` returns an `IReadOnlyList<string>` of problems, empty when valid. Passing `null` throws `ArgumentNullException`.
+- `IsValid()` returns `true` when `Validate()` finds no problems.
+- `EnsureValid()` throws `ArgumentException` listing the problems.
+
+### Example Usage
+
+Batch-level handler with a final flush on shutdown:
+
+```csharp
+using DotnetEventBus.Models;
+using DotnetEventBus.Services;
+using Microsoft.Extensions.Logging;
+
+var publisher = new BatchEventPublisher(
+    loggerFactory.CreateLogger<BatchEventPublisher>(),
+    batchSize: 50,
+    flushInterval: TimeSpan.FromSeconds(5));
+
+publisher.SetFlushHandler(batch =>
+{
+    Console.WriteLine($"Batch {batch.BatchId}: {batch.Events.Count} events");
+    return Task.CompletedTask;
+});
+
+// Invalid envelopes (empty EventType or null Payload) return false and are not buffered.
+bool added = await publisher.AddEventAsync(new EventEnvelope
+{
+    EventType = "OrderPlaced",
+    Payload = "{ \"orderId\": 42 }"
+});
+
+// On shutdown, flush whatever is still buffered.
+await publisher.FlushAsync();
+```
+
+Per-event handler with error isolation and a batch summary:
+
+```csharp
+var publisher = new BatchEventPublisher(logger, batchSize: 100);
+
+publisher.SetFlushHandlerWithResult(
+    async envelope =>
+    {
+        try
+        {
+            await SendToBrokerAsync(envelope); // your delivery code
+            return new EventBatchItemResult
+            {
+                EventId = envelope.EventId,
+                EventType = envelope.EventType,
+                Success = true
+            };
+        }
+        catch (Exception ex)
+        {
+            return new EventBatchItemResult
+            {
+                EventId = envelope.EventId,
+                EventType = envelope.EventType,
+                Success = false,
+                ErrorMessage = ex.Message,
+                Exception = ex
+            };
+        }
+    },
+    onBatchComplete: result =>
+    {
+        Console.WriteLine($"Batch {result.BatchId}: {result.SucceededCount} ok, {result.FailedCount} failed");
+
+        foreach (var failed in result.FailedEvents)
+        {
+            // Retry later or write to your own dead letter store.
+            Console.WriteLine($"Failed {failed.EventId} ({failed.EventType}): {failed.ErrorMessage}");
+        }
+    });
+
+await publisher.AddEventsAsync(envelopes);
+await publisher.FlushAsync();
+```
+
 ## BatchEventPublisherTests
 
 The `BatchEventPublisherTests` class provides comprehensive unit tests for the `BatchEventPublisher` batch event publishing functionality. It validates event addition to batches, batch flushing when the batch size is reached, error handling for invalid events, and constructor validation for proper argument handling. These tests serve as both validation and usage examples for working with the batch event publishing system.
