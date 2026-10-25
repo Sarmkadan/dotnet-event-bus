@@ -362,103 +362,105 @@ public sealed record OrderCreated(int OrderId);
 
 ## EventFormatterFactory
 
-The `EventFormatterFactory` class provides a registry for event formatters within the event bus. It allows registering formatters for specific data formats (JSON, XML, CSV), negotiating the appropriate formatter based on content type or format name, and managing the lifecycle of formatters.
+`EventFormatterFactory` (`src/DotnetEventBus/Formatters/EventFormatterFactory.cs`) is a registry of `IEventFormatter` implementations. Formatters are stored under their `Format` name (for example `json`), and can be looked up by that name or by MIME content type. Registering a formatter under a name that is already in use replaces the previous one.
 
-Example usage:
+`CreateDefault()` registers the built-in formatters:
+
+| Format | Class | Content type |
+|--------|-------|--------------|
+| `json` | `JsonEventFormatter` | `application/json` |
+| `csv` | `CsvEventFormatter` | `text/csv` |
+| `xml` | `XmlEventFormatter` | `application/xml` |
+
+### Public API
+
+| Member | Description |
+|--------|-------------|
+| `static EventFormatterFactory CreateDefault()` | Creates a new factory with the JSON, CSV and XML formatters registered. |
+| `void Register(IEventFormatter formatter)` | Adds the formatter under `formatter.Format` (case-insensitive), replacing any existing formatter with that name. Throws `ArgumentNullException` if `formatter` is `null`. |
+| `IEventFormatter? GetFormatter(string format)` | Returns the formatter registered under the format name (case-insensitive), or `null` if the name is empty or unknown. |
+| `IEventFormatter? GetFormatterByContentType(string contentType)` | Returns the formatter whose `ContentType` matches exactly (case-insensitive). If none matches, it uses the subtype with parameters removed as a format name, so `application/json; charset=utf-8` resolves to `json`. Returns `null` if the value is empty or nothing matches. |
+| `IEnumerable<IEventFormatter> GetAllFormatters()` | Returns a snapshot of all registered formatters. |
+| `IEnumerable<string> GetSupportedFormats()` | Returns a snapshot of the registered format names, in lowercase. |
+| `bool IsFormatSupported(string format)` | Returns `true` if a formatter is registered under the format name (case-insensitive). |
+| `bool Unregister(string format)` | Removes the formatter registered under the format name (case-insensitive). Returns `true` if one was removed. |
+
+Notes:
+
+- `AddEventBus(...)` registers `EventFormatterFactory` as an empty singleton. It does not call `CreateDefault()`. Register the formatters you need, or create the factory with `CreateDefault()` yourself.
+- The factory is not thread-safe. Register and unregister formatters during startup, before the factory is shared across threads. Concurrent reads without writes are fine.
+
+### Usage
+
+Create a factory with the built-in formatters and resolve one by name or content type:
 
 ```csharp
 using DotnetEventBus.Formatters;
 
-// Create a default factory with pre-configured formatters
 var factory = EventFormatterFactory.CreateDefault();
 
-// Register a custom formatter
-factory.Register(new CustomEventFormatter());
+if (factory.GetFormatter("JSON") is { } json)
+{
+    var payload = json.Serialize(new OrderCreated(123, 99.99m), prettyPrint: true);
+    var copy = json.Deserialize<OrderCreated>(payload);
+}
 
-// Get a formatter by format name
-var jsonFormatter = factory.GetFormatter("json");
+// Parameters in the content type are ignored
+var csv = factory.GetFormatterByContentType("text/csv");
 
-// Get a formatter by MIME type
-var jsonMimeTypeFormatter = factory.GetFormatterByContentType("application/json");
-
-// Get all registered formatters
-var allFormatters = factory.GetAllFormatters();
-
-// Check if a format is supported
-bool isJsonSupported = factory.IsFormatSupported("json");
-
-// Unregister a formatter
-bool unregistered = factory.Unregister("csv");
+public sealed record OrderCreated(int OrderId, decimal Amount);
 ```
 
-Example usage:
+Register a custom formatter. Implement `IEventFormatter`, which requires `Format`, `ContentType`, `Serialize`, `Deserialize<T>`, `Deserialize(string, Type)`, `FormatEvent` and `FormatEventWithMetadata`:
+
 ```csharp
-using DotnetEventBus;
-using DotnetEventBus.Events;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Xunit;
+var factory = new EventFormatterFactory();
 
-// Create service collection and configure event bus
-var services = new ServiceCollection();
-services.AddLogging(configure => configure.AddConsole());
-services.AddEventBus(options => {
-    options.ApplicationName = "IntegrationTestApp";
-    options.EnableDeadLetterQueue = true;
-    options.MaxConcurrentHandlers = 10;
-    options.RetryPolicy = new ExponentialBackoffRetryPolicy {
-        MaxAttempts = 3,
-        InitialDelay = TimeSpan.FromMilliseconds(100),
-        MaxDelay = TimeSpan.FromSeconds(5)
-    };
-});
+factory.Register(new JsonEventFormatter());   // empty factory: add the built-in JSON formatter
+factory.Register(new MyProtobufFormatter());  // Format = "protobuf", ContentType = "application/x-protobuf"
 
-var serviceProvider = services.BuildServiceProvider();
-var eventBus = serviceProvider.GetRequiredService<IEventBus>();
+factory.IsFormatSupported("protobuf");        // true
+factory.Unregister("protobuf");               // true
+```
 
-// Define event handlers
-public class OrderCreatedHandler : IEventHandler<OrderCreatedEvent>
+Inspect what is registered:
+
+```csharp
+IEnumerable<string> names = factory.GetSupportedFormats();   // e.g. "json", "csv", "xml"
+
+foreach (var formatter in factory.GetAllFormatters())
 {
-    private readonly ILogger<OrderCreatedHandler> _logger;
-    
-    public OrderCreatedHandler(ILogger<OrderCreatedHandler> logger)
+    Console.WriteLine($"{formatter.Format} -> {formatter.ContentType}");
+}
+```
+
+### Validation
+
+`EventFormatterFactoryValidation` provides extension methods for checking a factory's configuration:
+
+| Member | Description |
+|--------|-------------|
+| `IReadOnlyList<string> Validate()` | Returns the list of problems, empty if the factory is valid. Throws `ArgumentNullException` for a `null` factory. |
+| `bool IsValid()` | Returns `true` if the factory has no problems. Returns `false` for a `null` factory. |
+| `void EnsureValid()` | Throws `ArgumentException` listing the problems. Throws `ArgumentNullException` for a `null` factory. |
+
+A factory is reported as invalid when it has no formatters, when a formatter has a blank `Format` or `ContentType`, when a format name contains whitespace or control characters, or when two formatters share a content type (case-insensitive).
+
+```csharp
+using DotnetEventBus.Formatters;
+
+var factory = EventFormatterFactory.CreateDefault();
+
+if (!factory.IsValid())
+{
+    foreach (var problem in factory.Validate())
     {
-        _logger = logger;
-    }
-    
-    public async Task Handle(OrderCreatedEvent @event)
-    {
-        _logger.LogInformation("Processing order {OrderId}", @event.OrderId);
-        // Business logic here
+        Console.WriteLine(problem);
     }
 }
 
-public class PaymentProcessedHandler : IEventHandler<PaymentProcessedEvent>
-{
-    public async Task Handle(PaymentProcessedEvent @event)
-    {
-        // Handle payment processed event
-    }
-}
-
-// Register handlers
-services.AddTransient<OrderCreatedHandler>();
-serviceProvider = services.BuildServiceProvider();
-eventBus = serviceProvider.GetRequiredService<IEventBus>();
-
-// Subscribe handlers
-eventBus.Subscribe<OrderCreatedEvent, OrderCreatedHandler>();
-eventBus.Subscribe<PaymentProcessedEvent, PaymentProcessedHandler>();
-
-// Publish events
-var orderCreatedEvent = new OrderCreatedEvent { OrderId = 123, Amount = 99.99m };
-var paymentProcessedEvent = new PaymentProcessedEvent { PaymentId = 456, Status = "Completed" };
-
-await eventBus.PublishAsync(orderCreatedEvent);
-await eventBus.PublishAsync(paymentProcessedEvent);
-
-// Verify events were processed
-// Use assertions or metrics to verify handler execution
+// Or fail fast at startup
+factory.EnsureValid();
 ```
 
 ## XmlEventFormatter
