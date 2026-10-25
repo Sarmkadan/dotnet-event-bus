@@ -103,7 +103,9 @@ public sealed class EventFilter<T> where T : class
     /// When there are multiple predicates, combines them into a single composite function.
     /// </remarks>
     /// <returns>A single compiled predicate function that evaluates all filters with AND semantics.</returns>
-    /// <exception cref="InvalidOperationException">Thrown when predicates cannot be compiled (should not occur with valid predicates).</exception>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when predicates cannot be compiled (should not occur with valid predicates).
+    /// </exception>
     public Func<T, bool> Compile()
     {
         if (_compiledPredicate is not null)
