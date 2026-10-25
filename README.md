@@ -1366,6 +1366,119 @@ string stateJson = System.Text.Json.JsonSerializer.Serialize(state, new System.T
 Console.WriteLine(stateJson);
 ```
 
+## WebhookHandler
+
+The `WebhookHandler` class manages webhook subscriptions and delivers events to external HTTP endpoints. It handles subscription bookkeeping (subscribe, unsubscribe, update, list), HMAC-SHA256 signature generation and verification, and JSON delivery with a configurable retry policy. Namespace: `DotnetEventBus.Integration`.
+
+### Constructor
+
+```csharp
+public WebhookHandler(string? signingSecret = null, ILogger<WebhookHandler>? logger = null)
+```
+
+- **signingSecret**: Secret used by `GenerateSignature` and `VerifySignature`. When null or empty, signatures are empty strings and verification is skipped.
+- **logger**: Optional logger for subscription and delivery events.
+
+### Public Members
+
+| Member | Description |
+|--------|-------------|
+| `Subscribe(WebhookSubscription)` | Registers a subscription. Assigns a new GUID to `Id` if it is null. Throws `ArgumentNullException` for null. |
+| `Unsubscribe(string subscriptionId)` | Removes a subscription. Returns `false` if no subscription has that ID. |
+| `GetWebhooksForEvent(string eventType)` | Returns active subscriptions whose `EventTypes` contain `eventType` or `"*"`. The result is lazily evaluated. |
+| `GetAllSubscriptions()` | Returns a snapshot list of all subscriptions, active or not. |
+| `UpdateSubscription(string subscriptionId, Action<WebhookSubscription> updates)` | Applies `updates` to the matching subscription. Returns `false` if no subscription has that ID. |
+| `GenerateSignature(string payload)` | Returns the Base64-encoded HMAC-SHA256 of the UTF-8 payload using the signing secret, or `string.Empty` if no secret is set. |
+| `VerifySignature(string payload, string providedSignature)` | Compares the expected signature with `providedSignature`. Returns `true` without checking anything when no secret is set. |
+| `DeliverEventAsync(WebhookSubscription, object, string, Func<int, Exception, TimeSpan, Task>?)` | POSTs the JSON-serialized event to the subscription URL, with retries. Returns a `WebhookDeliveryResult`. |
+
+### WebhookSubscription
+
+`WebhookSubscription` describes one endpoint. `Url` is required; the other properties have defaults.
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `Id` | `null` (set on `Subscribe`) | Unique identifier used by `Unsubscribe` and `UpdateSubscription`. |
+| `Url` | required | Target endpoint. Must be an `http` or `https` URL that is not loopback or private (see below). |
+| `EventTypes` | empty list | Event type names to receive. Use `"*"` to receive all events. |
+| `Headers` | empty dictionary | Extra HTTP headers sent with every delivery. |
+| `IsActive` | `true` | Inactive subscriptions are skipped by `GetWebhooksForEvent`. |
+| `MaxRetryAttempts` | `3` | Number of retries after the first attempt. |
+| `InitialRetryDelay` | 1 second | Delay before the first retry. |
+| `RetryBackoffMultiplier` | `2.0` | Multiplier applied to the delay after each retry. |
+| `MaxRetryDelay` | 5 minutes | Upper bound for any single retry delay. |
+| `UseJitter` | `true` | Adds roughly ±10% random variation to each delay. |
+| `CreatedAt` | UTC now | Creation time. |
+| `LastDeliveryAt`, `LastDeliveryStatus`, `LastDeliveryStatusCode`, `LastError` | `null` | Updated by `DeliverEventAsync` after each attempt. `LastDeliveryStatus` is `"Success"` on success. |
+
+### Delivery Behavior
+
+`DeliverEventAsync` sends a `POST` with a JSON body (`Content-Type: application/json`). Each request also carries an `X-Event-Type` header and any entries from `subscription.Headers`.
+
+- **Retries**: Retries on HTTP 5xx, HTTP 408, network errors, and timeouts. Other 4xx responses are not retried.
+- **Redirects**: Automatic redirects are disabled. A 3xx response counts as a failure and is not retried.
+- **URL validation**: Only `http` and `https` are allowed. Literal IP addresses in loopback, RFC 1918, link-local, or IPv6 unique-local/link-local ranges are rejected, as is `localhost`. Host names are not resolved, so a DNS name that points to a private address is not blocked.
+- **Signatures**: `DeliverEventAsync` does not attach a signature. If the receiver needs one, compute it with `GenerateSignature` over the serialized payload and send it in a header yourself.
+- **Success result**: The returned `WebhookDeliveryResult` has `Success = true` and `StatusCode = 0`. Read `subscription.LastDeliveryStatusCode` for the actual HTTP status.
+- **Failure**: Failures throw `HandlerInvocationException` after retries are exhausted or when a non-retryable error occurs. Its `RetryAttempts` property holds the configured `MaxRetryAttempts`, not the number of attempts actually made. Invalid URLs also surface this way, with the `ArgumentException` as `InnerException`. Null arguments and a null or whitespace `eventType` throw `ArgumentNullException` or `ArgumentException` before any request is sent.
+- **Optional callback**: `onRetry` receives the 1-based retry number, the exception that triggered the retry, and the delay before the retry.
+
+### WebhookDeliveryResult
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Success` | `bool` | Whether delivery succeeded. |
+| `ErrorMessage` | `string?` | Error message, if any. Always `null` on the success path. |
+| `StatusCode` | `int?` | `0` on the success path (see above). |
+| `Exception` | `Exception?` | Exception, if any. Always `null` on the success path. |
+
+### Example Usage
+
+```csharp
+using DotnetEventBus.Integration;
+using Microsoft.Extensions.Logging;
+
+var handler = new WebhookHandler(
+    signingSecret: Environment.GetEnvironmentVariable("WEBHOOK_SECRET"),
+    logger: loggerFactory.CreateLogger<WebhookHandler>());
+
+// Register an endpoint for order events
+var subscription = new WebhookSubscription
+{
+    Url = "https://partner.example.com/hooks/orders",
+    EventTypes = new List<string> { "OrderCreated", "OrderShipped" },
+    Headers = new Dictionary<string, string> { ["Authorization"] = "Bearer <token>" },
+    MaxRetryAttempts = 5
+};
+handler.Subscribe(subscription);
+
+// Find the endpoints that should receive an event
+foreach (var target in handler.GetWebhooksForEvent("OrderCreated").ToList())
+{
+    try
+    {
+        var result = await handler.DeliverEventAsync(
+            target,
+            new { OrderId = "ORD-2026-001", Amount = 299.99m },
+            "OrderCreated",
+            onRetry: (attempt, ex, delay) =>
+            {
+                Console.WriteLine($"Retry {attempt} in {delay.TotalSeconds:F1}s: {ex.Message}");
+                return Task.CompletedTask;
+            });
+
+        Console.WriteLine($"Delivered: {result.Success}, last status: {target.LastDeliveryStatusCode}");
+    }
+    catch (HandlerInvocationException ex)
+    {
+        Console.WriteLine($"Delivery failed after {ex.RetryAttempts} configured retries: {ex.Message}");
+    }
+}
+
+// Verify an inbound signature (receiver side)
+bool isAuthentic = handler.VerifySignature(requestBodyJson, signatureHeaderValue);
+```
+
 ## WebhookHandlerJsonExtensions
 
 The `WebhookHandlerJsonExtensions` class provides System.Text.Json serialization and deserialization extensions for `WebhookHandler` and `WebhookSubscription` types. It enables easy conversion between object instances and JSON strings with support for both compact and indented formatting, making it ideal for webhook payload serialization and API communication.
