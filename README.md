@@ -2442,3 +2442,84 @@ public sealed class OrderSagaContext
     public bool InventoryReserved { get; set; }
 }
 ```
+
+## RequestResponsePattern
+
+`src/DotnetEventBus/Advanced/RequestResponsePattern.cs` provides request-response (RPC-style) communication on top of the asynchronous event bus. A caller sends a request, the bus generates a request id, and the caller awaits a matching response or a failure. The file defines four public types: `RequestResponseBus`, `RequestResponseHandler<TRequest, TResponse>`, `RequestMessage<T>`, and `ResponseMessage<T>`.
+
+Public API of `RequestResponseBus` (namespace `DotnetEventBus.Advanced`):
+
+- `RequestResponseBus(TimeSpan? defaultTimeout = null)` creates a bus without an outgoing publisher. The default timeout is 30 seconds. `RequestAsync` registers the request but does not send it; it is useful when responses are delivered by other code through `SendResponse`, `FailRequest`, or `AuditPendingRequests`.
+- `RequestResponseBus(Func<string, RequestMessage<object>, Task> publishRequest, TimeSpan? defaultTimeout = null)` creates a bus that sends each request through `publishRequest`. The delegate receives the event type and a `RequestMessage<object>` containing the generated `RequestId`, the payload, and the effective timeout. Throws `ArgumentNullException` when `publishRequest` is null.
+- `Task<TResponse?> RequestAsync<TRequest, TResponse>(string eventType, TRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)` sends a request and waits for its response. Both `TRequest` and `TResponse` must be reference types. It throws `ArgumentNullException` for a null `eventType` or `request`, `TimeoutException` when no response arrives within `timeout` (or the bus default), and `OperationCanceledException` when `cancellationToken` is canceled. If the response is not assignable to `TResponse`, the method returns `null` instead of throwing.
+- `bool SendResponse(string requestId, object response)` completes a pending request with a response. It returns `true` when the response was delivered and `false` when the request id is unknown or the request has already completed.
+- `bool FailRequest(string requestId, Exception exception)` completes a pending request with an exception. It returns `true` when the exception was delivered and `false` when the request id is unknown or the request has already completed.
+- `int GetPendingRequestCount()` returns the number of requests that are waiting for a response.
+- `void CancelAllRequests(string reason = "Bus shutting down")` faults every pending request with an `OperationCanceledException` that carries `reason`. Use it during shutdown.
+- `Dictionary<string, string> AuditPendingRequests()` returns each pending request id mapped to its current task status, such as `Waiting` or `Completed`. It is intended for diagnostics.
+- `int CleanupCompletedRequests()` removes entries whose tasks have already completed and returns how many were removed. Normal operation removes entries automatically, so this is a defensive operation.
+
+Public API of `RequestResponseHandler<TRequest, TResponse>`:
+
+- `abstract Task<TResponse> HandleAsync(TRequest request)` is implemented by the subclass to produce the response.
+- `Task ProcessRequestAsync(TRequest request, string requestId, RequestResponseBus bus)` runs `HandleAsync`, then calls `bus.SendResponse` with the result. If `HandleAsync` throws, it calls `bus.FailRequest` with the exception instead of rethrowing. It throws `ArgumentNullException` for null arguments.
+- The protected `RequestId` and `Bus` properties are set before `HandleAsync` runs, so subclasses can read them.
+
+Supporting public types:
+
+- `RequestMessage<T>` (`where T : class`) has the properties `string? RequestId`, `required T Payload`, `Dictionary<string, object> Metadata` (empty by default), `DateTime CreatedAt` (UTC, set on creation), and `TimeSpan Timeout` (30 seconds by default).
+- `ResponseMessage<T>` (`where T : class`) has the properties `string? RequestId`, `required T Payload`, `bool Success` (`true` by default), `string? ErrorMessage`, and `DateTime CreatedAt` (UTC). The bus does not create or read this type; it is available for transports that want a wire envelope.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Advanced;
+
+// The publisher sends the request over your transport and must eventually
+// call SendResponse or FailRequest with the same RequestId.
+RequestResponseBus? bus = null;
+bus = new RequestResponseBus(
+    async (eventType, message) =>
+    {
+        // Example only: deliver the message to a handler in the same process.
+        var handler = new StockHandler();
+        await handler.ProcessRequestAsync(
+            (GetStockRequest)message.Payload,
+            message.RequestId!,
+            bus!);
+    },
+    defaultTimeout: TimeSpan.FromSeconds(5));
+
+try
+{
+    StockResponse? stock = await bus.RequestAsync<GetStockRequest, StockResponse>(
+        "stock.get",
+        new GetStockRequest("SKU-100"),
+        timeout: TimeSpan.FromSeconds(2));
+
+    Console.WriteLine(stock?.Units);
+}
+catch (TimeoutException)
+{
+    // No response arrived in time.
+}
+
+public sealed record GetStockRequest(string Sku);
+public sealed record StockResponse(string Sku, int Units);
+
+public sealed class StockHandler : RequestResponseHandler<GetStockRequest, StockResponse>
+{
+    public override Task<StockResponse> HandleAsync(GetStockRequest request) =>
+        Task.FromResult(new StockResponse(request.Sku, 42));
+}
+```
+
+Shutdown and diagnostics:
+
+```csharp
+// Fail every request that is still waiting when the application stops.
+bus.CancelAllRequests("Application shutting down");
+
+int waiting = bus.GetPendingRequestCount();
+Dictionary<string, string> states = bus.AuditPendingRequests();
+```
