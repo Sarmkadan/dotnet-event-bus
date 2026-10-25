@@ -19,10 +19,18 @@ namespace DotnetEventBus.Integration;
 /// </summary>
 public sealed class RetryPolicy
 {
-    private int _maxRetries = 3;
-    private TimeSpan _initialDelay = TimeSpan.FromSeconds(1);
-    private double _backoffMultiplier = 2.0;
-    private TimeSpan _maxDelay = TimeSpan.FromMinutes(5);
+    internal const int DefaultMaxRetries = 3;
+    internal static readonly TimeSpan DefaultInitialDelay = TimeSpan.FromSeconds(1);
+    internal const double DefaultBackoffMultiplier = 2.0;
+    internal static readonly TimeSpan DefaultMaxDelay = TimeSpan.FromMinutes(5);
+
+    private const double JitterFraction = 0.1;
+    private const string FallbackFailureMessage = "Operation failed";
+
+    private int _maxRetries = DefaultMaxRetries;
+    private TimeSpan _initialDelay = DefaultInitialDelay;
+    private double _backoffMultiplier = DefaultBackoffMultiplier;
+    private TimeSpan _maxDelay = DefaultMaxDelay;
     private bool _useJitter = true;
     private Func<Exception, bool>? _retryableExceptionFilter;
     private readonly Random _random = new();
@@ -138,7 +146,7 @@ public sealed class RetryPolicy
             }
         }
 
-        throw lastException ?? new InvalidOperationException("Operation failed");
+        throw lastException ?? new InvalidOperationException(FallbackFailureMessage);
     }
 
     /// <summary>
@@ -186,7 +194,7 @@ public sealed class RetryPolicy
             }
         }
 
-        throw lastException ?? new InvalidOperationException("Operation failed");
+        throw lastException ?? new InvalidOperationException(FallbackFailureMessage);
     }
 
     private TimeSpan CalculateDelay(int attemptNumber)
@@ -198,7 +206,7 @@ public sealed class RetryPolicy
         if (_useJitter)
         {
             // Add jitter: ±10% of the calculated delay
-            var jitterRange = delayMs * 0.1;
+            var jitterRange = delayMs * JitterFraction;
             delayMs += (_random.NextDouble() * jitterRange * 2) - jitterRange;
         }
 
@@ -223,26 +231,28 @@ public sealed class RetryPolicy
 /// </summary>
 public static class RetryPolicyBuilder
 {
+    private const double LinearBackoffMultiplier = 1.5;
+
     public static RetryPolicy CreateDefault() => new();
 
-    public static RetryPolicy CreateExponentialBackoff(int maxRetries = 3)
+    public static RetryPolicy CreateExponentialBackoff(int maxRetries = RetryPolicy.DefaultMaxRetries)
     {
         return new RetryPolicy()
             .WithMaxRetries(maxRetries)
-            .WithInitialDelay(TimeSpan.FromSeconds(1))
-            .WithBackoffMultiplier(2.0)
+            .WithInitialDelay(RetryPolicy.DefaultInitialDelay)
+            .WithBackoffMultiplier(RetryPolicy.DefaultBackoffMultiplier)
             .WithJitter(true);
     }
 
-    public static RetryPolicy CreateLinearBackoff(int maxRetries = 3)
+    public static RetryPolicy CreateLinearBackoff(int maxRetries = RetryPolicy.DefaultMaxRetries)
     {
         return new RetryPolicy()
             .WithMaxRetries(maxRetries)
-            .WithInitialDelay(TimeSpan.FromSeconds(1))
-            .WithBackoffMultiplier(1.5);
+            .WithInitialDelay(RetryPolicy.DefaultInitialDelay)
+            .WithBackoffMultiplier(LinearBackoffMultiplier);
     }
 
-    public static RetryPolicy CreateImmediate(int maxRetries = 3)
+    public static RetryPolicy CreateImmediate(int maxRetries = RetryPolicy.DefaultMaxRetries)
     {
         return new RetryPolicy()
             .WithMaxRetries(maxRetries)
