@@ -2954,3 +2954,86 @@ bus.CancelAllRequests("Application shutting down");
 int waiting = bus.GetPendingRequestCount();
 Dictionary<string, string> states = bus.AuditPendingRequests();
 ```
+
+## HandlerInvoker
+
+`src/DotnetEventBus/Services/HandlerInvoker.cs` contains the reflection-based invoker that the bus uses to call handlers. It defines the interface `IHandlerInvoker` and its sealed implementation `HandlerInvoker` (namespace `DotnetEventBus.Services`). `AddEventBus()` registers `HandlerInvoker` as a singleton for `IHandlerInvoker`, so most applications never construct it directly. Use it when you need to check or invoke a handler yourself, for example in tests or in custom dispatch code.
+
+Handler lookup is by convention. For an event, the invoker looks for a public, instance `Handle` method with two parameters: the first must be exactly the event's runtime type and the second must be `CancellationToken`. Its return type must be `Task`. For a request, the method must return `Task<TResponse>`. Lookup results are cached per handler type and event type, and the cache is guarded by a lock, so one instance can be shared across threads.
+
+Public API of `IHandlerInvoker` and `HandlerInvoker`:
+
+- `HandlerInvoker(ILogger<HandlerInvoker>? logger = null)` creates the invoker. When a logger is supplied, failures are logged at `Error` level before they are rethrown.
+- `Task InvokeAsync(IEventHandler handler, object @event, CancellationToken cancellationToken = default)` calls the matching `Handle` method and awaits it. It throws `ArgumentNullException` for a null `handler` or `@event`. It throws `InvalidOperationException` when the handler has no compatible `Handle` method. Exceptions thrown by the handler are rethrown unwrapped, so you see the original exception rather than `TargetInvocationException`.
+- `Task<object?> InvokeRequestAsync(object handler, object request, CancellationToken cancellationToken = default)` calls a `Handle` method that returns `Task<TResponse>` and returns the awaited result as `object?`. It throws `ArgumentNullException` for null arguments and `InvalidOperationException` when no compatible method exists. The method lookup matches the first parameter type and the return type only. The second parameter is passed `cancellationToken`, so a `Handle` method whose second parameter is not `CancellationToken` fails at invocation time.
+- `bool CanHandle(IEventHandler handler, Type eventType)` returns `true` when the handler can process `eventType`. For an `IPolymorphicHandler`, it delegates to the handler's own `CanHandle`. For any other handler, it looks for a `Handle` method whose first parameter is exactly `eventType`. Base and derived types are not matched: a handler for `BaseEvent` returns `false` for `typeof(DerivedEvent)`. It throws `ArgumentNullException` for null arguments.
+- `IEnumerable<Type> GetSupportedEventTypes(IEventHandler handler)` returns the event types the handler supports. For an `IPolymorphicHandler`, it returns the handler's `GetSupportedEventTypes()` result. For other handlers, it returns the `TEvent` of each `IEventHandler<TEvent>` interface the handler implements. Request and notification interfaces are not included. It throws `ArgumentNullException` for a null `handler`.
+
+Example usage (fire-and-forget event):
+
+```csharp
+using DotnetEventBus.Handlers;
+using DotnetEventBus.Services;
+
+public sealed record OrderPlacedEvent(string OrderId);
+
+public sealed class OrderPlacedHandler : EventHandlerBase<OrderPlacedEvent>
+{
+    public override Task Handle(OrderPlacedEvent @event, CancellationToken cancellationToken = default)
+    {
+        Console.WriteLine($"Order {@event.OrderId} placed");
+        return Task.CompletedTask;
+    }
+}
+
+public sealed class OrderNotifier(IHandlerInvoker invoker)
+{
+    public async Task NotifyAsync(CancellationToken cancellationToken)
+    {
+        IEventHandler handler = new OrderPlacedHandler();
+        var @event = new OrderPlacedEvent("ORD-1");
+
+        if (invoker.CanHandle(handler, @event.GetType()))
+        {
+            await invoker.InvokeAsync(handler, @event, cancellationToken);
+        }
+    }
+}
+```
+
+Example usage (request/response):
+
+```csharp
+using DotnetEventBus.Handlers;
+using DotnetEventBus.Services;
+
+public sealed record GetUserQuery(int Id);
+public sealed record UserDto(int Id, string Name);
+
+public sealed class GetUserHandler : RequestHandlerBase<GetUserQuery, UserDto>
+{
+    public override Task<UserDto> Handle(GetUserQuery request, CancellationToken cancellationToken = default) =>
+        Task.FromResult(new UserDto(request.Id, "Ada"));
+}
+
+public static class UserQueryDemo
+{
+    public static async Task RunAsync(IHandlerInvoker invoker)
+    {
+        object? result = await invoker.InvokeRequestAsync(new GetUserHandler(), new GetUserQuery(7));
+        var user = (UserDto?)result;
+
+        Console.WriteLine(user?.Name);
+    }
+}
+```
+
+Inspecting supported types:
+
+```csharp
+IHandlerInvoker invoker = new HandlerInvoker();
+IEventHandler handler = new OrderPlacedHandler();
+
+// Returns typeof(OrderPlacedEvent) for this handler.
+IEnumerable<Type> types = invoker.GetSupportedEventTypes(handler);
+```
