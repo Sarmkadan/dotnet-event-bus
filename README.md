@@ -1366,6 +1366,101 @@ string stateJson = System.Text.Json.JsonSerializer.Serialize(state, new System.T
 Console.WriteLine(stateJson);
 ```
 
+## HttpEventPublisher
+
+The `HttpEventPublisher` class POSTs an event as JSON to a remote HTTP endpoint. It retries transient failures with exponential backoff, applies a per-attempt timeout, and adds a correlation ID header to each request. It never throws for delivery failures; instead it returns an `HttpPublishResult`. Namespace: `DotnetEventBus.Integration`.
+
+### Constructor
+
+```csharp
+public HttpEventPublisher(
+    HttpClient httpClient,
+    ILogger<HttpEventPublisher> logger,
+    HttpEventPublisherOptions? options = null)
+```
+
+- **httpClient**: Client used for every request. Required; `null` throws `ArgumentNullException`.
+- **logger**: Required; `null` throws `ArgumentNullException`.
+- **options**: Retry, timeout, and correlation settings. When `null`, default options are used.
+
+### Public Members
+
+| Member | Description |
+|--------|-------------|
+| `PublishAsync(string url, object eventData, Dictionary<string, string>? customHeaders = null, string? contentType = null)` | Serializes `eventData` to JSON and POSTs it to `url`, with retries. Returns an `HttpPublishResult`. `url` and `eventData` must not be `null`; otherwise `ArgumentNullException` is thrown. |
+
+### HttpEventPublisherOptions
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `MaxRetries` | `3` | Maximum number of attempts in total, including the first one. Despite the name, the value is not a count of retries after the first attempt. Values of `0` or less make no request and return a failed result. |
+| `RetryDelayMs` | `1000` | Base delay in milliseconds. The delay before attempt `n + 1` is `RetryDelayMs * 2^(n-1)`, so the defaults wait 1 s, then 2 s. No delay follows the last attempt. |
+| `Timeout` | 30 seconds | Timeout applied to each attempt separately. |
+| `CorrelationIdHeaderName` | `"X-Correlation-Id"` | Header that receives a new GUID on each attempt. Set to `null` or an empty string to disable it. |
+
+### HttpPublishResult
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Success` | `bool` | `true` when the response has a 2xx status code. |
+| `StatusCode` | `int` | HTTP status code of the last response. `0` when no response was received (network error, timeout, or exhausted attempts without a response). |
+| `ErrorMessage` | `string?` | Response body for a non-success response, or the exception message for a transport failure. `null` on success. |
+
+`HttpPublishResult` also has a public constructor `(bool success, int statusCode, string? errorMessage)`, mainly for tests and custom wrappers.
+
+### Delivery Behavior
+
+- **Request**: `POST` with the JSON-serialized `eventData`. The default `Content-Type` is `application/json` (UTF-8). Pass `contentType` to override it.
+- **Custom headers**: Entries in `customHeaders` are added to the content headers of each request. Header names and values are validated by `HttpHeaders`; an invalid entry is treated as a failed attempt rather than thrown to the caller.
+- **Retries**: Retried on HTTP 5xx, HTTP 408, network errors, and per-attempt timeouts. Other non-2xx responses (for example 4xx, or 3xx) return immediately without retrying.
+- **Serialization errors**: A value that `System.Text.Json` cannot serialize is also caught and retried like any other exception. After the final attempt the call returns a failed result with `StatusCode = 0`.
+- **Cancellation**: `PublishAsync` has no `CancellationToken` parameter. Stop a publish only by its `Timeout`.
+- **Correlation ID**: The correlation header is added to `httpClient.DefaultRequestHeaders`, not to the individual request. Each attempt appends a value, so on a long-lived or shared `HttpClient` the header accumulates values across calls. Use a dedicated `HttpClient` for this publisher, or set `CorrelationIdHeaderName` to `null` if you do not need the header.
+- **Logging**: Successful publishes are logged at Information. Each failed attempt is logged at Warning, including the exception for transport failures.
+
+### Example Usage
+
+```csharp
+using DotnetEventBus.Integration;
+using Microsoft.Extensions.Logging;
+
+var options = new HttpEventPublisherOptions
+{
+    MaxRetries = 4,
+    RetryDelayMs = 500,
+    Timeout = TimeSpan.FromSeconds(10)
+};
+
+// Use a dedicated HttpClient so the correlation header does not accumulate
+// across unrelated publishers.
+var publisher = new HttpEventPublisher(
+    new HttpClient(),
+    loggerFactory.CreateLogger<HttpEventPublisher>(),
+    options);
+
+var headers = new Dictionary<string, string>
+{
+    ["Authorization"] = "Bearer <token>",
+    ["X-Source"] = "order-service"
+};
+
+var result = await publisher.PublishAsync(
+    "https://inventory.example.com/events/order-created",
+    new { OrderId = "ORD-2026-001", Amount = 299.99m },
+    customHeaders: headers);
+
+if (result.Success)
+{
+    Console.WriteLine($"Published, status {result.StatusCode}");
+}
+else
+{
+    Console.WriteLine($"Publish failed (status {result.StatusCode}): {result.ErrorMessage}");
+}
+```
+
+`PublishAsync` always JSON-serializes `eventData`, so `contentType` should only be changed when the receiver expects a different media type for a JSON body (for example `application/cloudevents+json`).
+
 ## WebhookHandler
 
 The `WebhookHandler` class manages webhook subscriptions and delivers events to external HTTP endpoints. It handles subscription bookkeeping (subscribe, unsubscribe, update, list), HMAC-SHA256 signature generation and verification, and JSON delivery with a configurable retry policy. Namespace: `DotnetEventBus.Integration`.
