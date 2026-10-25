@@ -22,6 +22,10 @@ namespace DotnetEventBus.Middleware;
 /// </summary>
 public sealed class RateLimitingMiddleware
 {
+    private const int DefaultRequestsPerWindow = 1000;
+    private const int MillisecondsPerSecond = 1000;
+    private static readonly TimeSpan DefaultTimeWindow = TimeSpan.FromSeconds(60);
+
     private readonly ILogger<RateLimitingMiddleware> _logger;
     private readonly Dictionary<string, RateLimitBucket> _buckets = [];
     private readonly int _requestsPerWindow;
@@ -30,12 +34,12 @@ public sealed class RateLimitingMiddleware
 
     public RateLimitingMiddleware(
         ILogger<RateLimitingMiddleware> logger,
-        int requestsPerWindow = 1000,
+        int requestsPerWindow = DefaultRequestsPerWindow,
         TimeSpan? timeWindow = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _requestsPerWindow = requestsPerWindow;
-        _timeWindow = timeWindow ?? TimeSpan.FromSeconds(60);
+        _timeWindow = timeWindow ?? DefaultTimeWindow;
         _logger.LogInformation("RateLimitingMiddleware initialized with {RequestsPerWindow} requests per {TimeWindow}", _requestsPerWindow, _timeWindow);
     }
 
@@ -113,7 +117,7 @@ public sealed class RateLimitingMiddleware
         public bool IsAllowed(int limit)
         {
             var now = Stopwatch.GetTimestamp();
-            var windowStart = now - (long)(_window.TotalMilliseconds * Stopwatch.Frequency / 1000);
+            var windowStart = now - (long)(_window.TotalMilliseconds * Stopwatch.Frequency / MillisecondsPerSecond);
 
             // Remove old timestamps outside the window
             while (_timestamps.TryPeek(out var timestamp) && timestamp < windowStart)
