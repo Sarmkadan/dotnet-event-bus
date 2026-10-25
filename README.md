@@ -2770,6 +2770,82 @@ Console.WriteLine(metrics);
 metrics.Reset();
 ```
 
+## HealthCheck
+
+`HealthCheck` (namespace `DotnetEventBus.Monitoring`) runs a set of named `IHealthCheckProbe` instances and combines their results into one report. Register each probe with a name, call `CheckHealthAsync()` to run them all, and read the returned `HealthCheckResult`. The probes run one after another, and the class is not an ASP.NET Core health check, so the result can be exposed through any endpoint or logging you choose.
+
+The overall status is `Healthy` only when every probe reports `Healthy`. Any other probe status (`Degraded` or `Unknown` included) makes the overall status `Unhealthy`, and a probe that throws is recorded as `Unhealthy` with the exception message. `CheckHealthAsync()` does not throw because of a probe failure. With no probes registered, the overall status is `Healthy`.
+
+Public API:
+
+- `void RegisterProbe(string name, IHealthCheckProbe probe)` adds a probe under `name`. Both arguments must be non-null (`ArgumentNullException` otherwise). Registering the same name again replaces the earlier probe.
+- `Task<HealthCheckResult> CheckHealthAsync()` runs every registered probe and returns the aggregate result. It also stores the overall status and check time for `GetLastStatus()` and `GetLastCheckTime()`.
+- `HealthStatus GetLastStatus()` returns the overall status of the most recent `CheckHealthAsync()` call, or `Unknown` if no check has run yet. It does not run probes.
+- `DateTime GetLastCheckTime()` returns the UTC time of the most recent check, or `DateTime.MinValue` if no check has run yet.
+- `ToString()` returns the last status, last check time, and number of registered probes.
+
+Types:
+
+- `IHealthCheckProbe` has one member, `Task<ProbeResult> CheckAsync()`. Implement it to measure a component.
+- `ProbeResult` contains `Status`, an optional `Message`, and a `Details` dictionary of additional values. `Status` defaults to `Healthy`, so set it explicitly.
+- `HealthCheckResult` contains `OverallStatus`, `CheckedAt` (UTC), and `Checks`, a dictionary of each `ProbeResult` keyed by probe name.
+- `HealthStatus` has the values `Healthy`, `Degraded`, `Unhealthy`, and `Unknown`. `GetLastStatus()` returns `Unknown` before the first check. `OverallStatus` is only ever `Healthy` or `Unhealthy`, although individual probes may report `Degraded`.
+
+`BuiltInProbes` (same namespace) provides two ready-made probes:
+
+- `BuiltInProbes.CreateMemoryProbe(long warningThresholdBytes = 1_073_741_824)` reports `Degraded` when `GC.GetTotalMemory(false)` is above the threshold. Its `Details` contain `memoryBytes` and `warningThresholdBytes`. The probe measures managed heap only, not the process's total working set.
+- `BuiltInProbes.CreateResponsivenessProbe()` waits 10 ms with `Task.Delay` and reports `Degraded` when that takes more than 100 ms. Its `Details` contain `latencyMs`. This probe measures timer and scheduler latency; it does not exercise the event bus itself, so write a custom probe if you need a bus-level check.
+
+Example usage:
+
+```csharp
+using DotnetEventBus.Monitoring;
+
+var health = new HealthCheck();
+
+health.RegisterProbe("memory", BuiltInProbes.CreateMemoryProbe(512L * 1024 * 1024));
+health.RegisterProbe("responsiveness", BuiltInProbes.CreateResponsivenessProbe());
+health.RegisterProbe("order-queue", new OrderQueueProbe(() => orderQueue.Count));
+
+HealthCheckResult result = await health.CheckHealthAsync();
+
+Console.WriteLine($"Overall: {result.OverallStatus} at {result.CheckedAt:O}");
+foreach (var (name, probe) in result.Checks)
+{
+    Console.WriteLine($"{name}: {probe.Status} - {probe.Message}");
+}
+
+Console.WriteLine(health.GetLastStatus());
+```
+
+A custom probe that reports a backlog size:
+
+```csharp
+using DotnetEventBus.Monitoring;
+
+public sealed class OrderQueueProbe : IHealthCheckProbe
+{
+    private readonly Func<int> _backlog;
+
+    public OrderQueueProbe(Func<int> backlog)
+    {
+        _backlog = backlog;
+    }
+
+    public Task<ProbeResult> CheckAsync()
+    {
+        int backlog = _backlog();
+
+        return Task.FromResult(new ProbeResult
+        {
+            Status = backlog > 1000 ? HealthStatus.Degraded : HealthStatus.Healthy,
+            Message = $"Backlog: {backlog}",
+            Details = new Dictionary<string, object> { ["backlog"] = backlog }
+        });
+    }
+}
+```
+
 ## CircuitBreaker
 
 `CircuitBreaker` (namespace `DotnetEventBus.Integration`) protects asynchronous calls to a dependency that is repeatedly failing. It begins in the `Closed` state and records every exception thrown by the wrapped operation. After the configured number of consecutive failures, it becomes `Open` and rejects calls until the timeout has elapsed. The next call after the timeout changes the state to `HalfOpen`: a successful call closes the circuit, while a failed call immediately reopens it. Any successful call resets the accumulated failure count.
