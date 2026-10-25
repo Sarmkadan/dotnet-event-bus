@@ -123,4 +123,18 @@ public class Circuit
     /// Gets a value indicating whether the circuit is closed.
     /// </summary>
     public bool IsClosed => _state == CircuitState.Closed;
+
+    /// <summary>
+    /// Returns a summary of the circuit's current state for debugging and logging.
+    /// </summary>
+    /// <returns>A string describing the state, failure count, timing settings and last failure time.</returns>
+    public override string ToString()
+    {
+        lock (_lock)
+        {
+            var lastFailure = _lastFailureTime == default ? "never" : _lastFailureTime.ToString("O");
+            return $"Circuit {{ State={_state}, Failures={_failureCount}/{_maxFailures}, " +
+                   $"Cooldown={_cooldownTime}, HalfOpenTimeout={_halfOpenTimeout}, LastFailure={lastFailure} }}";
+        }
+    }
 }
