@@ -149,4 +149,48 @@ public class TypeExtensionsTests
         // Act and Assert
         Assert.Throws<ArgumentNullException>(() => ((Type)null!).Implements<IComparable>());
     }
+
+    [Fact]
+    public void IsConstructedGenericOf_MatchingDefinition_ReturnsTrue()
+    {
+        // Arrange
+        var type = typeof(List<int>);
+
+        // Act
+        var result = type.IsConstructedGenericOf(typeof(List<>));
+
+        // Assert
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void IsConstructedGenericOf_DifferentDefinition_ReturnsFalse()
+    {
+        // Arrange
+        var type = typeof(List<int>);
+
+        // Act
+        var result = type.IsConstructedGenericOf(typeof(Dictionary<,>));
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void IsConstructedGenericOf_NonGenericType_ReturnsFalse()
+    {
+        // Act
+        var result = typeof(string).IsConstructedGenericOf(typeof(List<>));
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void IsConstructedGenericOf_NullInput_ThrowsArgumentNullException()
+    {
+        // Act and Assert
+        Assert.Throws<ArgumentNullException>(() => ((Type)null!).IsConstructedGenericOf(typeof(List<>)));
+        Assert.Throws<ArgumentNullException>(() => typeof(List<int>).IsConstructedGenericOf(null!));
+    }
 }

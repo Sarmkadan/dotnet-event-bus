@@ -138,6 +138,22 @@ public static class TypeExtensions
     }
 
     /// <summary>
+    /// Checks if a type is a constructed generic type of the given generic type definition.
+    /// Example: typeof(Task&lt;int&gt;).IsConstructedGenericOf(typeof(Task&lt;&gt;)) returns true.
+    /// </summary>
+    /// <param name="type">The type to check.</param>
+    /// <param name="genericTypeDefinition">The open generic type definition to compare against (e.g. typeof(List&lt;&gt;)).</param>
+    /// <returns>True if the type is constructed from genericTypeDefinition; otherwise false.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when either <paramref name="type"/> or <paramref name="genericTypeDefinition"/> is null.</exception>
+    public static bool IsConstructedGenericOf(this Type type, Type genericTypeDefinition)
+    {
+        ArgumentNullException.ThrowIfNull(type);
+        ArgumentNullException.ThrowIfNull(genericTypeDefinition);
+
+        return type.IsGenericType && type.GetGenericTypeDefinition() == genericTypeDefinition;
+    }
+
+    /// <summary>
     /// Gets all public properties of a type including inherited ones.
     /// </summary>
     /// <param name="type">The type to get properties for.</param>
