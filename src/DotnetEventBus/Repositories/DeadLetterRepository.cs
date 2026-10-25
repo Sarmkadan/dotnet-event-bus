@@ -120,11 +120,24 @@ public sealed class InMemoryDeadLetterRepository : InMemoryRepository<DeadLetter
         }
     }
 
+    /// <summary>
+    /// Gets all pending dead letter entries.
+    /// </summary>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>The entries whose status is <see cref="DeadLetterStatus.Pending"/>.</returns>
     public async Task<IEnumerable<DeadLetterEntry>> GetPendingAsync(CancellationToken cancellationToken = default)
     {
         return await GetByStatusAsync(DeadLetterStatus.Pending, cancellationToken);
     }
 
+    /// <summary>
+    /// Gets dead letter entries for a specific handler.
+    /// </summary>
+    /// <param name="handlerName">The name of the handler whose failed entries should be returned.</param>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>The entries whose failed handler name matches <paramref name="handlerName"/>.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="handlerName"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="handlerName"/> is empty.</exception>
     public async Task<IEnumerable<DeadLetterEntry>> GetByHandlerAsync(string handlerName, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(handlerName);
@@ -133,6 +146,14 @@ public sealed class InMemoryDeadLetterRepository : InMemoryRepository<DeadLetter
         return entries.Where(e => e.FailedHandlerName == handlerName).ToList();
     }
 
+    /// <summary>
+    /// Gets dead letter entries for a specific event type.
+    /// </summary>
+    /// <param name="eventType">The event type name to match against the entry's message.</param>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>The entries whose message event type matches <paramref name="eventType"/>.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="eventType"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="eventType"/> is empty.</exception>
     public async Task<IEnumerable<DeadLetterEntry>> GetByEventTypeAsync(string eventType, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(eventType);
@@ -141,12 +162,26 @@ public sealed class InMemoryDeadLetterRepository : InMemoryRepository<DeadLetter
         return entries.Where(e => e.Message.EventType == eventType).ToList();
     }
 
+    /// <summary>
+    /// Gets dead letter entries with a specific status.
+    /// </summary>
+    /// <param name="status">The status to filter by.</param>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>The entries whose status equals <paramref name="status"/>.</returns>
     public async Task<IEnumerable<DeadLetterEntry>> GetByStatusAsync(DeadLetterStatus status, CancellationToken cancellationToken = default)
     {
         var entries = await GetAllAsync(cancellationToken);
         return entries.Where(e => e.Status == status).ToList();
     }
 
+    /// <summary>
+    /// Gets dead letter entries created within a time range.
+    /// </summary>
+    /// <param name="startUtc">The inclusive start of the range, in UTC.</param>
+    /// <param name="endUtc">The inclusive end of the range, in UTC.</param>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>The entries whose creation time falls within the range.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="endUtc"/> is earlier than <paramref name="startUtc"/>.</exception>
     public async Task<IEnumerable<DeadLetterEntry>> GetByTimeRangeAsync(
         DateTime startUtc,
         DateTime endUtc,
@@ -161,12 +196,23 @@ public sealed class InMemoryDeadLetterRepository : InMemoryRepository<DeadLetter
             .ToList();
     }
 
+    /// <summary>
+    /// Gets the count of entries with a specific status.
+    /// </summary>
+    /// <param name="status">The status to count.</param>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>The number of entries whose status equals <paramref name="status"/>.</returns>
     public async Task<int> CountByStatusAsync(DeadLetterStatus status, CancellationToken cancellationToken = default)
     {
         var entries = await GetByStatusAsync(status, cancellationToken);
         return entries.Count();
     }
 
+    /// <summary>
+    /// Gets entry counts grouped by event type without loading full entry objects.
+    /// </summary>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>A dictionary mapping each event type to the number of entries with that type.</returns>
     public async Task<Dictionary<string, int>> GetCountsByEventTypeAsync(CancellationToken cancellationToken = default)
     {
         var entries = await GetAllAsync(cancellationToken);
@@ -175,6 +221,11 @@ public sealed class InMemoryDeadLetterRepository : InMemoryRepository<DeadLetter
             .ToDictionary(g => g.Key, g => g.Count());
     }
 
+    /// <summary>
+    /// Gets entry counts grouped by handler name without loading full entry objects.
+    /// </summary>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>A dictionary mapping each failed handler name to the number of entries for that handler.</returns>
     public async Task<Dictionary<string, int>> GetCountsByHandlerAsync(CancellationToken cancellationToken = default)
     {
         var entries = await GetAllAsync(cancellationToken);
@@ -183,6 +234,13 @@ public sealed class InMemoryDeadLetterRepository : InMemoryRepository<DeadLetter
             .ToDictionary(g => g.Key, g => g.Count());
     }
 
+    /// <summary>
+    /// Archives old dead letter entries.
+    /// </summary>
+    /// <param name="retentionPeriod">Entries created longer ago than this period are archived. Must be greater than zero.</param>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>The number of entries that were newly archived.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="retentionPeriod"/> is zero or negative.</exception>
     public async Task<int> ArchiveOldEntriesAsync(TimeSpan retentionPeriod, CancellationToken cancellationToken = default)
     {
         if (retentionPeriod <= TimeSpan.Zero)
