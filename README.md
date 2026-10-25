@@ -464,14 +464,141 @@ factory.EnsureValid();
 ```
 
 ## XmlEventFormatter
-The `XmlEventFormatter` class is used to format events as XML, supporting both serialization and deserialization. It provides methods to serialize objects to XML strings, deserialize XML strings to objects, and format events with or without metadata. Here's an example of how to use it:
+
+`XmlEventFormatter` (`src/DotnetEventBus/Formatters/XmlEventFormatter.cs`) implements `IEventFormatter` and converts events to and from XML for legacy and enterprise integrations. It is built on `System.Xml.Serialization.XmlSerializer`, so event types must follow the rules in [Event type requirements](#event-type-requirements).
+
+Format name `xml`, content type `application/xml`.
+
+### Constructor
+
 ```csharp
+public XmlEventFormatter(bool omitXmlDeclaration = false, Encoding? encoding = null)
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `omitXmlDeclaration` | `false` | When `true`, output has no `<?xml ... ?>` declaration line. Set it for consumers that reject the declaration. |
+| `encoding` | UTF-8 without byte-order mark | Encoding used to write the XML. The declaration names it, for example `encoding="utf-8"`. |
+
+### Public API
+
+| Member | Description |
+|--------|-------------|
+| `string Format` | Always `"xml"`. |
+| `string ContentType` | Always `"application/xml"`. |
+| `string Serialize(object data, bool prettyPrint = false)` | Returns `data` as an XML document whose root element is named after the runtime type of `data`. `prettyPrint` adds indentation. Throws `ArgumentNullException` if `data` is `null`, and `InvalidOperationException` if `XmlSerializer` cannot handle the type. |
+| `T? Deserialize<T>(string data) where T : class` | Returns the parsed object. Returns `null` if `data` is `null` or empty, and for any other failure. It does not throw. |
+| `object? Deserialize(string data, Type targetType)` | Non-generic version of the method above, with the same rules. A `null` `targetType` also returns `null` instead of throwing. |
+| `string FormatEvent(object eventData, bool includePrettyPrint = false)` | Same output as `Serialize`. |
+| `string FormatEventWithMetadata(object eventData, Dictionary<string, object> metadata, bool includePrettyPrint = false)` | Returns an `<Event>` envelope that holds the event and its metadata. See [Output rules](#output-rules). |
+
+Notes:
+
+- `Deserialize` returns `null` for every failure, including malformed XML and a root element that does not match `T`. It cannot tell you why the input failed, so check for `null` and handle it.
+- The root element must match the target type. `<Event>` envelopes from `FormatEventWithMetadata` are not read back as the event. Pull out the `<Data>` element first.
+- The formatter holds no mutable state after construction, so one instance can be shared across threads.
+
+### Event type requirements
+
+`XmlSerializer` needs the event type to be:
+
+- A public class or struct with a public parameterless constructor. Anonymous types and records with primary-constructor parameters throw `InvalidOperationException`.
+- Made of public read/write properties. Each one becomes a child element. Fields and non-public members are not written.
+
+Element names are the type and property names. No `xmlns` attributes are written. Values use invariant culture, so `299.99m` is always written as `299.99`.
+
+### Output rules
+
+- Each `Serialize` call returns one complete document with one root element.
+- With the default `prettyPrint: false`, the document is on one line with no whitespace between elements. With `prettyPrint: true`, elements are indented with two spaces.
+- Special characters are escaped, so `&` becomes `&amp;` and `<` becomes `&lt;`.
+- `FormatEventWithMetadata` writes this structure:
+  - `<Event timestamp="...">` contains the UTC time of formatting in ISO 8601 round-trip format (`"o"`).
+  - `<Data>` holds the event serialized with its XML declaration removed. The event is always written compactly, so `includePrettyPrint` only indents the envelope.
+  - `<Metadata>` has one child element per entry. The value is written with `ToString()`, and a `null` value becomes an empty element. An empty `<Metadata></Metadata>` is written when there are no entries.
+  - Each metadata key is sanitized into a valid element name. Any character outside `A-Z`, `a-z`, `0-9`, `_` and `-` becomes `_`, and a leading digit gets a `_` prefix. For example, `"Retry Count"` becomes `Retry_Count` and `"1st"` becomes `_1st`. Two keys that sanitize to the same name produce duplicate elements. An empty key throws `IndexOutOfRangeException`.
+- `FormatEventWithMetadata` throws `NullReferenceException` when `metadata` is `null`. Use `Serialize` if you want an `ArgumentNullException` check.
+- A UTF-16 `encoding` writes a byte-order mark, which appears as `﻿` at the start of the returned string.
+
+### Usage
+
+```csharp
+using System.Text;
+using DotnetEventBus.Formatters;
+
+// Parameterless constructor and public read/write properties
+public sealed class OrderPlaced
+{
+    public string OrderId { get; set; } = string.Empty;
+    public decimal Total { get; set; }
+    public string? CustomerName { get; set; }
+}
+
 var formatter = new XmlEventFormatter();
-var eventData = new { Id = 1, Name = "John" };
-var xml = formatter.Serialize(eventData, prettyPrint: true);
-var deserializedData = formatter.Deserialize<dynamic>(xml);
-var formattedEvent = formatter.FormatEvent(eventData);
-var formattedEventWithMetadata = formatter.FormatEventWithMetadata(eventData, new Dictionary<string, object> { { "timestamp", DateTime.UtcNow } });
+var order = new OrderPlaced { OrderId = "ORD-123", Total = 299.99m, CustomerName = "Alice & Bob" };
+
+string xml = formatter.Serialize(order, prettyPrint: true);
+```
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<OrderPlaced>
+  <OrderId>ORD-123</OrderId>
+  <Total>299.99</Total>
+  <CustomerName>Alice &amp; Bob</CustomerName>
+</OrderPlaced>
+```
+
+Deserialize the document back. Check for `null` to detect bad input:
+
+```csharp
+OrderPlaced? parsed = formatter.Deserialize<OrderPlaced>(xml);
+
+if (parsed is null)
+{
+    // Empty, malformed, or a different root element
+}
+
+// Non-generic version
+object? untyped = formatter.Deserialize(xml, typeof(OrderPlaced));
+```
+
+Omit the declaration for a consumer that rejects it:
+
+```csharp
+var legacy = new XmlEventFormatter(omitXmlDeclaration: true);
+string compact = legacy.Serialize(order);
+
+// <OrderPlaced><OrderId>ORD-123</OrderId><Total>299.99</Total><CustomerName>Alice &amp; Bob</CustomerName></OrderPlaced>
+```
+
+Wrap the event with metadata:
+
+```csharp
+var metadata = new Dictionary<string, object>
+{
+    ["Source"] = "checkout-api",
+    ["Retry Count"] = 2,          // element name becomes Retry_Count
+};
+
+string envelope = formatter.FormatEventWithMetadata(order, metadata, includePrettyPrint: true);
+```
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<Event timestamp="2026-10-25T12:00:00.1234567Z">
+  <Data><OrderPlaced><OrderId>ORD-123</OrderId><Total>299.99</Total><CustomerName>Alice &amp; Bob</CustomerName></OrderPlaced></Data>
+  <Metadata>
+    <Source>checkout-api</Source>
+    <Retry_Count>2</Retry_Count>
+  </Metadata>
+</Event>
+```
+
+Get the default XML formatter from the factory:
+
+```csharp
+var xmlFormatter = EventFormatterFactory.CreateDefault().GetFormatter("xml");
 ```
 
 ## JsonEventFormatter
