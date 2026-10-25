@@ -22,6 +22,11 @@ namespace DotnetEventBus.Workers;
 /// </summary>
 public sealed class DeadLetterProcessor : BackgroundService
 {
+    private const int DefaultBatchSize = 100;
+    private const int MaxRetryCount = 5;
+    private const int DelayBetweenItemsMs = 100;
+    private static readonly TimeSpan DefaultProcessingInterval = TimeSpan.FromMinutes(5);
+
     private readonly ILogger<DeadLetterProcessor> _logger;
     private readonly TimeSpan _processingInterval;
     private readonly int _batchSize;
@@ -30,10 +35,10 @@ public sealed class DeadLetterProcessor : BackgroundService
     public DeadLetterProcessor(
         ILogger<DeadLetterProcessor> logger,
         TimeSpan? processingInterval = null,
-        int batchSize = 100)
+        int batchSize = DefaultBatchSize)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _processingInterval = processingInterval ?? TimeSpan.FromMinutes(5);
+        _processingInterval = processingInterval ?? DefaultProcessingInterval;
         _batchSize = batchSize;
     }
 
@@ -104,7 +109,7 @@ public sealed class DeadLetterProcessor : BackgroundService
                 // Attempt reprocessing logic would go here
                 item.RetryCount++;
 
-                if (item.RetryCount >= 5)
+                if (item.RetryCount >= MaxRetryCount)
                 {
                     item.Status = DeadLetterStatus.Failed;
                     _logger.LogError(
@@ -116,7 +121,7 @@ public sealed class DeadLetterProcessor : BackgroundService
                     item.Status = DeadLetterStatus.Retry;
                     item.LastRetryAt = DateTime.UtcNow;
                     _logger.LogInformation(
-                        "Event {EventType} (Id: {Id}) marked for retry (attempt {Attempt}/5)",
+                        "Event {EventType} (Id: {Id}) marked for retry (attempt {Attempt}/" + MaxRetryCount + ")",
                         item.EventType, item.Id, item.RetryCount);
                 }
             }
@@ -125,7 +130,7 @@ public sealed class DeadLetterProcessor : BackgroundService
                 _logger.LogWarning(ex, "Failed to process dead letter item: {Id}", item.Id);
             }
 
-            await Task.Delay(100, stoppingToken); // Small delay between items
+            await Task.Delay(DelayBetweenItemsMs, stoppingToken); // Small delay between items
         }
     }
 
