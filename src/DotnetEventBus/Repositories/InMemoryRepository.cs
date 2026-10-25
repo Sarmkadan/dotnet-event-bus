@@ -21,6 +21,7 @@ public class InMemoryRepository<T> : IRepository<T> where T : class
     /// </summary>
     public async Task<T?> GetByIdAsync(string id, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(id);
         if (string.IsNullOrWhiteSpace(id))
             throw new ArgumentException("ID cannot be empty", nameof(id));
 
@@ -110,6 +111,7 @@ public class InMemoryRepository<T> : IRepository<T> where T : class
     /// </summary>
     public async Task<bool> DeleteAsync(string id, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(id);
         if (string.IsNullOrWhiteSpace(id))
             throw new ArgumentException("ID cannot be empty", nameof(id));
 
@@ -144,6 +146,7 @@ public class InMemoryRepository<T> : IRepository<T> where T : class
     /// </summary>
     public async Task<bool> ExistsAsync(string id, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(id);
         if (string.IsNullOrWhiteSpace(id))
             throw new ArgumentException("ID cannot be empty", nameof(id));
 
