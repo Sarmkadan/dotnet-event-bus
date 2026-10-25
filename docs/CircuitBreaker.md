@@ -1,39 +1,91 @@
 # CircuitBreaker
 
-The `CircuitBreaker` class provides a resilience pattern implementation designed to prevent cascading failures in distributed systems by temporarily halting execution when a threshold of errors is detected. It wraps asynchronous operations, monitoring their success or failure, and automatically transitions to an open state to fail fast when errors accumulate, thereby allowing downstream services time to recover before attempts are resumed.
+`CircuitBreaker` (namespace `DotnetEventBus.Integration`) is a resilience primitive that wraps asynchronous operations and stops calling a failing dependency for a while. After a configurable number of consecutive failures the circuit opens and calls fail fast with `CircuitBreakerOpenException`, without invoking the operation. After a timeout the breaker lets a probe call through to check whether the dependency has recovered.
 
-## API
+Source: `src/DotnetEventBus/Integration/CircuitBreaker.cs`. Related types: `CircuitBreakerState` (same file), `CircuitBreakerOpenException` (same file), `CircuitBreakerValidation` (`CircuitBreakerValidation.cs`), and the defaults in `EventBusConstants.CircuitBreaker`.
 
-### `public CircuitBreaker`
-Initializes a new instance of the `CircuitBreaker` class. This constructor sets up the internal state machine required to track failure counts and manage the transition between closed, open, and half-open states. No parameters are required for initialization.
+## Constructor
 
-### `public async Task<T> ExecuteAsync<T>`
-Executes a specified asynchronous function that returns a result of type `T` within the circuit breaker context.
-*   **Parameters**: Accepts a `Func<Task<T>>` representing the operation to execute.
-*   **Return Value**: Returns a `Task<T>` that completes with the result of the executed function if successful.
-*   **Exceptions**: Throws `CircuitBreakerOpenException` if the circuit is currently open. May also propagate exceptions thrown by the provided function if they trigger the failure threshold or occur while the circuit is closed.
+### `public CircuitBreaker(int failureThreshold = EventBusConstants.CircuitBreaker.DefaultFailureThreshold, TimeSpan? timeout = null)`
 
-### `public async Task ExecuteAsync`
-Executes a specified asynchronous action that does not return a result within the circuit breaker context.
-*   **Parameters**: Accepts a `Func<Task>` representing the operation to execute.
-*   **Return Value**: Returns a `Task` that completes when the operation finishes successfully.
-*   **Exceptions**: Throws `CircuitBreakerOpenException` if the circuit is currently open. May also propagate exceptions thrown by the provided action if they trigger the failure threshold or occur while the circuit is closed.
+| Parameter | Default | Meaning |
+|-----------|---------|---------|
+| `failureThreshold` | `5` (`DefaultFailureThreshold`) | Consecutive failures in the Closed state that open the circuit. Must be greater than zero. |
+| `timeout` | `60` seconds (`DefaultTimeoutSeconds`) | How long the circuit stays Open before the next call is allowed through as a probe. |
 
-### `public void Reset`
-Manually resets the circuit breaker to its closed state, clearing any accumulated failure counts and allowing requests to flow through immediately. This method is useful for administrative intervention when external conditions indicate that the protected service has recovered before the automatic timeout expires.
+Throws `ArgumentException` (parameter name `failureThreshold`) when `failureThreshold <= 0`. The `timeout` value is not validated.
 
-### `public CircuitBreakerOpenException(string message) : base(message)`
-Represents the specific exception thrown when an execution is attempted while the circuit breaker is in the open state.
-*   **Parameters**: Accepts a `string message` describing the error condition.
-*   **Inheritance**: Inherits from `Exception`, passing the provided message to the base constructor.
-*   **Usage**: This exception indicates that the call was rejected proactively by the pattern rather than failing due to an underlying infrastructure error.
+The breaker starts in `CircuitBreakerState.Closed`.
+
+## Public members
+
+| Member | Description |
+|--------|-------------|
+| `CircuitBreakerState State { get; }` | Current state, read under the internal lock. Reading it does not trigger the Open → HalfOpen transition; that happens on the next `ExecuteAsync` call. |
+| `Task<T> ExecuteAsync<T>(Func<Task<T>> operation)` | Runs `operation` through the breaker and returns its result. |
+| `Task ExecuteAsync(Func<Task> operation)` | Non-generic overload for operations without a result. |
+| `void Reset()` | Forces the state to `Closed` and clears the failure count. |
+
+Both `ExecuteAsync` overloads throw `ArgumentNullException` if `operation` is null. That check runs before any state check and does not count as a failure.
+
+There is no public property for the failure count or the timeout.
+
+## States
+
+`CircuitBreakerState` has three values:
+
+| State | Behaviour of `ExecuteAsync` |
+|-------|-----------------------------|
+| `Closed` | Normal operation. The operation is invoked. |
+| `Open` | Rejected immediately with `CircuitBreakerOpenException`. The operation is not invoked. |
+| `HalfOpen` | The operation is invoked as a probe to test recovery. |
+
+Failures and successes are recorded for every call that is invoked. Any exception thrown by the operation (including a synchronous throw, `OperationCanceledException`, and so on) counts as a failure. The original exception is rethrown unchanged.
+
+## Transitions
+
+```
+            failures >= failureThreshold
+   Closed ─────────────────────────────────► Open
+     ▲                                        │  │
+     │                                        │  │ call while
+     │ success while HalfOpen                 │  │ (now - lastFailure) < timeout:
+     │                                        │  │ throw CircuitBreakerOpenException
+     │                                        │  │
+     │        (now - lastFailure) >= timeout  │  │ failure while Open
+     │        on next ExecuteAsync            │  │ updates lastFailure
+     │                                        ▼  │ (restarts the timeout)
+     └──────────────────────────────────── HalfOpen
+                                              │
+                                              │ failure while HalfOpen
+                                              └──────────────► Open
+```
+
+Transitions in detail:
+
+1. **Closed → Open.** A failed call increments the failure count and stores the failure time (`DateTime.UtcNow`). When the count reaches `failureThreshold`, the state becomes `Open`.
+2. **Closed, successful call.** Resets the failure count to zero. The state stays `Closed`. Failures are therefore only counted when they are consecutive.
+3. **Open → HalfOpen.** Checked at the start of every `ExecuteAsync` call. If `UtcNow - lastFailureTime >= timeout`, the state becomes `HalfOpen` and the failure count is reset to zero. The call then proceeds as a probe. The transition is performed lazily, when a call arrives. There is no background timer.
+4. **HalfOpen → Closed.** A successful call while `HalfOpen` closes the circuit and resets the failure count.
+5. **HalfOpen → Open.** A failed call while `HalfOpen` reopens the circuit immediately, without waiting for `failureThreshold` failures. The failure time is updated, so the timeout starts again.
+6. **Any state → Closed via `Reset()`.** Manual override. The failure count is cleared. The stored failure time is not changed, but it is unused while `Closed`.
+
+Notes on the transitions:
+
+* **Open rejects synchronously.** A rejected call does not wait for the timeout. It throws straight away.
+* **In-flight calls can finish after a transition.** A call admitted while `Closed` may complete after the circuit has opened. If it succeeds, the failure count is reset, but the state stays `Open` because only `HalfOpen` is closed by a success. If it fails while `Open`, it updates the failure time and extends the open period.
+* **Several probes can run in HalfOpen.** The admission check only rejects calls when the state is `Open`, so while the state is `HalfOpen` every concurrent caller is admitted. The first successful probe closes the circuit. A failing probe reopens it. The breaker does not limit HalfOpen to a single probe request.
+* **`timeout` is measured with `DateTime.UtcNow`.** It is not injectable, so tests that need to control time have to use real waits or a small timeout.
 
 ## Usage
 
-### Example 1: Executing a Query with Return Value
-The following example demonstrates wrapping a database query in the circuit breaker. If the database is unavailable repeatedly, the circuit opens, and subsequent calls immediately throw `CircuitBreakerOpenException` without hitting the database.
+### Example 1: Wrapping a call that returns a value
+
+The caller catches `CircuitBreakerOpenException` and decides on a fallback. The breaker is typically created once and shared by all callers of the same dependency.
 
 ```csharp
+using DotnetEventBus.Integration;
+
 public class UserService
 {
     private readonly CircuitBreaker _circuitBreaker;
@@ -45,30 +97,38 @@ public class UserService
         _database = database;
     }
 
-    public async Task<User> GetUserAsync(int id)
+    public async Task<User?> GetUserAsync(int id)
     {
         try
         {
-            return await _circuitBreaker.ExecuteAsync(async () =>
-            {
-                // Simulated async database call
-                return await _database.FetchUserByIdAsync(id);
-            });
+            return await _circuitBreaker.ExecuteAsync(() => _database.FetchUserByIdAsync(id));
         }
-        catch (CircuitBreakerOpenException ex)
+        catch (CircuitBreakerOpenException)
         {
-            // Handle fail-fast scenario, perhaps returning cached data
-            Console.WriteLine($"Circuit is open: {ex.Message}");
-            throw; 
+            // Fail fast: the database is considered unavailable. Serve cached data or rethrow.
+            return null;
         }
     }
 }
 ```
 
-### Example 2: Executing a Fire-and-Forget Command
-This example illustrates using the non-generic overload for operations that do not return data, such as sending a notification or logging an audit event.
+The breaker is created with explicit settings, for example in the composition root:
 
 ```csharp
+var userBreaker = new CircuitBreaker(
+    failureThreshold: 3,
+    timeout: TimeSpan.FromSeconds(30));
+
+services.AddSingleton(userBreaker);
+```
+
+### Example 2: Wrapping a call with no return value
+
+Use the non-generic overload for commands such as publishing a notification.
+
+```csharp
+using DotnetEventBus.Integration;
+
 public class NotificationService
 {
     private readonly CircuitBreaker _circuitBreaker;
@@ -84,29 +144,39 @@ public class NotificationService
     {
         try
         {
-            await _circuitBreaker.ExecuteAsync(async () =>
-            {
-                await _queue.PublishAsync("alerts", message);
-            });
+            await _circuitBreaker.ExecuteAsync(() => _queue.PublishAsync("alerts", message));
         }
         catch (CircuitBreakerOpenException)
         {
-            // Fallback logic: store locally or drop based on policy
-            Console.WriteLine("Alert queue circuit is open; message dropped.");
+            // Fallback policy: store locally or drop. Here the alert is dropped.
         }
     }
-    
+
     public void ForceRecovery()
     {
-        // Manually reset the circuit if the message queue is confirmed healthy
+        // Only call this after an out-of-band health check confirms the queue is healthy.
         _circuitBreaker.Reset();
     }
 }
 ```
 
+### Example 3: Observing the state
+
+`State` is useful for diagnostics and health endpoints. Do not use it to decide whether to call the operation. Checking the state and then calling `ExecuteAsync` is not atomic, and `ExecuteAsync` already applies the correct rules.
+
+```csharp
+var status = new
+{
+    Dependency = "user-db",
+    Circuit = userBreaker.State.ToString(), // Closed, Open or HalfOpen
+};
+```
+
 ## Notes
 
-*   **Thread Safety**: The `CircuitBreaker` instance is designed to be thread-safe. Multiple concurrent calls to `ExecuteAsync` from different threads will correctly share the same internal state regarding failure counts and circuit status.
-*   **Exception Propagation**: When the circuit is closed, exceptions thrown by the delegated function are propagated to the caller. Depending on the internal configuration (not exposed in this signature), these exceptions may increment the failure counter. When the circuit is open, the delegated function is never invoked, and `CircuitBreakerOpenException` is thrown immediately.
-*   **Manual Reset Risks**: Calling `Reset()` forces the circuit to the closed state regardless of the current failure history. If the underlying service has not actually recovered, this may lead to an immediate spike in failures as new requests flood the unstable resource. It should be used only when external health checks confirm service availability.
-*   **Asynchronous Context**: Both `ExecuteAsync` overloads fully support asynchronous continuations. The state transitions occur upon the completion (success or fault) of the returned `Task`, not when the task is started.
+* **Thread safety.** State is guarded by a private lock. Concurrent `ExecuteAsync` calls and `Reset()` calls are safe. The operation itself runs outside the lock, so calls run in parallel.
+* **Exceptions.** Exceptions from the operation propagate to the caller unchanged. Every exception counts toward the threshold, so validation or cancellation errors can open the circuit. Wrap only calls to the dependency, not the whole handler, or filter the exception type before it reaches the breaker.
+* **Cancellation.** `ExecuteAsync` does not take a `CancellationToken`. Pass a token to the operation itself. A cancelled operation counts as a failure.
+* **Manual `Reset()`.** It sets the state to `Closed` regardless of history. If the dependency is still failing, the next failures will open the circuit again only after `failureThreshold` consecutive failures. Use `Reset()` only when an external health check shows the dependency is available.
+* **Validation.** `CircuitBreakerValidation.Validate()` and `IsValid()` currently report no problems for any instance. They check only that the instance is not null.
+* **One breaker per dependency.** Sharing one instance across unrelated dependencies means one failing dependency can open the circuit for all of them.
